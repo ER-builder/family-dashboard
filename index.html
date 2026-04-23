@@ -638,27 +638,7 @@
     .todos {
       flex: 1;
       min-height: 0;
-      background:
-        repeating-linear-gradient(
-          to bottom,
-          transparent 0,
-          transparent 41px,
-          var(--rule) 41px,
-          var(--rule) 42px
-        ),
-        var(--paper-2);
-      background-position: 0 70px;
-    }
-    .todos::before {
-      /* faint margin line, like ruled paper */
-      content: "";
-      position: absolute;
-      top: 18px;
-      bottom: 18px;
-      left: 64px;
-      width: 1px;
-      background: rgba(200, 85, 61, 0.18);
-      pointer-events: none;
+      background: var(--paper-2);
     }
     .todos .body { gap: 14px; position: relative; }
 
@@ -723,9 +703,10 @@
       padding: 8px 6px;
       transition: opacity 250ms ease, background 140ms ease;
       min-height: 42px;
-      border-radius: 8px;
+      border-bottom: 1px solid var(--rule);
     }
-    .todo:hover { background: rgba(243, 231, 207, 0.025); }
+    .todo:last-child { border-bottom: 0; }
+    .todo:hover { background: rgba(243, 231, 207, 0.025); border-radius: 6px; }
     .todo.done { opacity: 0.42; }
     .todo input[type="checkbox"] {
       appearance: none;
