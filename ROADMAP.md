@@ -44,10 +44,10 @@ A backlog of ideas for the Portal ("Terry") dashboard. Pick & build whenever.
 
 ## 📊 Useful Glanceable Info
 
-7. **☀️ Hourly Weather** — *"Will it rain at 3pm?"* with a visual timeline bar.
-8. **🗑️ Bin Day Reminder** — Color/alert changes the night before collection (big UK win).
-9. **🛒 Shared Shopping List** — Google Sheet backend, anyone adds from their phone.
-10. **📰 News Headlines** — BBC RSS, scrolling ticker at the bottom.
+7. ~~**☀️ Hourly Weather**~~ **Done.** Strip under the weather card shows next ~18h (6 × 3-hourly forecast points). Rain hours (codes 09/10/11) coloured cobalt. Same OpenWeather key, free `/forecast` endpoint.
+8. **🗑️ Bin Day Reminder** — Color/alert changes the night before collection (big UK win). *Needs: which bin day(s) + which bins (recycling/general/garden).*
+9. **🛒 Shared Shopping List** — Google Sheet backend, anyone adds from their phone. *Needs: new Apps Script endpoint or extra tab in existing "Family Dashboard" sheet.*
+10. **📰 News Headlines** — BBC RSS, scrolling ticker at the bottom. *Needs: CORS proxy (could extend the Vercel proxy).*
 11. **💷 Budget Tracker** — Monthly family spending from a Google Sheet (or Rifman Family Budget Firestore).
 
 ## 📅 Calendar — Multi-Source Merge
@@ -68,18 +68,18 @@ A backlog of ideas for the Portal ("Terry") dashboard. Pick & build whenever.
 - ~~**Hebrew font in calendar events looks bad.**~~ **Done.** Added Heebo (wght 300–700) to Google Fonts; inserted before Frank Ruhl Libre in `--serif` and `--sans` stacks. Fraunces doesn't cover Hebrew so Hebrew chars fall through to Heebo automatically.
 - ~~**"The Rifman Almanac · Kitchen Edition" brand line is too small and unnecessary.**~~ **Done.** Removed. Greeting is now slightly larger (clamp 30–44px).
 
-## ✨ UX Polish (queued)
+## ✨ UX Polish
 
-- **Celebration animation when a kid completes their morning routine.** Trigger when all items in the kid's morning column are checked: confetti burst (or stars/balloons), short "🎉 You did it!" message overlay, and the kid's name pulses in their accent color. Fires once per day per kid (track in localStorage so it doesn't re-trigger after a refresh). Skip evening for now — could later trigger on a milestone like PJ if we want.
-- **To-Dos fade out 15s after being checked.** When a to-do is ticked, leave it visible for 15 seconds (so you can un-tick if it was a misclick), then animate fade + slide out and delete from the Sheet. Replaces current "sink to bottom forever" behavior. Cleans the list automatically — list never bloats. Cancel the timer if user un-ticks within the 15s window.
+- ~~**Celebration animation when a kid completes their morning routine.**~~ **Done.** Toast "🎉 You did it!" + kid's name in their accent colour, 44 confetti emoji falling, kid's name pulses for 1.3s. Once-per-day per kid via `localStorage` key `celebrated:YYYY-MM-DD:{kid}`. Morning only.
+- ~~**To-Dos fade out 15s after being checked.**~~ **Done.** Tick → 15s grace → CSS `.fading` (opacity + slide-right 350ms) → API delete. Un-tick within window cancels timer. Items already-done from a phone (caught on the 60s poll) get the same 15s grace.
 
 ## 🎮 Fun / Vibe
 
-12. **🎵 Spotify "Now Playing"** — What's playing on the home speaker (free Spotify API).
-13. **🌍 World Clock** — *"Tel Aviv 11:45pm 🇮🇱 | London 9:45pm 🇬🇧"* for family abroad.
-14. **📸 Photo Slideshow Background** — Rotate family photos behind the dashboard cards.
-15. **🐾 Chore Wheel** — Random daily chore assignments per family member, resets each morning.
-16. **💡 Daily Quote / Mantra** — Rotating inspirational lines.
+12. **🎵 Spotify "Now Playing"** — What's playing on the home speaker (free Spotify API). *Needs: OAuth flow.*
+13. ~~**🌍 World Clock**~~ **Done.** Tel Aviv time line under the masthead date (🇮🇱 + city + time, mono). Add more cities by extending the `tick()` worldclock block.
+14. **📸 Photo Slideshow Background** — Rotate family photos behind the dashboard cards. *Needs: photo source (Drive folder? Google Photos OAuth?).*
+15. **🐾 Chore Wheel** — Random daily chore assignments per family member, resets each morning. *Needs: chore list.*
+16. ~~**💡 Daily Quote / Mantra**~~ **Done.** 36 rotating quotes, picked by day-of-year, fixed at bottom-center of screen in subtle italic. Edit the `QUOTES` array in `index.html` to add more.
 
 ---
 
