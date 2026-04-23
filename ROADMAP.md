@@ -38,6 +38,13 @@ A backlog of ideas for the Portal ("Terry") dashboard. Pick & build whenever.
 10. **📰 News Headlines** — BBC RSS, scrolling ticker at the bottom.
 11. **💷 Budget Tracker** — Monthly family spending from a Google Sheet (or Rifman Family Budget Firestore).
 
+## 🚪 Exit-to-Portal
+
+- **"Back to Portal" button to exit kiosk mode for video calls.** Add a small unobtrusive button (corner of screen?) that drops out of the kiosk WebView app back to Terry's native launcher so the family can use Portal's video-call/photo-frame features. Two paths to investigate:
+  1. **Built-in Portal escape:** check whether Portal has a native gesture (long-press home button? swipe from edge? specific button combo?) that already exits a foregrounded app. If yes, no app changes needed — just document it for the family.
+  2. **Custom in-app button:** if no native escape exists, add a button in the dashboard HTML that fires a custom URL scheme (e.g. `kiosk://exit`) the kiosk app intercepts via WebViewClient, then `finishAndRemoveTask()` to return to launcher. Or add a long-press gesture on a corner so kids can't trigger it accidentally.
+- Caveat: the kiosk app's `BootReceiver` will re-launch on next boot, so this is "exit for now," not "uninstall."
+
 ## ✨ UX Polish (queued)
 
 - **Celebration animation when a kid completes their morning routine.** Trigger when all items in the kid's morning column are checked: confetti burst (or stars/balloons), short "🎉 You did it!" message overlay, and the kid's name pulses in their accent color. Fires once per day per kid (track in localStorage so it doesn't re-trigger after a refresh). Skip evening for now — could later trigger on a milestone like PJ if we want.
