@@ -818,6 +818,9 @@
 </head>
 <body>
   <span id="dbg" style="position:fixed;bottom:5px;left:8px;font-family:monospace;font-size:9px;color:rgba(243,231,207,0.22);pointer-events:none;z-index:9999;letter-spacing:0.05em"></span>
+  <!-- 2-second long-press in bottom-right corner → fires kiosk://exit URL,
+       intercepted by MainActivity's shouldOverrideUrlLoading → finishAndRemoveTask() -->
+  <button id="exit-corner" aria-label="Exit kiosk" style="position:fixed;bottom:0;right:0;width:72px;height:72px;background:transparent;border:none;cursor:pointer;z-index:9999;-webkit-tap-highlight-color:transparent;touch-action:none"></button>
 
   <div class="app">
     <header class="masthead">
@@ -1314,6 +1317,29 @@
     }
     loadCalendar();
     setInterval(loadCalendar, 5 * 60 * 1000); // every 5 min
+
+    // ---------- Exit-to-Portal long-press (bottom-right corner, 2 s) ----------
+    // Kotlin side: shouldOverrideUrlLoading intercepts "kiosk://exit" → finishAndRemoveTask()
+    (function() {
+      const btn = document.getElementById("exit-corner");
+      if (!btn) return;
+      let timer;
+      function arm(e) {
+        if (e.cancelable) e.preventDefault();
+        clearTimeout(timer);
+        timer = setTimeout(function() {
+          window.location.href = "kiosk://exit";
+        }, 2000);
+      }
+      function disarm() { clearTimeout(timer); }
+      btn.addEventListener("touchstart",  arm,    { passive: false });
+      btn.addEventListener("touchend",    disarm, { passive: true });
+      btn.addEventListener("touchcancel", disarm, { passive: true });
+      // Mouse fallback for desktop testing
+      btn.addEventListener("mousedown",  arm);
+      btn.addEventListener("mouseup",    disarm);
+      btn.addEventListener("mouseleave", disarm);
+    })();
   </script>
 </body>
 </html>
