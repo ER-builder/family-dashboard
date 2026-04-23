@@ -6,18 +6,30 @@ A backlog of ideas for the Portal ("Terry") dashboard. Pick & build whenever.
 
 ## 🐞 Open Bugs
 
-- **Morning + Evening routine cards both show outside their windows on Portal.** CSS `[hidden] { display: none !important }` rule was added — and a screenshot at 22:58 BST then showed *neither* card visible (which is the correct state for that hour). **Likely fixed, but not yet confirmed across the full day cycle.** Verify tomorrow: at 06:00–08:59 only Morning should appear; at 15:30–20:29 only Evening; outside both, neither. If it holds, close this item. If still broken, fall back to the prior debug plan: add an on-screen `<span id="dbg">` that prints the computed `mins` value live, or wrap visibility in try/catch defaulting to BOTH HIDDEN on any error.
+- **Morning + Evening routine visibility (deployed fix — verify on Terry).** 22:58 BST screenshot showed neither card visible ✓ (correct). New fix: uses `setAttribute("hidden","")` + `style.display="none"` together so old WebViews can't ignore either. Try/catch defaults to both hidden on any error. A `<span id="dbg">` in the bottom-left corner now shows `mins=NNN` live — glance at it on Terry to confirm `nowMinutesLondon()` is reading the right value. If mins look wrong, the WebView may not support `timeZone` in `toLocaleTimeString` — next step: derive London offset from UTC manually. **Verify over the full day cycle (morning window 06–09, evening 15:30–20:30).**
 
-## 🔧 Pending Infra
+## 🔧 Pending Infra (needs Mac Terminal.app + Terry connected via USB)
 
-0. **Rebuild + reinstall kiosk APK with `LOAD_NO_CACHE`.** Source already updated in `~/Projects/apps/kiosk-webview/app/src/main/java/xyz/erapps/kiosk/MainActivity.kt`. Run from Terminal:
+0. **Rebuild + reinstall kiosk APK.** Two source changes are already made:
+   - `LOAD_NO_CACHE` cache mode (no more stale dashboard) — already in MainActivity.kt
+   - `shouldOverrideUrlLoading` for `kiosk://exit` URL — **still needs adding** to MainActivity.kt's WebViewClient:
+     ```kotlin
+     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+         if (request.url.scheme == "kiosk" && request.url.host == "exit") {
+             finishAndRemoveTask()
+             return true
+         }
+         return super.shouldOverrideUrlLoading(view, request)
+     }
+     ```
+   Then build + install from Terminal.app:
    ```
    /Users/elul/Projects/apps/kiosk-webview/build.sh && \
    adb install -r /Users/elul/Projects/apps/kiosk-webview/app/build/outputs/apk/debug/app-debug.apk && \
    adb shell am force-stop xyz.erapps.kiosk && \
    adb shell am start -n xyz.erapps.kiosk/.MainActivity
    ```
-   After this, every dashboard push propagates within the 5-min meta-refresh — no more `pm clear` needed.
+   After this: every dashboard push propagates on the 5-min meta-refresh (no `pm clear`), and long-pressing the bottom-right corner for 2s exits the kiosk.
 
 ---
 
@@ -46,16 +58,15 @@ A backlog of ideas for the Portal ("Terry") dashboard. Pick & build whenever.
 
 ## 🚪 Exit-to-Portal
 
-- **"Back to Portal" button to exit kiosk mode for video calls.** Add a small unobtrusive button (corner of screen?) that drops out of the kiosk WebView app back to Terry's native launcher so the family can use Portal's video-call/photo-frame features. Two paths to investigate:
-  1. **Built-in Portal escape:** check whether Portal has a native gesture (long-press home button? swipe from edge? specific button combo?) that already exits a foregrounded app. If yes, no app changes needed — just document it for the family.
-  2. **Custom in-app button:** if no native escape exists, add a button in the dashboard HTML that fires a custom URL scheme (e.g. `kiosk://exit`) the kiosk app intercepts via WebViewClient, then `finishAndRemoveTask()` to return to launcher. Or add a long-press gesture on a corner so kids can't trigger it accidentally.
-- Caveat: the kiosk app's `BootReceiver` will re-launch on next boot, so this is "exit for now," not "uninstall."
+- **HTML side: done.** Bottom-right corner has a transparent 72×72px button. Long-pressing it for 2 seconds fires `window.location.href = "kiosk://exit"`.
+- **Kotlin side: pending** (part of APK rebuild above). Once `shouldOverrideUrlLoading` intercepts `kiosk://exit` and calls `finishAndRemoveTask()`, the gesture will return to Portal's launcher.
+- Caveat: `BootReceiver` re-launches the kiosk on next boot — this is "exit for now," not permanent.
 
-## 🎨 Design Refinement (queued from "The Rifman Almanac" v1)
+## 🎨 Design Refinement
 
-- **To-Do notebook lines don't align with task rows.** The repeating-linear-gradient ruled lines are positioned independently of the actual `<li>` items, so each task sits between/across lines rather than on them. Fix: derive the line spacing from the task row height (or render the rules as `border-bottom` on each `<li>` instead of a background pattern). Same goes for the terracotta margin line — it's static, doesn't relate to content.
-- **Hebrew font in calendar events looks bad.** Frank Ruhl Libre fallback is loading but the Hebrew characters (e.g. "לירון באימון") are rendering in a thin/awkward weight. Investigate: confirm Frank Ruhl Libre is actually being applied (it might be falling through to a system font); try a different Hebrew serif (Heebo? Assistant? David Libre?); or accept system Hebrew and only use Fraunces for Latin via `unicode-range`.
-- **"The Rifman Almanac · Kitchen Edition" brand line is too small and unnecessary.** Drop it entirely. The greeting + date + clock already establish the masthead. Reclaim the vertical space for a slightly larger greeting or just cleaner whitespace.
+- ~~**To-Do notebook lines don't align with task rows.**~~ **Done.** Replaced repeating-gradient with `border-bottom` on each `<li>`. Removed static terracotta margin line.
+- ~~**Hebrew font in calendar events looks bad.**~~ **Done.** Added Heebo (wght 300–700) to Google Fonts; inserted before Frank Ruhl Libre in `--serif` and `--sans` stacks. Fraunces doesn't cover Hebrew so Hebrew chars fall through to Heebo automatically.
+- ~~**"The Rifman Almanac · Kitchen Edition" brand line is too small and unnecessary.**~~ **Done.** Removed. Greeting is now slightly larger (clamp 30–44px).
 
 ## ✨ UX Polish (queued)
 
