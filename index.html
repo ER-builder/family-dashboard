@@ -352,7 +352,7 @@
         </div>
       </section>
 
-      <section class="card morning">
+      <section class="card morning" id="morning-card" hidden>
         <h2>Morning Routine</h2>
         <div class="body">
           <div class="cols">
@@ -553,9 +553,16 @@
         document.getElementById(`prog-${kid}`).textContent = `${checked.size}/${items.length}`;
       });
     }
+    function updateMorningVisibility() {
+      const hour = parseInt(new Intl.DateTimeFormat("en-GB", {
+        timeZone: TZ, hour: "2-digit", hour12: false
+      }).format(new Date()), 10);
+      const show = hour >= 6 && hour < 9; // 06:00–08:59 Europe/London
+      document.getElementById("morning-card").hidden = !show;
+    }
     renderMorning();
-    // Re-render at midnight (rough — Portal will refresh anyway every 30 min)
-    setInterval(renderMorning, 5 * 60 * 1000);
+    updateMorningVisibility();
+    setInterval(() => { renderMorning(); updateMorningVisibility(); }, 60 * 1000);
 
     loadWeather();
     setInterval(loadWeather, 15 * 60 * 1000); // every 15 min
