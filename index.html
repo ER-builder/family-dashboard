@@ -162,82 +162,128 @@
       gap: 14px;
       min-height: 0;
     }
-    .routine { max-height: 42vh; }
-    .routine .body { gap: 8px; min-height: 0; }
+    .routine { max-height: 50vh; }
+    .routine .body { gap: 10px; min-height: 0; }
     .routine .cols {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      gap: 14px;
       overflow-y: auto;
       min-height: 0;
     }
     .routine .cols::-webkit-scrollbar { width: 6px; }
     .routine .cols::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+
+    .routine .kid {
+      --kid: var(--accent);
+      --kid-soft: rgba(139, 92, 246, 0.18);
+      padding: 10px;
+      border-radius: 14px;
+      background: var(--kid-soft);
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    .routine .kid[data-kid^="eitan"] {
+      --kid: #38bdf8;
+      --kid-soft: rgba(56, 189, 248, 0.12);
+    }
+    .routine .kid[data-kid^="tamar"] {
+      --kid: #f472b6;
+      --kid-soft: rgba(244, 114, 182, 0.12);
+    }
     .routine .kid h3 {
-      margin: 0 0 8px;
-      font-size: 14px;
+      margin: 0 0 10px;
+      font-size: 18px;
       font-weight: 700;
       color: var(--fg);
       display: flex;
       align-items: center;
-      gap: 6px;
+      gap: 8px;
     }
     .routine .kid h3 .badge {
-      font-size: 10px;
-      padding: 2px 7px;
-      border-radius: 6px;
-      background: rgba(139, 92, 246, 0.25);
-      color: #c4b5fd;
-      font-weight: 600;
-      letter-spacing: 0.05em;
-    }
-    .evening .kid h3 .badge {
-      background: rgba(56, 189, 248, 0.20);
-      color: #7dd3fc;
+      font-size: 18px;
+      line-height: 1;
     }
     .routine .kid h3 .progress {
       margin-left: auto;
-      font-size: 11px;
+      font-size: 13px;
       color: var(--fg-dim);
       font-variant-numeric: tabular-nums;
-      font-weight: 500;
+      font-weight: 600;
+    }
+    .routine .progress-bar {
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.08);
+      overflow: hidden;
+      margin: -4px 0 10px;
+    }
+    .routine .progress-bar > span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: var(--kid);
+      border-radius: 999px;
+      transition: width 300ms ease;
     }
     .routine ul { list-style: none; margin: 0; padding: 0; }
     .routine li {
       display: flex;
       align-items: center;
-      gap: 8px;
-      padding: 5px 4px;
-      font-size: 13px;
+      gap: 12px;
+      padding: 11px 8px;
+      font-size: 17px;
       cursor: pointer;
       user-select: none;
-      border-radius: 6px;
+      border-radius: 10px;
+      min-height: 44px;
+      transition: background 120ms ease, transform 120ms ease;
     }
-    .routine li:hover { background: rgba(255,255,255,0.04); }
+    .routine li:hover { background: rgba(255,255,255,0.05); }
+    .routine li:active { transform: scale(0.97); }
+    .routine li .icon {
+      font-size: 22px;
+      line-height: 1;
+      width: 28px;
+      text-align: center;
+      flex-shrink: 0;
+    }
     .routine li input[type="checkbox"] {
       appearance: none;
-      width: 16px;
-      height: 16px;
-      border: 2px solid var(--fg-dim);
-      border-radius: 4px;
+      width: 30px;
+      height: 30px;
+      border: 2.5px solid rgba(255,255,255,0.35);
+      border-radius: 9px;
       display: grid;
       place-items: center;
       flex-shrink: 0;
       cursor: pointer;
       background: transparent;
+      transition: transform 120ms ease;
     }
     .routine li input[type="checkbox"]:checked {
-      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      background: var(--kid);
       border-color: transparent;
+      transform: scale(1.05);
     }
     .routine li input[type="checkbox"]:checked::after {
       content: "✓";
       color: white;
-      font-size: 11px;
-      font-weight: 700;
+      font-size: 18px;
+      font-weight: 800;
     }
     .routine li.done { color: var(--fg-dim); text-decoration: line-through; }
-    .routine li.optional { font-style: italic; color: var(--fg-dim); }
+    .routine li.done .icon { filter: grayscale(0.5); opacity: 0.6; }
+    .routine li.optional { font-style: italic; }
+    .routine li.optional .label::after {
+      content: " (optional)";
+      font-size: 12px;
+      color: var(--fg-dim);
+      font-style: normal;
+      margin-left: 4px;
+    }
+    .routine li.optional .label {
+      font-style: normal;
+    }
 
     /* Weather */
     .weather .row {
@@ -266,10 +312,11 @@
       background: var(--glass-strong);
       border: 1px solid var(--border);
       color: var(--fg);
-      padding: 10px 12px;
-      border-radius: 10px;
-      font-size: 15px;
+      padding: 14px 14px;
+      border-radius: 12px;
+      font-size: 17px;
       outline: none;
+      min-height: 48px;
     }
     .todo-form input::placeholder { color: var(--fg-dim); }
     .todo-form input:focus { border-color: var(--accent); }
@@ -277,11 +324,13 @@
       background: linear-gradient(135deg, var(--accent), var(--accent-2));
       color: white;
       border: 0;
-      border-radius: 10px;
-      padding: 0 16px;
-      font-weight: 600;
+      border-radius: 12px;
+      padding: 0 22px;
+      font-weight: 700;
       cursor: pointer;
-      font-size: 15px;
+      font-size: 17px;
+      min-height: 48px;
+      min-width: 76px;
     }
     .todo-list {
       list-style: none;
@@ -397,15 +446,17 @@
       </section>
 
       <section class="card routine morning" id="morning-card" hidden>
-        <h2>Morning Routine</h2>
+        <h2>☀️ Morning Routine</h2>
         <div class="body">
           <div class="cols">
             <div class="kid" data-kid="eitan-morning">
-              <h3>Eitan <span class="badge">AM</span><span class="progress" id="prog-eitan-morning"></span></h3>
+              <h3><span class="badge">☀️</span>Eitan<span class="progress" id="prog-eitan-morning"></span></h3>
+              <div class="progress-bar"><span id="bar-eitan-morning"></span></div>
               <ul></ul>
             </div>
             <div class="kid" data-kid="tamar-morning">
-              <h3>Tamar <span class="badge">AM</span><span class="progress" id="prog-tamar-morning"></span></h3>
+              <h3><span class="badge">☀️</span>Tamar<span class="progress" id="prog-tamar-morning"></span></h3>
+              <div class="progress-bar"><span id="bar-tamar-morning"></span></div>
               <ul></ul>
             </div>
           </div>
@@ -413,15 +464,17 @@
       </section>
 
       <section class="card routine evening" id="evening-card" hidden>
-        <h2>Evening Routine</h2>
+        <h2>🌙 Evening Routine</h2>
         <div class="body">
           <div class="cols">
             <div class="kid" data-kid="eitan-evening">
-              <h3>Eitan <span class="badge">PM</span><span class="progress" id="prog-eitan-evening"></span></h3>
+              <h3><span class="badge">🌙</span>Eitan<span class="progress" id="prog-eitan-evening"></span></h3>
+              <div class="progress-bar"><span id="bar-eitan-evening"></span></div>
               <ul></ul>
             </div>
             <div class="kid" data-kid="tamar-evening">
-              <h3>Tamar <span class="badge">PM</span><span class="progress" id="prog-tamar-evening"></span></h3>
+              <h3><span class="badge">🌙</span>Tamar<span class="progress" id="prog-tamar-evening"></span></h3>
+              <div class="progress-bar"><span id="bar-tamar-evening"></span></div>
               <ul></ul>
             </div>
           </div>
@@ -637,6 +690,30 @@
         }
       }
     }
+    const ITEM_ICONS = {
+      "Breakfast": "🥣",
+      "Get Dressed": "👕",
+      "Brush Teeth": "🪥",
+      "Socks and Shoes": "🧦",
+      "Vitamin": "💊",
+      "Hair": "💇",
+      "Water Bottle": "💧",
+      "Pack a Snack": "🍎",
+      "Pack Your Bag": "🎒",
+      "Free Time / TV :)": "📺",
+      "Homework": "✏️",
+      "(Optional) TV / Games": "🎮",
+      "Dinner Prep": "🍳",
+      "Dinner": "🍽️",
+      "House Chores": "🧹",
+      "(Optional) Dessert": "🍰",
+      "Shower": "🚿",
+      "PJ": "🩳",
+      "Reading Time (in bed)": "📚"
+    };
+    function cleanLabel(label) {
+      return label.replace(/^\(Optional\)\s*/, "");
+    }
     function renderRoutines() {
       pruneOldRoutines();
       const all = { ...ROUTINES.morning, ...ROUTINES.evening };
@@ -649,6 +726,11 @@
           const li = document.createElement("li");
           if (checked.has(idx)) li.classList.add("done");
           if (label.startsWith("(Optional")) li.classList.add("optional");
+
+          const icon = document.createElement("span");
+          icon.className = "icon";
+          icon.textContent = ITEM_ICONS[label] || "•";
+
           const cb = document.createElement("input");
           cb.type = "checkbox";
           cb.checked = checked.has(idx);
@@ -658,14 +740,20 @@
             saveRoutine(kid, set);
             renderRoutines();
           });
-          const span = document.createElement("span");
-          span.textContent = label;
-          li.append(cb, span);
+
+          const labelEl = document.createElement("span");
+          labelEl.className = "label";
+          labelEl.textContent = cleanLabel(label);
+
+          li.append(cb, icon, labelEl);
           li.addEventListener("click", e => { if (e.target.tagName !== "INPUT") cb.click(); });
           ul.appendChild(li);
         });
+
         const prog = document.getElementById(`prog-${kid}`);
         if (prog) prog.textContent = `${checked.size}/${items.length}`;
+        const bar = document.getElementById(`bar-${kid}`);
+        if (bar) bar.style.width = `${Math.round((checked.size / items.length) * 100)}%`;
       });
     }
     function nowMinutesLondon() {
