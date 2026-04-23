@@ -128,6 +128,23 @@
       margin-top: 6px;
       letter-spacing: 0.01em;
     }
+    .worldclock {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-dim);
+      margin-top: 6px;
+      letter-spacing: 0.06em;
+      font-feature-settings: "tnum" 1;
+    }
+    .worldclock .city {
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 9px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--ink-faint);
+      margin: 0 6px 0 4px;
+    }
     .clock {
       font-family: var(--serif);
       font-variation-settings: "opsz" 144, "wght" 500;
@@ -934,6 +951,7 @@
       <div class="marque">
         <div class="greeting" id="greeting">—</div>
         <div class="date" id="date">—</div>
+        <div class="worldclock" id="worldclock"></div>
       </div>
       <div class="clock" id="clock">--:--</div>
     </header>
@@ -1073,6 +1091,21 @@
       else if (hour < 12) g = "Good morning";
       else if (hour < 18) g = "Good afternoon";
       document.getElementById("greeting").textContent = g + ", Rifman family";
+
+      // World clock — family in TLV
+      const tlv = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Jerusalem", hour: "2-digit", minute: "2-digit", hour12: false
+      }).format(now);
+      const wc = document.getElementById("worldclock");
+      if (wc) {
+        wc.textContent = "";
+        wc.appendChild(document.createTextNode("🇮🇱"));
+        const cityEl = document.createElement("span");
+        cityEl.className = "city";
+        cityEl.textContent = "Tel Aviv";
+        wc.appendChild(cityEl);
+        wc.appendChild(document.createTextNode(tlv));
+      }
     }
     tick();
     setInterval(tick, 1000);
