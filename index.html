@@ -109,31 +109,14 @@
       background: var(--rule);
     }
     .marque { display: flex; flex-direction: column; }
-    .brand {
-      font-family: var(--sans);
-      font-size: 10px;
-      letter-spacing: 0.36em;
-      text-transform: uppercase;
-      color: var(--ochre);
-      font-weight: 700;
-    }
-    .brand .dot {
-      display: inline-block;
-      width: 5px;
-      height: 5px;
-      background: var(--ochre);
-      border-radius: 50%;
-      vertical-align: middle;
-      margin: 0 8px 2px;
-    }
     .greeting {
       font-family: var(--serif);
       font-variation-settings: "opsz" 96;
-      font-size: clamp(28px, 3.4vw, 40px);
+      font-size: clamp(30px, 3.7vw, 44px);
       font-weight: 600;
       line-height: 1.05;
       color: var(--ink);
-      margin-top: 6px;
+      margin-top: 0;
       letter-spacing: -0.005em;
     }
     .date {
@@ -856,7 +839,6 @@
   <div class="app">
     <header class="masthead">
       <div class="marque">
-        <div class="brand">The Rifman Almanac<span class="dot"></span>Kitchen Edition</div>
         <div class="greeting" id="greeting">—</div>
         <div class="date" id="date">—</div>
       </div>
