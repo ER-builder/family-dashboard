@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Family Dashboard</title>
+  <meta http-equiv="refresh" content="1800" />
+  <style>
+    :root {
+      --bg-1: #0b1020;
+      --bg-2: #1a1040;
+      --bg-3: #050816;
+      --fg: #e7ecff;
+      --fg-dim: #a3acd0;
+      --accent: #8b5cf6;
+      --accent-2: #38bdf8;
+      --danger: #f87171;
+      --glass: rgba(255, 255, 255, 0.06);
+      --glass-strong: rgba(255, 255, 255, 0.10);
+      --border: rgba(255, 255, 255, 0.10);
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: radial-gradient(1200px 800px at 20% -10%, #2a1366 0%, transparent 60%),
+                  radial-gradient(900px 700px at 110% 110%, #0a4f7a 0%, transparent 55%),
+                  linear-gradient(135deg, var(--bg-3), var(--bg-1) 60%, var(--bg-2));
+      color: var(--fg);
+      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      letter-spacing: 0.01em;
+    }
+    .app {
+      display: grid;
+      grid-template-columns: 1.1fr 1fr;
+      grid-template-rows: auto 1fr;
+      gap: 14px;
+      padding: 14px;
+      height: 100vh;
+    }
+    .header {
+      grid-column: 1 / -1;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+    }
+    .greet {
+      display: flex;
+      flex-direction: column;
+    }
+    .greet .hi {
+      font-size: clamp(20px, 3.2vw, 32px);
+      font-weight: 600;
+    }
+    .greet .date {
+      color: var(--fg-dim);
+      font-size: clamp(12px, 1.6vw, 15px);
+      margin-top: 2px;
+    }
+    .clock {
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+      font-size: clamp(36px, 6vw, 64px);
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      line-height: 1;
+    }
+    .card {
+      background: var(--glass);
+      backdrop-filter: blur(18px) saturate(140%);
+      -webkit-backdrop-filter: blur(18px) saturate(140%);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+    }
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--fg-dim);
+    }
+    .card .body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+    /* Calendar */
+    .calendar { grid-row: 2; grid-column: 1; }
+    .calendar iframe {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      border-radius: 12px;
+      background: #fff;
+      flex: 1;
+    }
+
+    /* Right column stack */
+    .right {
+      grid-row: 2;
+      grid-column: 2;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 14px;
+      min-height: 0;
+    }
+
+    /* Weather */
+    .weather .row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .weather .temp {
+      font-size: clamp(40px, 6vw, 60px);
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+    }
+    .weather .meta { color: var(--fg-dim); font-size: 14px; }
+    .weather .desc { font-size: 18px; text-transform: capitalize; }
+    .weather .icon { font-size: 56px; line-height: 1; }
+    .weather .hi-lo { display: flex; gap: 14px; margin-top: 6px; color: var(--fg-dim); font-size: 13px; }
+
+    /* Todos */
+    .todos .body { gap: 10px; }
+    .todo-form {
+      display: flex;
+      gap: 8px;
+    }
+    .todo-form input {
+      flex: 1;
+      background: var(--glass-strong);
+      border: 1px solid var(--border);
+      color: var(--fg);
+      padding: 10px 12px;
+      border-radius: 10px;
+      font-size: 15px;
+      outline: none;
+    }
+    .todo-form input::placeholder { color: var(--fg-dim); }
+    .todo-form input:focus { border-color: var(--accent); }
+    .todo-form button {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      color: white;
+      border: 0;
+      border-radius: 10px;
+      padding: 0 16px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 15px;
+    }
+    .todo-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      overflow-y: auto;
+      flex: 1;
+    }
+    .todo-list::-webkit-scrollbar { width: 6px; }
+    .todo-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+    .todo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 8px;
+      border-radius: 10px;
+      transition: background 120ms ease;
+    }
+    .todo:hover { background: rgba(255,255,255,0.04); }
+    .todo input[type="checkbox"] {
+      appearance: none;
+      width: 22px;
+      height: 22px;
+      border: 2px solid var(--fg-dim);
+      border-radius: 6px;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      background: transparent;
+    }
+    .todo input[type="checkbox"]:checked {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      border-color: transparent;
+    }
+    .todo input[type="checkbox"]:checked::after {
+      content: "✓";
+      color: white;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .todo .text {
+      flex: 1;
+      font-size: 16px;
+      word-break: break-word;
+    }
+    .todo.done .text {
+      color: var(--fg-dim);
+      text-decoration: line-through;
+    }
+    .todo .del {
+      background: transparent;
+      border: 0;
+      color: var(--fg-dim);
+      cursor: pointer;
+      font-size: 18px;
+      padding: 4px 8px;
+      border-radius: 6px;
+      opacity: 0;
+      transition: opacity 120ms;
+    }
+    .todo:hover .del { opacity: 1; }
+    .todo .del:hover { color: var(--danger); background: rgba(248,113,113,0.1); }
+    .empty { color: var(--fg-dim); text-align: center; padding: 20px; font-size: 14px; }
+
+    /* Portrait / smaller screens (Portal Mini ~8") */
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto 1fr;
+      }
+      .calendar { grid-row: 2; grid-column: 1; min-height: 220px; }
+      .right { grid-row: 3; grid-column: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="greet">
+        <div class="hi" id="greeting">Hello</div>
+        <div class="date" id="date">—</div>
+      </div>
+      <div class="clock" id="clock">--:--</div>
+    </header>
+
+    <section class="card calendar">
+      <h2>Calendar</h2>
+      <div class="body">
+        <!-- Replace src below with your own Google Calendar embed URL when ready -->
+        <iframe
+          id="cal"
+          src="https://calendar.google.com/calendar/embed?mode=AGENDA&showTitle=0&showNav=0&showPrint=0&showCalendars=0&showTz=0&ctz=Europe%2FLondon&bgcolor=%23ffffff&src=en.uk%23holiday%40group.v.calendar.google.com"
+          frameborder="0" scrolling="no"></iframe>
+      </div>
+    </section>
+
+    <div class="right">
+      <section class="card weather">
+        <h2>London</h2>
+        <div class="body">
+          <div class="row">
+            <div class="icon" id="w-icon">⛅</div>
+            <div style="flex:1">
+              <div class="temp" id="w-temp">—°</div>
+              <div class="desc" id="w-desc">Loading…</div>
+            </div>
+          </div>
+          <div class="hi-lo">
+            <span id="w-hi">H —°</span>
+            <span id="w-lo">L —°</span>
+            <span id="w-feels">Feels —°</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card todos">
+        <h2>Family To-Do</h2>
+        <div class="body">
+          <form class="todo-form" id="todo-form">
+            <input id="todo-input" type="text" placeholder="Add a task…" maxlength="120" autocomplete="off" />
+            <button type="submit">Add</button>
+          </form>
+          <ul class="todo-list" id="todo-list"></ul>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    // ---------- Config ----------
+    const OPENWEATHER_API_KEY = "YOUR_API_KEY"; // replace with your OpenWeatherMap key
+    const CITY = "London,uk";
+    const TZ = "Europe/London";
+
+    // ---------- Clock + greeting ----------
+    function tick() {
+      const now = new Date();
+      const time = new Intl.DateTimeFormat("en-GB", {
+        timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false
+      }).format(now);
+      document.getElementById("clock").textContent = time;
+
+      const date = new Intl.DateTimeFormat("en-GB", {
+        timeZone: TZ, weekday: "long", day: "numeric", month: "long", year: "numeric"
+      }).format(now);
+      document.getElementById("date").textContent = date;
+
+      const hour = parseInt(new Intl.DateTimeFormat("en-GB", {
+        timeZone: TZ, hour: "2-digit", hour12: false
+      }).format(now), 10);
+      let g = "Good evening";
+      if (hour < 5) g = "Good night";
+      else if (hour < 12) g = "Good morning";
+      else if (hour < 18) g = "Good afternoon";
+      document.getElementById("greeting").textContent = g + ", Rifman family";
+    }
+    tick();
+    setInterval(tick, 1000);
+
+    // ---------- To-Do (localStorage) ----------
+    const STORAGE_KEY = "family-dashboard:todos:v1";
+    const listEl = document.getElementById("todo-list");
+    const formEl = document.getElementById("todo-form");
+    const inputEl = document.getElementById("todo-input");
+
+    function loadTodos() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+      catch { return []; }
+    }
+    function saveTodos(todos) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+    }
+    function render() {
+      const todos = loadTodos();
+      listEl.innerHTML = "";
+      if (!todos.length) {
+        const li = document.createElement("li");
+        li.className = "empty";
+        li.textContent = "No tasks yet — add one above.";
+        listEl.appendChild(li);
+        return;
+      }
+      todos.forEach(t => {
+        const li = document.createElement("li");
+        li.className = "todo" + (t.done ? " done" : "");
+        const cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = !!t.done;
+        cb.addEventListener("change", () => {
+          const arr = loadTodos();
+          const item = arr.find(x => x.id === t.id);
+          if (item) { item.done = cb.checked; saveTodos(arr); render(); }
+        });
+        const span = document.createElement("span");
+        span.className = "text";
+        span.textContent = t.text;
+        const del = document.createElement("button");
+        del.className = "del";
+        del.type = "button";
+        del.title = "Delete";
+        del.textContent = "✕";
+        del.addEventListener("click", () => {
+          const arr = loadTodos().filter(x => x.id !== t.id);
+          saveTodos(arr);
+          render();
+        });
+        li.append(cb, span, del);
+        listEl.appendChild(li);
+      });
+    }
+    formEl.addEventListener("submit", e => {
+      e.preventDefault();
+      const text = inputEl.value.trim();
+      if (!text) return;
+      const arr = loadTodos();
+      arr.unshift({ id: Date.now() + ":" + Math.random().toString(36).slice(2, 7), text, done: false });
+      saveTodos(arr);
+      inputEl.value = "";
+      render();
+    });
+    render();
+
+    // ---------- Weather ----------
+    const ICONS = {
+      "01": "☀️", "02": "🌤️", "03": "⛅", "04": "☁️",
+      "09": "🌧️", "10": "🌦️", "11": "⛈️", "13": "❄️", "50": "🌫️"
+    };
+    async function loadWeather() {
+      if (!OPENWEATHER_API_KEY || OPENWEATHER_API_KEY === "YOUR_API_KEY") {
+        document.getElementById("w-desc").textContent = "Add OpenWeather API key";
+        return;
+      }
+      try {
+        const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(CITY)}&appid=${OPENWEATHER_API_KEY}&units=metric`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const d = await res.json();
+        const code = (d.weather?.[0]?.icon || "01d").slice(0, 2);
+        document.getElementById("w-icon").textContent = ICONS[code] || "🌡️";
+        document.getElementById("w-temp").textContent = Math.round(d.main.temp) + "°";
+        document.getElementById("w-desc").textContent = d.weather?.[0]?.description || "";
+        document.getElementById("w-hi").textContent = "H " + Math.round(d.main.temp_max) + "°";
+        document.getElementById("w-lo").textContent = "L " + Math.round(d.main.temp_min) + "°";
+        document.getElementById("w-feels").textContent = "Feels " + Math.round(d.main.feels_like) + "°";
+      } catch (err) {
+        document.getElementById("w-desc").textContent = "Weather unavailable";
+      }
+    }
+    loadWeather();
+    setInterval(loadWeather, 15 * 60 * 1000); // every 15 min
+  </script>
+</body>
+</html>
