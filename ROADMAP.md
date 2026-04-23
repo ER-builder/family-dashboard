@@ -45,6 +45,12 @@ A backlog of ideas for the Portal ("Terry") dashboard. Pick & build whenever.
   2. **Custom in-app button:** if no native escape exists, add a button in the dashboard HTML that fires a custom URL scheme (e.g. `kiosk://exit`) the kiosk app intercepts via WebViewClient, then `finishAndRemoveTask()` to return to launcher. Or add a long-press gesture on a corner so kids can't trigger it accidentally.
 - Caveat: the kiosk app's `BootReceiver` will re-launch on next boot, so this is "exit for now," not "uninstall."
 
+## 🎨 Design Refinement (queued from "The Rifman Almanac" v1)
+
+- **To-Do notebook lines don't align with task rows.** The repeating-linear-gradient ruled lines are positioned independently of the actual `<li>` items, so each task sits between/across lines rather than on them. Fix: derive the line spacing from the task row height (or render the rules as `border-bottom` on each `<li>` instead of a background pattern). Same goes for the terracotta margin line — it's static, doesn't relate to content.
+- **Hebrew font in calendar events looks bad.** Frank Ruhl Libre fallback is loading but the Hebrew characters (e.g. "לירון באימון") are rendering in a thin/awkward weight. Investigate: confirm Frank Ruhl Libre is actually being applied (it might be falling through to a system font); try a different Hebrew serif (Heebo? Assistant? David Libre?); or accept system Hebrew and only use Fraunces for Latin via `unicode-range`.
+- **"The Rifman Almanac · Kitchen Edition" brand line is too small and unnecessary.** Drop it entirely. The greeting + date + clock already establish the masthead. Reclaim the vertical space for a slightly larger greeting or just cleaner whitespace.
+
 ## ✨ UX Polish (queued)
 
 - **Celebration animation when a kid completes their morning routine.** Trigger when all items in the kid's morning column are checked: confetti burst (or stars/balloons), short "🎉 You did it!" message overlay, and the kid's name pulses in their accent color. Fires once per day per kid (track in localStorage so it doesn't re-trigger after a refresh). Skip evening for now — could later trigger on a milestone like PJ if we want.
