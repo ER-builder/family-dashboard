@@ -817,6 +817,8 @@
   </style>
 </head>
 <body>
+  <span id="dbg" style="position:fixed;bottom:5px;left:8px;font-family:monospace;font-size:9px;color:rgba(243,231,207,0.22);pointer-events:none;z-index:9999;letter-spacing:0.05em"></span>
+
   <div class="app">
     <header class="masthead">
       <div class="marque">
@@ -1208,12 +1210,35 @@
       const d = new Date();
       return d.getHours() * 60 + d.getMinutes();
     }
+    // Belt-and-suspenders: set both the HTML attribute and style.display.
+    // Old Android WebViews sometimes ignore .hidden property assignment.
+    function setCardVisible(id, visible) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (visible) {
+        el.removeAttribute("hidden");
+        el.style.display = "";
+      } else {
+        el.setAttribute("hidden", "");
+        el.style.display = "none";
+      }
+    }
     function updateRoutineVisibility() {
-      const mins = nowMinutesLondon();
-      const showMorning = mins >= 6 * 60 && mins < 9 * 60;            // 06:00–08:59
-      const showEvening = mins >= 15 * 60 + 30 && mins < 20 * 60 + 30; // 15:30–20:29
-      document.getElementById("morning-card").hidden = !showMorning;
-      document.getElementById("evening-card").hidden = !showEvening;
+      try {
+        const mins = nowMinutesLondon();
+        const showMorning = mins >= 6 * 60 && mins < 9 * 60;
+        const showEvening = mins >= 15 * 60 + 30 && mins < 20 * 60 + 30;
+        setCardVisible("morning-card", showMorning);
+        setCardVisible("evening-card", showEvening);
+        const dbg = document.getElementById("dbg");
+        if (dbg) dbg.textContent = "mins=" + mins;
+      } catch (e) {
+        // On any error, hide both cards
+        setCardVisible("morning-card", false);
+        setCardVisible("evening-card", false);
+        const dbg = document.getElementById("dbg");
+        if (dbg) dbg.textContent = "vis-err:" + e.message;
+      }
     }
     renderRoutines();
     updateRoutineVisibility();
