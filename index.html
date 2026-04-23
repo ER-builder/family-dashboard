@@ -161,22 +161,18 @@
       gap: 14px;
       min-height: 0;
     }
-    .morning {
-      max-height: 38vh;
-    }
-    .morning .body { min-height: 0; }
-    .morning .cols { overflow-y: auto; min-height: 0; }
-    .morning .cols::-webkit-scrollbar { width: 6px; }
-    .morning .cols::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
-
-    /* Morning routine */
-    .morning .body { gap: 8px; }
-    .morning .cols {
+    .routine { max-height: 42vh; }
+    .routine .body { gap: 8px; min-height: 0; }
+    .routine .cols {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 12px;
+      overflow-y: auto;
+      min-height: 0;
     }
-    .morning .kid h3 {
+    .routine .cols::-webkit-scrollbar { width: 6px; }
+    .routine .cols::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+    .routine .kid h3 {
       margin: 0 0 8px;
       font-size: 14px;
       font-weight: 700;
@@ -185,7 +181,7 @@
       align-items: center;
       gap: 6px;
     }
-    .morning .kid h3 .badge {
+    .routine .kid h3 .badge {
       font-size: 10px;
       padding: 2px 7px;
       border-radius: 6px;
@@ -194,15 +190,19 @@
       font-weight: 600;
       letter-spacing: 0.05em;
     }
-    .morning .kid h3 .progress {
+    .evening .kid h3 .badge {
+      background: rgba(56, 189, 248, 0.20);
+      color: #7dd3fc;
+    }
+    .routine .kid h3 .progress {
       margin-left: auto;
       font-size: 11px;
       color: var(--fg-dim);
       font-variant-numeric: tabular-nums;
       font-weight: 500;
     }
-    .morning ul { list-style: none; margin: 0; padding: 0; }
-    .morning li {
+    .routine ul { list-style: none; margin: 0; padding: 0; }
+    .routine li {
       display: flex;
       align-items: center;
       gap: 8px;
@@ -212,8 +212,8 @@
       user-select: none;
       border-radius: 6px;
     }
-    .morning li:hover { background: rgba(255,255,255,0.04); }
-    .morning li input[type="checkbox"] {
+    .routine li:hover { background: rgba(255,255,255,0.04); }
+    .routine li input[type="checkbox"] {
       appearance: none;
       width: 16px;
       height: 16px;
@@ -225,17 +225,18 @@
       cursor: pointer;
       background: transparent;
     }
-    .morning li input[type="checkbox"]:checked {
+    .routine li input[type="checkbox"]:checked {
       background: linear-gradient(135deg, var(--accent), var(--accent-2));
       border-color: transparent;
     }
-    .morning li input[type="checkbox"]:checked::after {
+    .routine li input[type="checkbox"]:checked::after {
       content: "✓";
       color: white;
       font-size: 11px;
       font-weight: 700;
     }
-    .morning li.done { color: var(--fg-dim); text-decoration: line-through; }
+    .routine li.done { color: var(--fg-dim); text-decoration: line-through; }
+    .routine li.optional { font-style: italic; color: var(--fg-dim); }
 
     /* Weather */
     .weather .row {
@@ -394,16 +395,32 @@
         </div>
       </section>
 
-      <section class="card morning" id="morning-card" hidden>
+      <section class="card routine morning" id="morning-card" hidden>
         <h2>Morning Routine</h2>
         <div class="body">
           <div class="cols">
-            <div class="kid" data-kid="eitan">
-              <h3>Eitan <span class="badge">BOY</span><span class="progress" id="prog-eitan"></span></h3>
+            <div class="kid" data-kid="eitan-morning">
+              <h3>Eitan <span class="badge">AM</span><span class="progress" id="prog-eitan-morning"></span></h3>
               <ul></ul>
             </div>
-            <div class="kid" data-kid="tamar">
-              <h3>Tamar <span class="badge">GIRL</span><span class="progress" id="prog-tamar"></span></h3>
+            <div class="kid" data-kid="tamar-morning">
+              <h3>Tamar <span class="badge">AM</span><span class="progress" id="prog-tamar-morning"></span></h3>
+              <ul></ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card routine evening" id="evening-card" hidden>
+        <h2>Evening Routine</h2>
+        <div class="body">
+          <div class="cols">
+            <div class="kid" data-kid="eitan-evening">
+              <h3>Eitan <span class="badge">PM</span><span class="progress" id="prog-eitan-evening"></span></h3>
+              <ul></ul>
+            </div>
+            <div class="kid" data-kid="tamar-evening">
+              <h3>Tamar <span class="badge">PM</span><span class="progress" id="prog-tamar-evening"></span></h3>
               <ul></ul>
             </div>
           </div>
@@ -588,46 +605,57 @@
         document.getElementById("w-desc").textContent = "Weather unavailable";
       }
     }
-    // ---------- Morning routine (per-kid, daily reset) ----------
+    // ---------- Routines (per-kid, daily reset, time-windowed) ----------
     const ROUTINES = {
-      eitan: ["Breakfast","Get Dressed","Brush Teeth","Socks and Shoes","Vitamin","Water Bottle","Pack a Snack","Pack Your Bag","Free Time / TV :)"],
-      tamar: ["Breakfast","Get Dressed","Brush Teeth","Socks and Shoes","Hair","Water Bottle","Pack a Snack","Pack Your Bag","Free Time / TV :)"]
+      morning: {
+        "eitan-morning": ["Breakfast","Get Dressed","Brush Teeth","Socks and Shoes","Vitamin","Water Bottle","Pack a Snack","Pack Your Bag","Free Time / TV :)"],
+        "tamar-morning": ["Breakfast","Get Dressed","Brush Teeth","Socks and Shoes","Hair","Water Bottle","Pack a Snack","Pack Your Bag","Free Time / TV :)"]
+      },
+      evening: {
+        "eitan-evening": ["Homework","(Optional) TV / Games","Dinner Prep","Dinner","House Chores","(Optional) Dessert","Shower","PJ","Brush Teeth","Reading Time (in bed)"],
+        "tamar-evening": ["Homework","(Optional) TV / Games","Dinner Prep","Dinner","House Chores","(Optional) Dessert","Shower","PJ","Brush Teeth","Reading Time (in bed)"]
+      }
     };
     function todayKey() {
       return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year:"numeric", month:"2-digit", day:"2-digit" }).format(new Date());
     }
-    function morningStorageKey(kid) { return `morning:${todayKey()}:${kid}`; }
-    function loadMorning(kid) {
-      try { return new Set(JSON.parse(localStorage.getItem(morningStorageKey(kid))) || []); }
+    function routineStorageKey(kid) { return `routine:${todayKey()}:${kid}`; }
+    function loadRoutine(kid) {
+      try { return new Set(JSON.parse(localStorage.getItem(routineStorageKey(kid))) || []); }
       catch { return new Set(); }
     }
-    function saveMorning(kid, set) {
-      localStorage.setItem(morningStorageKey(kid), JSON.stringify([...set]));
+    function saveRoutine(kid, set) {
+      localStorage.setItem(routineStorageKey(kid), JSON.stringify([...set]));
     }
-    function pruneOldMorning() {
+    function pruneOldRoutines() {
       const today = todayKey();
       for (let i = localStorage.length - 1; i >= 0; i--) {
         const k = localStorage.key(i);
-        if (k && k.startsWith("morning:") && !k.includes(`:${today}:`)) localStorage.removeItem(k);
+        if (k && (k.startsWith("routine:") || k.startsWith("morning:")) && !k.includes(`:${today}:`)) {
+          localStorage.removeItem(k);
+        }
       }
     }
-    function renderMorning() {
-      pruneOldMorning();
-      Object.entries(ROUTINES).forEach(([kid, items]) => {
+    function renderRoutines() {
+      pruneOldRoutines();
+      const all = { ...ROUTINES.morning, ...ROUTINES.evening };
+      Object.entries(all).forEach(([kid, items]) => {
         const ul = document.querySelector(`.kid[data-kid="${kid}"] ul`);
-        const checked = loadMorning(kid);
+        if (!ul) return;
+        const checked = loadRoutine(kid);
         ul.innerHTML = "";
         items.forEach((label, idx) => {
           const li = document.createElement("li");
           if (checked.has(idx)) li.classList.add("done");
+          if (label.startsWith("(Optional")) li.classList.add("optional");
           const cb = document.createElement("input");
           cb.type = "checkbox";
           cb.checked = checked.has(idx);
           cb.addEventListener("change", () => {
-            const set = loadMorning(kid);
+            const set = loadRoutine(kid);
             if (cb.checked) set.add(idx); else set.delete(idx);
-            saveMorning(kid, set);
-            renderMorning();
+            saveRoutine(kid, set);
+            renderRoutines();
           });
           const span = document.createElement("span");
           span.textContent = label;
@@ -635,19 +663,28 @@
           li.addEventListener("click", e => { if (e.target.tagName !== "INPUT") cb.click(); });
           ul.appendChild(li);
         });
-        document.getElementById(`prog-${kid}`).textContent = `${checked.size}/${items.length}`;
+        const prog = document.getElementById(`prog-${kid}`);
+        if (prog) prog.textContent = `${checked.size}/${items.length}`;
       });
     }
-    function updateMorningVisibility() {
-      const hour = parseInt(new Intl.DateTimeFormat("en-GB", {
-        timeZone: TZ, hour: "2-digit", hour12: false
-      }).format(new Date()), 10);
-      const show = hour >= 6 && hour < 9; // 06:00–08:59 Europe/London
-      document.getElementById("morning-card").hidden = !show;
+    function nowMinutesLondon() {
+      const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false
+      }).formatToParts(new Date());
+      const h = parseInt(parts.find(p => p.type === "hour").value, 10);
+      const m = parseInt(parts.find(p => p.type === "minute").value, 10);
+      return h * 60 + m;
     }
-    renderMorning();
-    updateMorningVisibility();
-    setInterval(() => { renderMorning(); updateMorningVisibility(); }, 60 * 1000);
+    function updateRoutineVisibility() {
+      const mins = nowMinutesLondon();
+      const showMorning = mins >= 6 * 60 && mins < 9 * 60;            // 06:00–08:59
+      const showEvening = mins >= 15 * 60 + 30 && mins < 20 * 60 + 30; // 15:30–20:29
+      document.getElementById("morning-card").hidden = !showMorning;
+      document.getElementById("evening-card").hidden = !showEvening;
+    }
+    renderRoutines();
+    updateRoutineVisibility();
+    setInterval(() => { renderRoutines(); updateRoutineVisibility(); }, 60 * 1000);
 
     loadWeather();
     setInterval(loadWeather, 15 * 60 * 1000); // every 15 min
