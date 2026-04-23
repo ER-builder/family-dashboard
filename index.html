@@ -803,6 +803,74 @@
       to   { opacity: 1; transform: none; }
     }
 
+    /* ─────────────────────────────────────────
+       CELEBRATION — fires when a kid finishes morning routine
+       ───────────────────────────────────────── */
+    .celebration {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10000;
+      overflow: hidden;
+    }
+    .celebration .toast {
+      position: absolute;
+      left: 50%;
+      top: 38%;
+      transform: translate(-50%, -50%) scale(1);
+      font-family: var(--serif);
+      font-size: clamp(36px, 5.4vw, 64px);
+      font-weight: 700;
+      color: var(--ink);
+      text-align: center;
+      background:
+        radial-gradient(ellipse 70% 90% at 50% 0%, rgba(233, 180, 76, 0.20) 0%, transparent 60%),
+        var(--paper-2);
+      border: 1px solid var(--rule-strong);
+      border-radius: 22px;
+      padding: 36px 56px;
+      box-shadow: 0 24px 80px -20px rgba(0, 0, 0, 0.75);
+      animation: celebPop 700ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+      letter-spacing: -0.01em;
+    }
+    .celebration .toast .name {
+      display: block;
+      margin-top: 8px;
+      font-family: var(--serif);
+      font-size: 0.62em;
+      font-weight: 600;
+      letter-spacing: 0.01em;
+    }
+    .celebration.fading .toast {
+      animation: celebFade 600ms cubic-bezier(0.4, 0, 0.6, 1) both;
+    }
+    .celebration .confetti {
+      position: absolute;
+      top: -40px;
+      animation: confettiFall linear forwards;
+      will-change: transform;
+      user-select: none;
+    }
+    @keyframes celebPop {
+      from { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+      to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+    @keyframes celebFade {
+      to { opacity: 0; transform: translate(-50%, -50%) scale(0.85); }
+    }
+    @keyframes confettiFall {
+      from { transform: translateY(-40px) rotate(0deg); opacity: 0; }
+      8%   { opacity: 1; }
+      to   { transform: translateY(110vh) rotate(720deg); opacity: 0.6; }
+    }
+    .kid.celebrating h3 {
+      animation: namePulse 1200ms ease-out both;
+    }
+    @keyframes namePulse {
+      0%, 100% { transform: scale(1); }
+      40%      { transform: scale(1.08); }
+    }
+
     /* Smaller screens — Portal Mini portrait */
     @media (max-width: 900px) {
       .app {
@@ -1158,6 +1226,50 @@
     function cleanLabel(label) {
       return label.replace(/^\(Optional\)\s*/, "");
     }
+    // ---------- Celebration (morning routine completion) ----------
+    const CELEBRATION_EMOJI = ["🎉","✨","⭐","🎊","💫","🌟","🎈","🥳"];
+    function celebrationKey(kid) { return `celebrated:${todayKey()}:${kid}`; }
+    function maybeCelebrate(kid, allDone, kidEl) {
+      if (!allDone) return;
+      if (!kid.endsWith("-morning")) return; // morning only for now
+      if (localStorage.getItem(celebrationKey(kid))) return;
+      localStorage.setItem(celebrationKey(kid), "1");
+      fireCelebration(kid, kidEl);
+    }
+    function fireCelebration(kid, kidEl) {
+      const name = kid.split("-")[0];
+      const display = name.charAt(0).toUpperCase() + name.slice(1);
+      const accent = name === "eitan" ? "var(--cobalt)" : "var(--terracotta)";
+      const wrap = document.createElement("div");
+      wrap.className = "celebration";
+      const toast = document.createElement("div");
+      toast.className = "toast";
+      toast.appendChild(document.createTextNode("🎉 You did it!"));
+      const nameEl = document.createElement("span");
+      nameEl.className = "name";
+      nameEl.style.color = accent;
+      nameEl.textContent = display;
+      toast.appendChild(nameEl);
+      wrap.appendChild(toast);
+      for (let i = 0; i < 44; i++) {
+        const c = document.createElement("span");
+        c.className = "confetti";
+        c.textContent = CELEBRATION_EMOJI[i % CELEBRATION_EMOJI.length];
+        c.style.left = Math.random() * 100 + "vw";
+        c.style.animationDelay = (Math.random() * 0.7) + "s";
+        c.style.animationDuration = (1.8 + Math.random() * 1.6) + "s";
+        c.style.fontSize = (18 + Math.random() * 26) + "px";
+        wrap.appendChild(c);
+      }
+      document.body.appendChild(wrap);
+      if (kidEl) {
+        kidEl.classList.add("celebrating");
+        setTimeout(() => kidEl.classList.remove("celebrating"), 1300);
+      }
+      setTimeout(() => wrap.classList.add("fading"), 2500);
+      setTimeout(() => wrap.remove(), 3300);
+    }
+
     function renderRoutines() {
       pruneOldRoutines();
       const all = { ...ROUTINES.morning, ...ROUTINES.evening };
@@ -1198,6 +1310,10 @@
         if (prog) prog.textContent = `${checked.size}/${items.length}`;
         const bar = document.getElementById(`bar-${kid}`);
         if (bar) bar.style.width = `${Math.round((checked.size / items.length) * 100)}%`;
+
+        // Celebrate when all (incl. optional) are done — morning only.
+        const kidEl = document.querySelector(`.kid[data-kid="${kid}"]`);
+        maybeCelebrate(kid, checked.size === items.length, kidEl);
       });
     }
     function nowMinutesLondon() {
