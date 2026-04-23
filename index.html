@@ -707,6 +707,11 @@
     }
     .todo:last-child { border-bottom: 0; }
     .todo:hover { background: rgba(243, 231, 207, 0.025); border-radius: 6px; }
+    .todo.fading {
+      opacity: 0;
+      transform: translateX(40px);
+      transition: opacity 350ms ease, transform 350ms ease;
+    }
     .todo.done { opacity: 0.42; }
     .todo input[type="checkbox"] {
       appearance: none;
@@ -1039,10 +1044,12 @@
 
     // ---------- To-Do (Google Sheets via Apps Script) ----------
     const TODO_API = "https://script.google.com/macros/s/AKfycbzWBQRARP92NhRkfEmSTfaaHkjQ3wh5RW1gD1YHdERwuxTyL83rQemuWPEZ6Im6Rdvt/exec";
+    const TODO_FADE_MS = 15000;
     const listEl = document.getElementById("todo-list");
     const formEl = document.getElementById("todo-form");
     const inputEl = document.getElementById("todo-input");
     let todos = [];
+    const todoFadeTimers = new Map(); // id → setTimeout handle (pending auto-delete)
 
     async function api(action, params = {}) {
       const url = new URL(TODO_API);
@@ -1053,6 +1060,31 @@
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       return data;
+    }
+
+    // Schedule a checked todo to fade out + delete in 15s.
+    // If the user un-checks within the window, the toggle handler clears this timer.
+    function scheduleAutoDelete(id) {
+      const handle = setTimeout(async () => {
+        todoFadeTimers.delete(id);
+        // Re-check still done (user may have flipped back without us catching it)
+        const item = todos.find(x => x.id === id);
+        if (!item || !item.done) return;
+        const li = listEl.querySelector(`[data-todo-id="${CSS.escape(String(id))}"]`);
+        if (li) {
+          li.classList.add("fading");
+          setTimeout(() => finishDelete(id), 350);
+        } else {
+          finishDelete(id);
+        }
+      }, TODO_FADE_MS);
+      todoFadeTimers.set(id, handle);
+    }
+    async function finishDelete(id) {
+      todos = todos.filter(x => x.id !== id);
+      render();
+      try { await api("delete", { id }); }
+      catch (err) { refresh(); }
     }
 
     async function refresh() {
@@ -1079,6 +1111,7 @@
       sorted.forEach(t => {
         const li = document.createElement("li");
         li.className = "todo" + (t.done ? " done" : "");
+        li.dataset.todoId = t.id;
         const cb = document.createElement("input");
         cb.type = "checkbox";
         cb.checked = !!t.done;
@@ -1086,6 +1119,13 @@
           // Optimistic flip
           const item = todos.find(x => x.id === t.id);
           if (item) item.done = cb.checked;
+          // Cancel any pending auto-delete for this item
+          if (todoFadeTimers.has(t.id)) {
+            clearTimeout(todoFadeTimers.get(t.id));
+            todoFadeTimers.delete(t.id);
+          }
+          // If now checked, schedule auto-delete after 15s
+          if (cb.checked) scheduleAutoDelete(t.id);
           render();
           try { await api("toggle", { id: t.id }); }
           catch (err) { refresh(); }
@@ -1107,6 +1147,10 @@
         });
         li.append(cb, span, del);
         listEl.appendChild(li);
+      });
+      // Items that arrived already-done (e.g. ticked from a phone) get the same 15s grace too.
+      todos.forEach(t => {
+        if (t.done && !todoFadeTimers.has(t.id)) scheduleAutoDelete(t.id);
       });
     }
 
