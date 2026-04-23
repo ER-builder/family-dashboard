@@ -454,21 +454,35 @@
     tick();
     setInterval(tick, 1000);
 
-    // ---------- To-Do (localStorage) ----------
-    const STORAGE_KEY = "family-dashboard:todos:v1";
+    // ---------- To-Do (Google Sheets via Apps Script) ----------
+    const TODO_API = "https://script.google.com/macros/s/AKfycbzWBQRARP92NhRkfEmSTfaaHkjQ3wh5RW1gD1YHdERwuxTyL83rQemuWPEZ6Im6Rdvt/exec";
     const listEl = document.getElementById("todo-list");
     const formEl = document.getElementById("todo-form");
     const inputEl = document.getElementById("todo-input");
+    let todos = [];
 
-    function loadTodos() {
-      try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-      catch { return []; }
+    async function api(action, params = {}) {
+      const url = new URL(TODO_API);
+      url.searchParams.set("action", action);
+      for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+      const res = await fetch(url.toString(), { cache: "no-store", redirect: "follow" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      return data;
     }
-    function saveTodos(todos) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
+
+    async function refresh() {
+      try {
+        const data = await api("list");
+        todos = data.todos || [];
+        render();
+      } catch (err) {
+        renderError(err);
+      }
     }
+
     function render() {
-      const todos = loadTodos();
       listEl.innerHTML = "";
       if (!todos.length) {
         const li = document.createElement("li");
@@ -485,10 +499,13 @@
         const cb = document.createElement("input");
         cb.type = "checkbox";
         cb.checked = !!t.done;
-        cb.addEventListener("change", () => {
-          const arr = loadTodos();
-          const item = arr.find(x => x.id === t.id);
-          if (item) { item.done = cb.checked; saveTodos(arr); render(); }
+        cb.addEventListener("change", async () => {
+          // Optimistic flip
+          const item = todos.find(x => x.id === t.id);
+          if (item) item.done = cb.checked;
+          render();
+          try { await api("toggle", { id: t.id }); }
+          catch (err) { refresh(); }
         });
         const span = document.createElement("span");
         span.className = "text";
@@ -498,26 +515,52 @@
         del.type = "button";
         del.title = "Delete";
         del.textContent = "✕";
-        del.addEventListener("click", () => {
-          const arr = loadTodos().filter(x => x.id !== t.id);
-          saveTodos(arr);
+        del.addEventListener("click", async () => {
+          // Optimistic remove
+          todos = todos.filter(x => x.id !== t.id);
           render();
+          try { await api("delete", { id: t.id }); }
+          catch (err) { refresh(); }
         });
         li.append(cb, span, del);
         listEl.appendChild(li);
       });
     }
-    formEl.addEventListener("submit", e => {
+
+    function renderError(err) {
+      listEl.innerHTML = "";
+      const li = document.createElement("li");
+      li.className = "empty";
+      li.textContent = "Can't reach to-do list — retrying…";
+      listEl.appendChild(li);
+    }
+
+    formEl.addEventListener("submit", async e => {
       e.preventDefault();
       const text = inputEl.value.trim();
       if (!text) return;
-      const arr = loadTodos();
-      arr.unshift({ id: Date.now() + ":" + Math.random().toString(36).slice(2, 7), text, done: false });
-      saveTodos(arr);
       inputEl.value = "";
+      // Optimistic insert with temp id
+      const temp = { id: "tmp:" + Date.now(), text, done: false };
+      todos.unshift(temp);
       render();
+      try {
+        const data = await api("add", { text });
+        if (data.todo) {
+          // Swap temp for server item
+          const idx = todos.findIndex(x => x.id === temp.id);
+          if (idx >= 0) todos[idx] = data.todo;
+          render();
+        }
+      } catch (err) {
+        // Roll back temp item, refetch
+        todos = todos.filter(x => x.id !== temp.id);
+        refresh();
+      }
     });
-    render();
+
+    refresh();
+    setInterval(refresh, 60 * 1000); // poll for changes from phones every 60s
 
     // ---------- Weather ----------
     const ICONS = {
