@@ -6,7 +6,7 @@ A backlog of ideas for the Portal ("Terry") dashboard. Pick & build whenever.
 
 ## 🐞 Open Bugs
 
-- **Morning + Evening routine cards both show outside their windows on Portal.** CSS `[hidden] { display: none !important }` rule was added but didn't help — both still visible at 23:00 BST after `pm clear`. Likely cause: Portal's old WebView ignoring `hidden` attribute differently, or `nowMinutesLondon()` returning wrong value on-device. Next debug step: add a tiny on-screen `<span id="dbg">` that prints the computed `mins` value so we can see what the Portal actually evaluates. Or wrap visibility logic so failure → hide both (current code may be defaulting to "show"). Parked April 2026.
+- **Morning + Evening routine cards both show outside their windows on Portal.** CSS `[hidden] { display: none !important }` rule was added — and a screenshot at 22:58 BST then showed *neither* card visible (which is the correct state for that hour). **Likely fixed, but not yet confirmed across the full day cycle.** Verify tomorrow: at 06:00–08:59 only Morning should appear; at 15:30–20:29 only Evening; outside both, neither. If it holds, close this item. If still broken, fall back to the prior debug plan: add an on-screen `<span id="dbg">` that prints the computed `mins` value live, or wrap visibility in try/catch defaulting to BOTH HIDDEN on any error.
 
 ## 🔧 Pending Infra
 
@@ -37,6 +37,12 @@ A backlog of ideas for the Portal ("Terry") dashboard. Pick & build whenever.
 9. **🛒 Shared Shopping List** — Google Sheet backend, anyone adds from their phone.
 10. **📰 News Headlines** — BBC RSS, scrolling ticker at the bottom.
 11. **💷 Budget Tracker** — Monthly family spending from a Google Sheet (or Rifman Family Budget Firestore).
+
+## 📅 Calendar — Multi-Source Merge
+
+- **Let the proxy merge multiple iCal feeds.** Today the Vercel proxy reads a single `ICAL_URL` env var (the family-shared Google Calendar). Manually copying personal events to the family cal isn't sustainable.
+- Change to: `ICAL_URLS` (comma-separated list of secret iCal URLs). The serverless function fetches each, concatenates the parsed VEVENTs, dedupes by UID, and returns one merged sorted JSON list. Each event optionally tagged with a `source` label (e.g. "Family", "Elul", "School") so the dashboard could color-code in future.
+- Repo: `ER-builder/family-dashboard-proxy` at `~/Projects/apps/family-dashboard-proxy/`. Single file `api/cal.js`. Update env var via Vercel dashboard or CLI (`vercel env rm ICAL_URL && printf '%s' "$URLS" | vercel env add ICAL_URLS production --sensitive`). Note: each source is a *secret iCal URL* (Settings → Integrate calendar → Secret address in iCal format) — not a public URL. Calendars stay private.
 
 ## 🚪 Exit-to-Portal
 
