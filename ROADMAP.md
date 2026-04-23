@@ -38,6 +38,11 @@ A backlog of ideas for the Portal ("Terry") dashboard. Pick & build whenever.
 10. **📰 News Headlines** — BBC RSS, scrolling ticker at the bottom.
 11. **💷 Budget Tracker** — Monthly family spending from a Google Sheet (or Rifman Family Budget Firestore).
 
+## ✨ UX Polish (queued)
+
+- **Celebration animation when a kid completes their morning routine.** Trigger when all items in the kid's morning column are checked: confetti burst (or stars/balloons), short "🎉 You did it!" message overlay, and the kid's name pulses in their accent color. Fires once per day per kid (track in localStorage so it doesn't re-trigger after a refresh). Skip evening for now — could later trigger on a milestone like PJ if we want.
+- **To-Dos fade out 15s after being checked.** When a to-do is ticked, leave it visible for 15 seconds (so you can un-tick if it was a misclick), then animate fade + slide out and delete from the Sheet. Replaces current "sink to bottom forever" behavior. Cleans the list automatically — list never bloats. Cancel the timer if user un-ticks within the 15s window.
+
 ## 🎮 Fun / Vibe
 
 12. **🎵 Spotify "Now Playing"** — What's playing on the home speaker (free Spotify API).
