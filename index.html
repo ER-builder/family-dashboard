@@ -110,10 +110,78 @@
       grid-row: 2;
       grid-column: 2;
       display: grid;
-      grid-template-rows: auto 1fr;
+      grid-template-rows: auto auto 1fr;
       gap: 14px;
       min-height: 0;
     }
+
+    /* Morning routine */
+    .morning .body { gap: 8px; }
+    .morning .cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .morning .kid h3 {
+      margin: 0 0 8px;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--fg);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .morning .kid h3 .badge {
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: rgba(139, 92, 246, 0.25);
+      color: #c4b5fd;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+    }
+    .morning .kid h3 .progress {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--fg-dim);
+      font-variant-numeric: tabular-nums;
+      font-weight: 500;
+    }
+    .morning ul { list-style: none; margin: 0; padding: 0; }
+    .morning li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 5px 4px;
+      font-size: 13px;
+      cursor: pointer;
+      user-select: none;
+      border-radius: 6px;
+    }
+    .morning li:hover { background: rgba(255,255,255,0.04); }
+    .morning li input[type="checkbox"] {
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--fg-dim);
+      border-radius: 4px;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      cursor: pointer;
+      background: transparent;
+    }
+    .morning li input[type="checkbox"]:checked {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      border-color: transparent;
+    }
+    .morning li input[type="checkbox"]:checked::after {
+      content: "✓";
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .morning li.done { color: var(--fg-dim); text-decoration: line-through; }
 
     /* Weather */
     .weather .row {
@@ -274,6 +342,22 @@
         </div>
       </section>
 
+      <section class="card morning">
+        <h2>Morning Routine</h2>
+        <div class="body">
+          <div class="cols">
+            <div class="kid" data-kid="eitan">
+              <h3>Eitan <span class="badge">BOY</span><span class="progress" id="prog-eitan"></span></h3>
+              <ul></ul>
+            </div>
+            <div class="kid" data-kid="tamar">
+              <h3>Tamar <span class="badge">GIRL</span><span class="progress" id="prog-tamar"></span></h3>
+              <ul></ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="card todos">
         <h2>Family To-Do</h2>
         <div class="body">
@@ -407,6 +491,60 @@
         document.getElementById("w-desc").textContent = "Weather unavailable";
       }
     }
+    // ---------- Morning routine (per-kid, daily reset) ----------
+    const ROUTINES = {
+      eitan: ["Breakfast","Get Dressed","Brush Teeth","Socks and Shoes","Vitamin","Water Bottle","Pack a Snack","Pack Your Bag","Free Time / TV :)"],
+      tamar: ["Breakfast","Get Dressed","Brush Teeth","Socks and Shoes","Hair","Water Bottle","Pack a Snack","Pack Your Bag","Free Time / TV :)"]
+    };
+    function todayKey() {
+      return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year:"numeric", month:"2-digit", day:"2-digit" }).format(new Date());
+    }
+    function morningStorageKey(kid) { return `morning:${todayKey()}:${kid}`; }
+    function loadMorning(kid) {
+      try { return new Set(JSON.parse(localStorage.getItem(morningStorageKey(kid))) || []); }
+      catch { return new Set(); }
+    }
+    function saveMorning(kid, set) {
+      localStorage.setItem(morningStorageKey(kid), JSON.stringify([...set]));
+    }
+    function pruneOldMorning() {
+      const today = todayKey();
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith("morning:") && !k.includes(`:${today}:`)) localStorage.removeItem(k);
+      }
+    }
+    function renderMorning() {
+      pruneOldMorning();
+      Object.entries(ROUTINES).forEach(([kid, items]) => {
+        const ul = document.querySelector(`.kid[data-kid="${kid}"] ul`);
+        const checked = loadMorning(kid);
+        ul.innerHTML = "";
+        items.forEach((label, idx) => {
+          const li = document.createElement("li");
+          if (checked.has(idx)) li.classList.add("done");
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.checked = checked.has(idx);
+          cb.addEventListener("change", () => {
+            const set = loadMorning(kid);
+            if (cb.checked) set.add(idx); else set.delete(idx);
+            saveMorning(kid, set);
+            renderMorning();
+          });
+          const span = document.createElement("span");
+          span.textContent = label;
+          li.append(cb, span);
+          li.addEventListener("click", e => { if (e.target.tagName !== "INPUT") cb.click(); });
+          ul.appendChild(li);
+        });
+        document.getElementById(`prog-${kid}`).textContent = `${checked.size}/${items.length}`;
+      });
+    }
+    renderMorning();
+    // Re-render at midnight (rough — Portal will refresh anyway every 30 min)
+    setInterval(renderMorning, 5 * 60 * 1000);
+
     loadWeather();
     setInterval(loadWeather, 15 * 60 * 1000); // every 15 min
   </script>
