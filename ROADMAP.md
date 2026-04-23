@@ -4,6 +4,10 @@ A backlog of ideas for the Portal ("Terry") dashboard. Pick & build whenever.
 
 ---
 
+## 🐞 Open Bugs
+
+- **Morning + Evening routine cards both show outside their windows on Portal.** CSS `[hidden] { display: none !important }` rule was added but didn't help — both still visible at 23:00 BST after `pm clear`. Likely cause: Portal's old WebView ignoring `hidden` attribute differently, or `nowMinutesLondon()` returning wrong value on-device. Next debug step: add a tiny on-screen `<span id="dbg">` that prints the computed `mins` value so we can see what the Portal actually evaluates. Or wrap visibility logic so failure → hide both (current code may be defaulting to "show"). Parked April 2026.
+
 ## 🔧 Pending Infra
 
 0. **Rebuild + reinstall kiosk APK with `LOAD_NO_CACHE`.** Source already updated in `~/Projects/apps/kiosk-webview/app/src/main/java/xyz/erapps/kiosk/MainActivity.kt`. Run from Terminal:
