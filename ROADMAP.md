@@ -1,0 +1,53 @@
+# Family Dashboard — Roadmap / Future Ideas
+
+A backlog of ideas for the Portal ("Terry") dashboard. Pick & build whenever.
+
+---
+
+## 🏠 Smart Home Hub
+
+1. **🚇 Live Transport** — TfL API (free) showing next trains/tubes from your nearest station. *"Northern Line: 2 min, 5 min, 8 min"*
+2. **📦 Delivery Tracker** — Show expected deliveries today (parse from Gmail via Google API).
+3. **🗓️ Family Countdown** — Big visual countdowns: *"Holiday in 23 days 🏖️"*, *"Mum's birthday in 5 days 🎂"*.
+4. **🏫 School / Activities** — Daily schedule for kids: *"Swimming 4pm, Piano 5:30pm"*.
+5. **💬 Family Message Board** — Shared note area anyone can update from their phone (Google Sheet backend, no server needed).
+6. **🌅 Daily Photo Memory** — "On this day"-style memory surface from Google Photos.
+
+## 📊 Useful Glanceable Info
+
+7. **☀️ Hourly Weather** — *"Will it rain at 3pm?"* with a visual timeline bar.
+8. **🗑️ Bin Day Reminder** — Color/alert changes the night before collection (big UK win).
+9. **🛒 Shared Shopping List** — Google Sheet backend, anyone adds from their phone.
+10. **📰 News Headlines** — BBC RSS, scrolling ticker at the bottom.
+11. **💷 Budget Tracker** — Monthly family spending from a Google Sheet (or Rifman Family Budget Firestore).
+
+## 🎮 Fun / Vibe
+
+12. **🎵 Spotify "Now Playing"** — What's playing on the home speaker (free Spotify API).
+13. **🌍 World Clock** — *"Tel Aviv 11:45pm 🇮🇱 | London 9:45pm 🇬🇧"* for family abroad.
+14. **📸 Photo Slideshow Background** — Rotate family photos behind the dashboard cards.
+15. **🐾 Chore Wheel** — Random daily chore assignments per family member, resets each morning.
+16. **💡 Daily Quote / Mantra** — Rotating inspirational lines.
+
+---
+
+## 🧠 Power Move: Google Sheets as Backend
+
+For everything that needs cross-device editing (lists, countdowns, messages, budget), use **Google Sheets as the database**:
+
+- ✅ Free
+- ✅ Editable from any phone/laptop
+- ✅ Public JSON API (no server needed — `gviz/tq?tqx=out:json`)
+- ✅ Perfect for shopping lists, to-dos, countdowns, message board, budget
+
+Dashboard polls the sheet every few minutes. Family edits on phone → shows on Terry automatically.
+
+---
+
+## Top 3 Picks (Initial Recommendation)
+
+| Priority | Feature | Why |
+| --- | --- | --- |
+| 1️⃣ | 🚇 TfL Live Departures | Glance on the way out the door |
+| 2️⃣ | 🗓️ Family Countdowns | Kids love it, builds excitement |
+| 3️⃣ | 💬 Sheets message board + shopping list | Whole family contributes from their phones |
