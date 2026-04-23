@@ -440,6 +440,40 @@
       color: var(--ink-dim);
       font-weight: 700;
     }
+    .weather .hourly {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 6px;
+      padding-top: 12px;
+      border-top: 1px dashed var(--rule);
+      position: relative;
+    }
+    .weather .hourly .h {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+    }
+    .weather .hourly .h .when {
+      font-family: var(--sans);
+      font-size: 9px;
+      letter-spacing: 0.18em;
+      color: var(--ink-dim);
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .weather .hourly .h .icon {
+      font-size: 18px;
+      line-height: 1;
+      filter: drop-shadow(0 2px 6px rgba(233, 180, 76, 0.25));
+    }
+    .weather .hourly .h .t {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--ink);
+      font-feature-settings: "tnum" 1;
+    }
+    .weather .hourly .h.rain .t { color: var(--cobalt); }
 
     /* ─────────────────────────────────────────
        ROUTINE CARDS — library card style
@@ -938,6 +972,7 @@
             <span data-label="Low" id="w-lo">—°</span>
             <span data-label="Feels" id="w-feels">—°</span>
           </div>
+          <div class="hourly" id="w-hourly"></div>
         </div>
       </section>
 
@@ -1215,6 +1250,41 @@
         document.getElementById("w-desc").textContent = "Weather unavailable";
       }
     }
+    async function loadHourly() {
+      if (!OPENWEATHER_API_KEY || OPENWEATHER_API_KEY === "YOUR_API_KEY") return;
+      const target = document.getElementById("w-hourly");
+      if (!target) return;
+      try {
+        const url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(CITY)}&appid=${OPENWEATHER_API_KEY}&units=metric&cnt=6`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const d = await res.json();
+        target.textContent = "";
+        (d.list || []).slice(0, 6).forEach(item => {
+          const cell = document.createElement("div");
+          cell.className = "h";
+          // Highlight rain (10/09/11) so "will it rain at 3pm?" pops
+          const code = (item.weather?.[0]?.icon || "01d").slice(0, 2);
+          if (code === "09" || code === "10" || code === "11") cell.classList.add("rain");
+          const when = document.createElement("div");
+          when.className = "when";
+          const hr = new Intl.DateTimeFormat("en-GB", {
+            timeZone: TZ, hour: "2-digit", hour12: false
+          }).format(new Date(item.dt * 1000));
+          when.textContent = hr.replace(/^0/, "") + "h";
+          const ic = document.createElement("div");
+          ic.className = "icon";
+          ic.textContent = ICONS[code] || "🌡";
+          const t = document.createElement("div");
+          t.className = "t";
+          t.textContent = Math.round(item.main.temp) + "°";
+          cell.append(when, ic, t);
+          target.appendChild(cell);
+        });
+      } catch (err) {
+        // Hourly is nice-to-have — fail quietly
+      }
+    }
     // ---------- Routines (per-kid, daily reset, time-windowed) ----------
     const ROUTINES = {
       morning: {
@@ -1408,7 +1478,8 @@
     setInterval(() => { renderRoutines(); updateRoutineVisibility(); }, 60 * 1000);
 
     loadWeather();
-    setInterval(loadWeather, 15 * 60 * 1000); // every 15 min
+    loadHourly();
+    setInterval(() => { loadWeather(); loadHourly(); }, 15 * 60 * 1000); // every 15 min
 
     // ---------- Calendar (via Vercel proxy) ----------
     const CAL_PROXY_URL = "https://family-dashboard-proxy.vercel.app/api/cal";
