@@ -4,6 +4,19 @@ A backlog of ideas for the Portal ("Terry") dashboard. Pick & build whenever.
 
 ---
 
+## 🔧 Pending Infra
+
+0. **Rebuild + reinstall kiosk APK with `LOAD_NO_CACHE`.** Source already updated in `~/Projects/apps/kiosk-webview/app/src/main/java/xyz/erapps/kiosk/MainActivity.kt`. Run from Terminal:
+   ```
+   /Users/elul/Projects/apps/kiosk-webview/build.sh && \
+   adb install -r /Users/elul/Projects/apps/kiosk-webview/app/build/outputs/apk/debug/app-debug.apk && \
+   adb shell am force-stop xyz.erapps.kiosk && \
+   adb shell am start -n xyz.erapps.kiosk/.MainActivity
+   ```
+   After this, every dashboard push propagates within the 5-min meta-refresh — no more `pm clear` needed.
+
+---
+
 ## 🏠 Smart Home Hub
 
 1. **🚇 Live Transport** — TfL API (free) showing next trains/tubes from your nearest station. *"Northern Line: 2 min, 5 min, 8 min"*
