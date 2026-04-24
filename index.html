@@ -650,6 +650,87 @@
     }
 
     /* ─────────────────────────────────────────
+       STARS CARD — Table Stars mirror (read-only)
+       Hidden during routine windows via the rule below
+       ───────────────────────────────────────── */
+    .stars { flex-shrink: 0; padding: 12px 18px; }
+    .stars .eyebrow { margin-bottom: 6px; }
+    .stars .body { gap: 10px; }
+    .stars .kid-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 14px;
+      padding: 6px 0;
+      border-bottom: 1px dashed var(--rule);
+    }
+    .stars .kid-row:last-child { border-bottom: 0; }
+    .stars .kid-id {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      min-width: 110px;
+    }
+    .stars .kid-emoji { font-size: 22px; line-height: 1; }
+    .stars .kid-name {
+      font-family: var(--sans);
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--kid-accent, var(--ink-soft));
+    }
+    .stars .prize-count {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      font-family: var(--display);
+      font-size: 36px;
+      line-height: 0.9;
+      letter-spacing: -0.01em;
+      color: var(--kid-accent, var(--ink));
+      font-feature-settings: "tnum" 1;
+      transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .stars .prize-count.pulse { transform: scale(1.08); }
+    .stars .prize-count .gift { font-size: 20px; vertical-align: 2px; }
+    .stars .prize-count .times {
+      font-family: var(--sans);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--ink-dim);
+      letter-spacing: 0.1em;
+      align-self: center;
+    }
+    .stars .bar {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+      min-width: 130px;
+    }
+    .stars .bar .pips { letter-spacing: 2px; font-size: 14px; line-height: 1; }
+    .stars .bar .pips .on  { color: var(--kid-accent, var(--ink)); }
+    .stars .bar .pips .off { color: var(--ink-faint); }
+    .stars .bar .ratio {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--ink-dim);
+      font-feature-settings: "tnum" 1;
+    }
+    .stars .kid-row.eitan   { --kid-accent: var(--cobalt); }
+    .stars .kid-row.tamar   { --kid-accent: var(--terracotta); }
+    .stars .note {
+      font-family: var(--serif);
+      font-style: italic;
+      font-size: 12px;
+      color: var(--ink-dim);
+      padding: 4px 0 0 0;
+    }
+
+    /* ─────────────────────────────────────────
        ROUTINE CARDS — library card style
        ───────────────────────────────────────── */
     .routine {
@@ -782,6 +863,7 @@
     /* Hide transit during a routine window so kids' card has room.
        Parents see transit before/after routine times. */
     body.routine-active .right > .transit { display: none; }
+    body.routine-active .right > .stars   { display: none; }
     .routine li:hover { background: rgba(243, 231, 207, 0.05); }
     .routine li:active { transform: scale(0.98); }
     .routine li .icon {
@@ -1316,6 +1398,15 @@
         </div>
       </section>
 
+      <section class="card stars" id="stars-card" hidden>
+        <div class="eyebrow">
+          <span class="glyph">⭐</span>
+          <span class="name">Stars</span>
+          <span class="rule"></span>
+          <span class="meta">PROGRESS</span>
+        </div>
+        <div class="body" id="stars-body"></div>
+      </section>
 
       <section class="card todos">
         <div class="eyebrow">
@@ -1340,6 +1431,19 @@
     const OPENWEATHER_API_KEY = "49fa7d892311cf0a36c08bbcf4204107";
     const CITY = "London,uk";
     const TZ = "Europe/London";
+
+    // ---------- HTML escape (used anywhere we inject API-sourced strings) ----------
+    // Minimal implementation — old Portal Chromium lacks a native one and several
+    // renderers (TFL arrivals, Stars card) inject remote strings into innerHTML.
+    function escapeHtml(s) {
+      if (s == null) return "";
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
 
     // ---------- Clock + greeting ----------
     function tick() {
@@ -2145,6 +2249,85 @@
     setInterval(loadTfl, 5 * 60 * 1000); // line status every 5 min
     loadTflArrivals();
     setInterval(loadTflArrivals, 30 * 1000); // bus arrivals every 30s
+
+    // ---------- Table Stars mirror (read-only card in the off-routine ambient slot) ----------
+    // Keyed public endpoint — the key gates a low-sensitivity summary (prize_count,
+    // cycle_progress, last_earned_at), same posture as OPENWEATHER_API_KEY above.
+    const STARS_ENDPOINT =
+      "https://tablestars.erapps.xyz/api/public/stats?key=810c212871db6636f5b773b301f4a5e7d56bc51aaf88b657";
+    const _lastPrizeCount = {}; // kid.id -> last seen prize_count (drives pulse)
+
+    function slugKid(name) {
+      return (name || "").toLowerCase().replace(/[^a-z]/g, "");
+    }
+
+    function renderStars(kids) {
+      const body = document.getElementById("stars-body");
+      const card = document.getElementById("stars-card");
+      if (!body || !card) return;
+      if (!kids || !kids.length) {
+        card.setAttribute("hidden", "");
+        card.style.display = "none";
+        return;
+      }
+      const rows = kids.map(function(k) {
+        const slug = slugKid(k.name);
+        const cycle = Math.max(0, Math.min(10, k.cycle_progress || 0));
+        const on  = "★".repeat(cycle);
+        const off = "☆".repeat(10 - cycle);
+        const pc  = k.prize_count || 0;
+        const idAttr = escapeHtml(k.id);
+        return (
+          '<div class="kid-row ' + escapeHtml(slug) + '" data-kid="' + idAttr + '">' +
+            '<div class="kid-id">' +
+              '<span class="kid-emoji">' + escapeHtml(k.emoji || "") + '</span>' +
+              '<span class="kid-name">' + escapeHtml(k.name || "") + '</span>' +
+            '</div>' +
+            '<div class="prize-count" data-kid="' + idAttr + '">' +
+              '<span class="gift">🎁</span>' +
+              '<span class="times">×</span>' +
+              '<span class="n">' + pc + '</span>' +
+            '</div>' +
+            '<div class="bar">' +
+              '<div class="pips"><span class="on">' + on + '</span><span class="off">' + off + '</span></div>' +
+              '<div class="ratio">' + cycle + '/10</div>' +
+            '</div>' +
+          '</div>'
+        );
+      });
+      body.innerHTML = rows.join("");
+
+      // Pulse the prize count when it increments between polls.
+      kids.forEach(function(k) {
+        const prev = _lastPrizeCount[k.id];
+        const now = k.prize_count || 0;
+        if (prev !== undefined && now > prev) {
+          const el = body.querySelector('.prize-count[data-kid="' + CSS.escape(String(k.id)) + '"]');
+          if (el) {
+            el.classList.add("pulse");
+            setTimeout(function() { el.classList.remove("pulse"); }, 320);
+          }
+        }
+        _lastPrizeCount[k.id] = now;
+      });
+
+      card.removeAttribute("hidden");
+      card.style.display = "";
+    }
+
+    async function loadStars() {
+      try {
+        const res = await fetch(STARS_ENDPOINT, { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        renderStars(data && data.kids);
+      } catch (e) {
+        // Silent fail — leaves card hidden (or showing last-good state) rather than
+        // flashing an error row in the kitchen. Retry on next poll.
+      }
+    }
+    loadStars();
+    setInterval(loadStars, 30 * 60 * 1000); // stars change 1-2x per day; 30 min is plenty
 
     // ---------- Exit-to-Portal long-press (visible bottom-right button) ----------
     // 2-second hold fires kiosk://exit URL; intercepted by MainActivity.kt's
