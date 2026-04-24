@@ -17,19 +17,7 @@ A backlog of ideas for the Portal ("Terry") dashboard. Pick & build whenever.
 
 ## 🔧 Pending Infra (needs Mac Terminal.app + Terry connected via USB)
 
-0. **Rebuild + reinstall kiosk APK.** Two source changes are already made:
-   - `LOAD_NO_CACHE` cache mode (no more stale dashboard) — already in MainActivity.kt
-   - `shouldOverrideUrlLoading` for `kiosk://exit` URL — **still needs adding** to MainActivity.kt's WebViewClient:
-     ```kotlin
-     override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-         if (request.url.scheme == "kiosk" && request.url.host == "exit") {
-             finishAndRemoveTask()
-             return true
-         }
-         return super.shouldOverrideUrlLoading(view, request)
-     }
-     ```
-   Then build + install from Terminal.app:
+0. **Rebuild + reinstall kiosk APK.** Source already patched (both `LOAD_NO_CACHE` cache mode and the `kiosk://exit` URL interceptor in `MainActivity.kt`). Just build + install from Terminal.app:
    ```
    /Users/elul/Projects/apps/kiosk-webview/build.sh && \
    adb install -r /Users/elul/Projects/apps/kiosk-webview/app/build/outputs/apk/debug/app-debug.apk && \
@@ -58,7 +46,7 @@ Implementation note: Portal Android WebView supports `touchstart`/`touchend` —
 ## 🏠 Smart Home Hub
 
 1. ~~**🚇 Live Transport (status)**~~ **Done 2026-04-24.** Northern Line + Bus 102 (toward E. Finchley / Golders Green) live status from `api.tfl.gov.uk/Line/{id}/Status` (no key needed). Color-coded: sage = good, ochre = minor, terracotta = severe. Polled every 5 min.
-1a. **🚌 Live 102 bus arrivals — framework shipped, awaiting stop IDs.** `index.html` now has a `TFL_STOPS` array (just below the line-status loader). Add entries like `{ id: "490004733E", route: "102", dest: "Edgware" }` — IDs come from clicking a stop on https://tfl.gov.uk/bus/route/102/ (URL contains the StopID). Add one entry per direction. Once filled in, arrivals show under the 102 row, polled every 30s, with "Due" highlighted in ochre.
+1a. **🚌 Live 102 bus arrivals — on probation.** Stops wired (Brookland Rise E + W). TfL Countdown returns 0 live predictions for the 102 at this stop (verified across the network: the 102 just isn't covered by their iBus prediction feed right now — could be a TfL data outage, route-specific gap, or permanent). Schedule fallback added (next 3 scheduled times with a `SCHEDULED` chip). **If the live stream doesn't come back within a week of normal operation, remove the entire bus card** — line-status alone ("Good Service") isn't useful enough to justify the real estate. Keep the Northern Line status row regardless.
 2. **📦 Delivery Tracker** — Show expected deliveries today (parse from Gmail via Google API).
 3. ~~**🗓️ Family Countdown**~~ — **Dropped 2026-04-24.** Built then removed: maintaining a hardcoded date array isn't worth the friction when the calendar already has the same events. The merged iCal feed (Family + Elul) is the single source of truth. If we ever want a "next X days" countdown card, derive it from the calendar feed instead of a separate config.
 4. **🏫 School / Activities** — Daily schedule for kids: *"Swimming 4pm, Piano 5:30pm"*.
