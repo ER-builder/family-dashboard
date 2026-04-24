@@ -68,11 +68,11 @@ Implementation note: Portal Android WebView supports `touchstart`/`touchend` —
 
 ## 🚪 Exit-to-Portal
 
-- ~~**Iter 1: HOME removed; exit worked but kiosk vanished from Portal UI.**~~ Portal's launcher whitelists what it shows, so a LAUNCHER-only app is invisible. Discovery: `adb shell cmd package resolve-activity -c android.intent.category.HOME` returns Portal's stock launcher: package `com.facebook.alohaapps.launcher` / activity `com.facebook.aloha.app.home.touch.HomeActivity` (codename Aloha).
-- ~~**Iter 2: HOME re-added + smarter exit.**~~ Manifest puts kiosk back as a HOME app (so pressing Home shows a chooser; kiosk shows up in Portal UI as selectable home). `MainActivity.exitToPortalLauncher()` explicitly launches Portal's HomeActivity by package+component name BEFORE `finishAndRemoveTask()` — Portal becomes the active home, our task removes itself, no snap-back.
-- **Pending: rebuild APK once more** to ship Iter 2. After install, on next Home press Android will show "Complete action using:" → pick **Kiosk** (and "Always" if you want it as default home). To exit: hold the bottom-right pill 2s → Portal launcher takes over cleanly.
-- **Visible button:** bold terracotta pill labeled "HOLD TO EXIT" at bottom-right, with circular ochre progress ring that fills as you hold (2s). Releasing early cancels.
-- Caveat: `BootReceiver` still re-launches the kiosk on next boot — exit is "for now," not permanent.
+- ~~**Iter 1–3 all failed** (HOME removed → kiosk invisible; explicit Aloha launch → snap-back; Settings.ACTION_HOME_SETTINGS → no-op or invisible).~~ Root cause: kiosk is the registered default Home (`xyz.erapps.kiosk` per `cmd package resolve-activity`), so any in-app exit triggers Android's home-resolution → routes back to us.
+- **Iter 4 (current, awaiting rebuild): activity-alias toggle.** Manifest split: MainActivity is LAUNCHER-only; new `<activity-alias name=".HomeAlias">` carries the HOME category and is toggleable via `PackageManager.setComponentEnabledSetting`. `exitToPortalLauncher()` disables HomeAlias *before* launching Aloha and finishing — Android can't snap back because we're no longer a registered Home. `MainActivity.onCreate()` re-enables HomeAlias on every fresh launch (incl. BootReceiver path), so kiosk is restored as a Home choice automatically on next reboot.
+- **Pending: rebuild APK** (`/Users/elul/Projects/apps/kiosk-webview/build.sh && adb install -r ...`).
+- **Visible button:** bold terracotta pill labeled "HOLD TO EXIT" at bottom-right, with circular ochre progress ring (2s).
+- **Trade-off accepted:** returning to kiosk after exit requires power-cycling Terry (BootReceiver fires) OR `adb shell am start -n xyz.erapps.kiosk/.MainActivity`. Aloha doesn't surface LAUNCHER-only apps in any reachable UI we've found. Future work: install Lawnchair/Nova as alternate launcher OR set up WiFi ADB so Elul can re-launch from his phone OR investigate `ShortcutManager.requestPinShortcut` to pin a kiosk shortcut on Aloha if it supports the API.
 
 ## 🎨 Design Refinement
 
