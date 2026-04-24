@@ -693,18 +693,21 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 5px 6px;
+      padding: 6px 6px;
       font-family: var(--sans);
       font-size: 15px;
       font-weight: 500;
       cursor: pointer;
       user-select: none;
       border-radius: 9px;
-      min-height: 38px;
+      min-height: 40px;
       transition: background 140ms ease, transform 100ms ease;
       color: var(--ink);
       border: 0;
     }
+    /* Hide transit during a routine window so kids' card has room.
+       Parents see transit before/after routine times. */
+    body.routine-active .right > .transit { display: none; }
     .routine li:hover { background: rgba(243, 231, 207, 0.05); }
     .routine li:active { transform: scale(0.98); }
     .routine li .icon {
@@ -1652,12 +1655,15 @@
         const showEvening = mins >= 15 * 60 + 30 && mins < 20 * 60 + 30;
         setCardVisible("morning-card", showMorning);
         setCardVisible("evening-card", showEvening);
+        // Body class lets CSS hide lower-priority cards (e.g. transit)
+        // while a routine is active, freeing vertical space for the kids.
+        document.body.classList.toggle("routine-active", showMorning || showEvening);
         const dbg = document.getElementById("dbg");
         if (dbg) dbg.textContent = "mins=" + mins;
       } catch (e) {
-        // On any error, hide both cards
         setCardVisible("morning-card", false);
         setCardVisible("evening-card", false);
+        document.body.classList.remove("routine-active");
         const dbg = document.getElementById("dbg");
         if (dbg) dbg.textContent = "vis-err:" + e.message;
       }
