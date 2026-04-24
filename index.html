@@ -557,6 +557,62 @@
     .transit .status.good   { background: var(--sage-soft);       color: var(--sage); }
     .transit .status.minor  { background: var(--ochre-soft);      color: var(--ochre); }
     .transit .status.severe { background: var(--terracotta-soft); color: var(--terracotta); }
+
+    .countdowns { flex-shrink: 0; padding: 12px 18px; }
+    .countdowns .eyebrow { margin-bottom: 8px; }
+    .countdowns .body { gap: 0; }
+    .cd-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px dashed var(--rule);
+    }
+    .cd-row:last-child { border-bottom: 0; }
+    .cd-row .cd-emoji {
+      font-size: 22px;
+      line-height: 1;
+      width: 28px;
+      text-align: center;
+    }
+    .cd-row .cd-label {
+      font-family: var(--serif);
+      font-size: 17px;
+      font-weight: 500;
+      color: var(--ink);
+      line-height: 1.15;
+    }
+    .cd-row .cd-sub {
+      font-family: var(--sans);
+      font-size: 10px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      margin-top: 2px;
+      font-weight: 600;
+    }
+    .cd-row .cd-num {
+      font-family: var(--serif);
+      font-variation-settings: "opsz" 144, "wght" 600;
+      font-size: 28px;
+      line-height: 0.9;
+      letter-spacing: -0.02em;
+      color: var(--sage);
+      font-feature-settings: "tnum" 1;
+    }
+    .cd-row .cd-num.soon  { color: var(--ochre); }
+    .cd-row .cd-num.today { color: var(--terracotta); }
+    .cd-row .cd-num .unit {
+      font-family: var(--sans);
+      font-size: 9px;
+      letter-spacing: 0.18em;
+      color: var(--ink-dim);
+      text-transform: uppercase;
+      margin-left: 3px;
+      font-weight: 700;
+      vertical-align: 4px;
+    }
     .transit .arrivals {
       padding: 8px 0 4px 38px;
       display: flex;
@@ -1232,6 +1288,16 @@
           </div>
           <div class="arrivals" id="tfl-102-arrivals" hidden></div>
         </div>
+      </section>
+
+      <section class="card countdowns" id="countdowns-card" hidden>
+        <div class="eyebrow">
+          <span class="glyph">⌛</span>
+          <span class="name">Countdowns</span>
+          <span class="rule"></span>
+          <span class="meta">UPCOMING</span>
+        </div>
+        <div class="body" id="countdowns-body"></div>
       </section>
 
       <section class="card todos">
@@ -1937,6 +2003,64 @@
     renderDailyQuote();
     // Re-check every hour in case the dashboard runs across midnight
     setInterval(renderDailyQuote, 60 * 60 * 1000);
+
+    // ---------- Countdowns ----------
+    // Add upcoming family events as { date: "YYYY-MM-DD", label, emoji?, sub? }.
+    // Sub is an optional small caption (e.g. "Mum", "School term"). Past dates are auto-pruned.
+    // Card hides itself when nothing is within COUNTDOWN_HORIZON_DAYS.
+    const COUNTDOWNS = [
+      // { date: "2026-08-12", label: "Holiday in Greece", emoji: "🏖️" },
+      // { date: "2026-05-30", label: "Eitan's birthday", emoji: "🎂", sub: "Eitan" },
+      // { date: "2026-09-04", label: "First day of school", emoji: "🎒" },
+    ];
+    const COUNTDOWN_HORIZON_DAYS = 90;
+    const COUNTDOWN_MAX_VISIBLE  = 3;
+
+    function daysUntilLondon(isoDate) {
+      // Compute calendar-day delta in London tz (so "5pm on Friday" → "tomorrow" feels right).
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: TZ }); // YYYY-MM-DD
+      const [ty, tm, td] = today.split("-").map(Number);
+      const [py, pm, pd] = isoDate.split("-").map(Number);
+      const t = Date.UTC(ty, tm - 1, td);
+      const p = Date.UTC(py, pm - 1, pd);
+      return Math.round((p - t) / 86_400_000);
+    }
+    function renderCountdowns() {
+      const card = document.getElementById("countdowns-card");
+      const body = document.getElementById("countdowns-body");
+      if (!card || !body) return;
+      const upcoming = COUNTDOWNS
+        .map(c => ({ ...c, days: daysUntilLondon(c.date) }))
+        .filter(c => c.days >= 0 && c.days <= COUNTDOWN_HORIZON_DAYS)
+        .sort((a, b) => a.days - b.days)
+        .slice(0, COUNTDOWN_MAX_VISIBLE);
+
+      if (!upcoming.length) {
+        card.setAttribute("hidden", "");
+        card.style.display = "none";
+        return;
+      }
+      body.innerHTML = upcoming.map(c => {
+        const tone = c.days === 0 ? "today" : c.days <= 7 ? "soon" : "";
+        const num = c.days === 0
+          ? `<span class="cd-num today">today</span>`
+          : `<span class="cd-num ${tone}">${c.days}<span class="unit">${c.days === 1 ? "day" : "days"}</span></span>`;
+        return `
+          <div class="cd-row">
+            <span class="cd-emoji">${escapeHtml(c.emoji || "•")}</span>
+            <div>
+              <div class="cd-label">${escapeHtml(c.label)}</div>
+              ${c.sub ? `<div class="cd-sub">${escapeHtml(c.sub)}</div>` : ""}
+            </div>
+            ${num}
+          </div>
+        `;
+      }).join("");
+      card.removeAttribute("hidden");
+      card.style.display = "";
+    }
+    renderCountdowns();
+    setInterval(renderCountdowns, 60 * 60 * 1000); // re-tick hourly (cheap, handles midnight crossing)
 
     // ---------- TfL transit (Northern Line + Bus 102) ----------
     // TfL severity scale: 10 = Good Service, 9 = Minor Delays, 6 or below = Severe.
