@@ -1147,7 +1147,22 @@
       font-size: 14px;
       line-height: 1;
     }
-    .exit-label { letter-spacing: 0.10em; }
+    .exit-label {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      letter-spacing: 0.10em;
+      line-height: 1;
+    }
+    .exit-sublabel {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.18em;
+      color: rgba(255, 247, 230, 0.55);
+      text-transform: uppercase;
+      font-weight: 500;
+      margin-top: 4px;
+    }
 
     /* Smaller screens — Portal Mini portrait */
     @media (max-width: 900px) {
@@ -1166,12 +1181,15 @@
   <!-- Visible exit button: long-press 2s to exit kiosk and return to Portal home.
        Long-press (not tap) so kids don't trigger by accident. The progress ring
        fills as you hold; releasing early cancels. Intercepted in MainActivity. -->
-  <button id="exit-corner" aria-label="Hold to exit to Portal home">
+  <button id="exit-corner" aria-label="Hold to exit to Portal home (dashboard auto-returns in 10 minutes)">
     <span class="exit-ring">
       <span class="exit-fill"></span>
       <span class="exit-icon">📞</span>
     </span>
-    <span class="exit-label">Hold to exit</span>
+    <span class="exit-label">
+      Hold to exit
+      <span class="exit-sublabel">back in 10m</span>
+    </span>
   </button>
 
   <div class="app">
