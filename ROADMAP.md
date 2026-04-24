@@ -74,6 +74,8 @@ Implementation note: Portal Android WebView supports `touchstart`/`touchend` —
 
 ## 🎨 Design Refinement
 
+- **Run a full design audit again using the `frontend-design:frontend-design` skill.** The dashboard has accumulated lots of incremental tweaks — fonts, colors, card densities, micro-spacing — and may have drifted from the original "Rifman Almanac" aesthetic intention. Specifically: **Elul is still not happy with how the numbers display** (clock, weather temp, transit times). JetBrains Mono Bold was the first attempt; it's chunkier than Fraunces but still feels off. The skill should re-evaluate the entire numerical typography (size, weight, font, color hierarchy) plus check overall visual cohesion. Brief the skill with: current screenshot, the constraints from `AGENTS.md`, and "user finds the numbers visually unsatisfying — explore alternatives like a display sans (Space Grotesk numerals? Recoleta? a custom variable axis on Fraunces?), or even a hand-drawn/condensed display family."
+
 - ~~**To-Do notebook lines don't align with task rows.**~~ **Done.** Replaced repeating-gradient with `border-bottom` on each `<li>`. Removed static terracotta margin line.
 - ~~**Hebrew font in calendar events looks bad.**~~ **Done.** Added Heebo (wght 300–700) to Google Fonts; inserted before Frank Ruhl Libre in `--serif` and `--sans` stacks. Fraunces doesn't cover Hebrew so Hebrew chars fall through to Heebo automatically.
 - ~~**"The Rifman Almanac · Kitchen Edition" brand line is too small and unnecessary.**~~ **Done.** Removed. Greeting is now slightly larger (clamp 30–44px).
