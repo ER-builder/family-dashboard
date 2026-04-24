@@ -85,7 +85,6 @@
       padding: 18px 22px;
       height: 100vh;
     }
-    .app > .bin-banner { grid-column: 1 / -1; }
     .app > .masthead   { grid-column: 1 / -1; }
 
     /* ─────────────────────────────────────────
@@ -1053,32 +1052,6 @@
       40%      { transform: scale(1.08); }
     }
 
-    /* ─────────────────────────────────────────
-       BINS BANNER — Mon 18:00 → Tue 09:00
-       ───────────────────────────────────────── */
-    .bin-banner {
-      position: relative;
-      z-index: 2;
-      padding: 10px 18px;
-      background:
-        radial-gradient(ellipse 80% 100% at 0% 50%, rgba(233, 180, 76, 0.18) 0%, transparent 60%),
-        var(--paper-2);
-      border: 1px solid var(--ochre-soft);
-      border-left: 3px solid var(--ochre);
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-family: var(--sans);
-      font-weight: 700;
-      font-size: 14px;
-      letter-spacing: 0.05em;
-      color: var(--ochre);
-      text-transform: uppercase;
-    }
-    .bin-banner .bin-icon { font-size: 20px; line-height: 1; }
-    .bin-banner .bin-msg { letter-spacing: 0.08em; }
-
     /* Daily quote — fixed bottom-center, low contrast */
     .daily-quote {
       position: fixed;
@@ -1119,10 +1092,6 @@
   <button id="exit-corner" aria-label="Exit kiosk" style="position:fixed;bottom:0;right:0;width:72px;height:72px;background:transparent;border:none;cursor:pointer;z-index:9999;-webkit-tap-highlight-color:transparent;touch-action:none"></button>
 
   <div class="app">
-    <div id="bin-banner" class="bin-banner" hidden style="display:none">
-      <span class="bin-icon">🗑️</span>
-      <span class="bin-msg"></span>
-    </div>
     <header class="masthead">
       <div class="marque">
         <div class="greeting" id="greeting">—</div>
@@ -2085,33 +2054,6 @@
     setInterval(loadTfl, 5 * 60 * 1000); // line status every 5 min
     loadTflArrivals();
     setInterval(loadTflArrivals, 30 * 1000); // bus arrivals every 30s
-
-    // ---------- Bins reminder (Mon 18:00 → Tue 09:00 London) ----------
-    function updateBinBanner() {
-      const fmt = new Intl.DateTimeFormat("en-GB", {
-        timeZone: TZ, weekday: "short", hour: "2-digit", hour12: false
-      }).format(new Date());
-      // e.g. "Mon, 18" or "Tue 07"
-      const m = fmt.match(/^(\w{3})\D*(\d{1,2})/);
-      const banner = document.getElementById("bin-banner");
-      const text   = banner && banner.querySelector(".bin-msg");
-      if (!banner || !text || !m) return;
-      const day = m[1].toLowerCase();
-      const hour = parseInt(m[2], 10);
-      let msg = null;
-      if (day === "mon" && hour >= 18) msg = "Bins out tomorrow morning";
-      else if (day === "tue" && hour < 9) msg = "Don't forget the bins!";
-      if (msg) {
-        text.textContent = msg;
-        banner.removeAttribute("hidden");
-        banner.style.display = "";
-      } else {
-        banner.setAttribute("hidden", "");
-        banner.style.display = "none";
-      }
-    }
-    updateBinBanner();
-    setInterval(updateBinBanner, 60 * 1000);
 
     // ---------- Exit-to-Portal long-press (bottom-right corner, 2 s) ----------
     // Kotlin side: shouldOverrideUrlLoading intercepts "kiosk://exit" → finishAndRemoveTask()
