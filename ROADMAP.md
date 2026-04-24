@@ -81,7 +81,7 @@ adb shell am start -n xyz.erapps.kiosk/.MainActivity       # launch dashboard
 
 **If `adb connect` fails** (e.g. after Terry reboot — port 5555 closes): plug USB cable in, run `adb tcpip 5555`, unplug, then `adb connect 192.168.1.116:5555` works again. To make this fully cable-free permanently, look into Android 11+ wireless ADB pairing (Developer Options → Wireless debugging → Pair device with pairing code) — Portal's Android version may or may not support it.
 
-**Use the `terry` CLI (preferred — wraps all the adb commands):** Located at `~/bin/terry`. Auto-reconnects WiFi if needed. Subcommands:
+**Use the `terry` CLI (preferred — wraps all the adb commands):** Located at `~/bin/terry`. **Auto-discovers Terry by MAC address** (`a4:0e:2b:74:d4:85`) if the cached IP stops responding — no DHCP reservation needed (Deco's Smart DHCP locks reservations out anyway). On a cached-IP miss the script pings the local subnet to populate the ARP cache, then matches MAC → IP and saves the new endpoint to `~/.terry-ip`. Subcommands:
 ```
 terry              # launch dashboard (default)
 terry on           # launch dashboard
@@ -91,6 +91,8 @@ terry home         # switch to Portal (kiosk keeps running in background)
 terry status       # show connection, default home, foreground app
 terry reboot       # reboot Terry (~30s)
 terry connect      # re-arm WiFi adb after Mac reboot
+terry rediscover   # force MAC-based IP rediscovery (e.g. after IP change)
+terry ip           # print cached IP
 terry help         # show usage
 ```
 
