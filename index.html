@@ -527,6 +527,53 @@
     .weather .hourly .h.rain .t { color: var(--cobalt); }
 
     /* ─────────────────────────────────────────
+       TRANSIT — Northern Line + Bus 102
+       ───────────────────────────────────────── */
+    .transit { flex-shrink: 0; }
+    .transit .body { gap: 6px; }
+    .transit .line-row {
+      display: grid;
+      grid-template-columns: 42px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 8px 4px;
+      border-bottom: 1px solid var(--rule);
+    }
+    .transit .line-row:last-child { border-bottom: 0; }
+    .transit .badge {
+      font-family: var(--sans);
+      font-size: 11px;
+      font-weight: 800;
+      border-radius: 6px;
+      padding: 5px 0;
+      text-align: center;
+      letter-spacing: 0.04em;
+    }
+    .transit .line-name {
+      font-family: var(--serif);
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--ink);
+      letter-spacing: -0.003em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .transit .status {
+      font-family: var(--sans);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .transit .status.good   { background: var(--sage-soft);       color: var(--sage); }
+    .transit .status.minor  { background: var(--ochre-soft);      color: var(--ochre); }
+    .transit .status.severe { background: var(--terracotta-soft); color: var(--terracotta); }
+
+    /* ─────────────────────────────────────────
        ROUTINE CARDS — library card style
        ───────────────────────────────────────── */
     .routine {
@@ -1049,6 +1096,27 @@
             <span data-label="Feels" id="w-feels">—°</span>
           </div>
           <div class="hourly" id="w-hourly"></div>
+        </div>
+      </section>
+
+      <section class="card transit">
+        <div class="eyebrow">
+          <span class="glyph">⇄</span>
+          <span class="name">Transit</span>
+          <span class="rule"></span>
+          <span class="meta">LIVE</span>
+        </div>
+        <div class="body">
+          <div class="line-row" id="tfl-northern">
+            <span class="badge" style="background:#000;color:#fff;">N</span>
+            <span class="line-name">Northern Line</span>
+            <span class="status">…</span>
+          </div>
+          <div class="line-row" id="tfl-102">
+            <span class="badge" style="background:#dc241f;color:#fff;">102</span>
+            <span class="line-name">Bus → E. Finchley · Golders Green</span>
+            <span class="status">…</span>
+          </div>
         </div>
       </section>
 
@@ -1806,6 +1874,37 @@
     renderDailyQuote();
     // Re-check every hour in case the dashboard runs across midnight
     setInterval(renderDailyQuote, 60 * 60 * 1000);
+
+    // ---------- TfL transit (Northern Line + Bus 102) ----------
+    // TfL severity scale: 10 = Good Service, 9 = Minor Delays, 6 or below = Severe
+    async function loadTfl() {
+      const lines = [
+        { id: "northern", el: "tfl-northern" },
+        { id: "102",      el: "tfl-102" }
+      ];
+      await Promise.all(lines.map(async ({ id, el }) => {
+        const row = document.getElementById(el);
+        const span = row && row.querySelector(".status");
+        if (!span) return;
+        try {
+          const res = await fetch(`https://api.tfl.gov.uk/Line/${id}/Status`, { cache: "no-store" });
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          const data = await res.json();
+          const desc = data?.[0]?.lineStatuses?.[0]?.statusSeverityDescription || "Unknown";
+          const sev  = data?.[0]?.lineStatuses?.[0]?.statusSeverity ?? 10;
+          const tone = sev >= 10 ? "good" : sev >= 7 ? "minor" : "severe";
+          span.textContent = desc;
+          span.classList.remove("good", "minor", "severe");
+          span.classList.add(tone);
+        } catch (e) {
+          span.textContent = "Unavailable";
+          span.classList.remove("good", "minor");
+          span.classList.add("severe");
+        }
+      }));
+    }
+    loadTfl();
+    setInterval(loadTfl, 5 * 60 * 1000); // every 5 min
 
     // ---------- Exit-to-Portal long-press (bottom-right corner, 2 s) ----------
     // Kotlin side: shouldOverrideUrlLoading intercepts "kiosk://exit" → finishAndRemoveTask()
