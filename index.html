@@ -220,101 +220,151 @@
     }
 
     /* ─────────────────────────────────────────
-       CALENDAR — almanac page with timeline
+       CALENDAR — Google-Cal-style day view
        ───────────────────────────────────────── */
-    .calendar { grid-row: 2; grid-column: 1; }
+    .calendar { grid-row: 2; grid-column: 1; --hour-h: 28px; }
     .calendar .body {
       gap: 0;
       overflow-y: auto;
-      padding-left: 14px;
       position: relative;
     }
     .calendar .body::-webkit-scrollbar { width: 5px; }
     .calendar .body::-webkit-scrollbar-thumb { background: var(--rule-strong); border-radius: 3px; }
 
-    /* vertical timeline rule on the left */
-    .calendar .body > .timeline {
-      position: absolute;
-      top: 6px;
-      bottom: 6px;
-      left: 4px;
-      width: 1px;
-      background: linear-gradient(to bottom, transparent, var(--rule-strong) 6%, var(--rule-strong) 94%, transparent);
-      pointer-events: none;
+    /* All-day chips strip (today only) */
+    .cal-allday {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+    .cal-allday:empty { display: none; }
+    .cal-allday .chip {
+      font-family: var(--sans);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--terracotta);
+      background: var(--terracotta-soft);
+      padding: 4px 10px;
+      border-radius: 999px;
+      letter-spacing: 0.04em;
     }
 
-    .cal-day {
-      margin-top: 26px;
+    /* Today timeline (06:00–22:00 = 17 hour rules) */
+    .cal-today {
+      position: relative;
+      height: calc(var(--hour-h) * 17);
+      margin: 4px 0 14px;
+    }
+    .cal-today .hour-mark {
+      position: absolute;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: var(--rule);
+    }
+    .cal-today .hour-mark .h-label {
+      position: absolute;
+      left: 0;
+      top: -7px;
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink-dim);
+      background: var(--paper-2);
+      padding-right: 8px;
+      letter-spacing: 0.06em;
+    }
+    .cal-block {
+      position: absolute;
+      left: 38px;
+      right: 6px;
+      background: var(--cobalt-soft);
+      border-left: 3px solid var(--cobalt);
+      border-radius: 6px;
+      padding: 3px 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 12px -8px rgba(0, 0, 0, 0.4);
+    }
+    .cal-block.past { opacity: 0.42; }
+    .cal-block .title {
+      font-family: var(--serif);
+      font-variation-settings: "opsz" 96;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--ink);
+      line-height: 1.18;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+      letter-spacing: -0.005em;
+    }
+    .cal-block .when {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink-soft);
+      font-feature-settings: "tnum" 1;
+      letter-spacing: 0.02em;
+      margin-top: 1px;
+    }
+    .cal-now {
+      position: absolute;
+      left: 30px;
+      right: 0;
+      height: 2px;
+      background: var(--terracotta);
+      z-index: 5;
+      box-shadow: 0 0 12px rgba(200, 85, 61, 0.45);
+      pointer-events: none;
+    }
+    .cal-now::before {
+      content: "";
+      position: absolute;
+      left: -6px;
+      top: -4px;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--terracotta);
+      box-shadow: 0 0 8px rgba(200, 85, 61, 0.7);
+    }
+
+    /* Future days — compact list below today's timeline */
+    .cal-future {
+      border-top: 1px dashed var(--rule);
+      padding-top: 12px;
+    }
+    .cal-future:empty { border-top: 0; padding-top: 0; }
+    .cal-future .day-head {
       font-family: var(--serif);
       font-style: italic;
       font-weight: 500;
-      font-size: 16px;
+      font-size: 14px;
       color: var(--ochre);
-      padding: 4px 0 10px 16px;
-      position: relative;
+      margin-top: 10px;
       letter-spacing: 0.005em;
-      border: 0;
-      text-transform: none;
     }
-    .cal-day::before {
-      content: "";
-      position: absolute;
-      left: -7px;
-      top: 12px;
-      width: 11px;
-      height: 11px;
-      border-radius: 50%;
-      background: var(--ochre);
-      box-shadow: 0 0 0 4px var(--paper-2), 0 0 14px rgba(233, 180, 76, 0.5);
-    }
-    .cal-day:first-child { margin-top: 0; }
-    .cal-day.today { color: var(--terracotta); }
-    .cal-day.today::before { background: var(--terracotta); box-shadow: 0 0 0 4px var(--paper-2), 0 0 14px rgba(200, 85, 61, 0.5); }
-
-    .cal-event {
+    .cal-future .day-head:first-child { margin-top: 0; }
+    .cal-future .row {
       display: grid;
-      grid-template-columns: 110px 1fr;
-      gap: 18px;
-      padding: 14px 6px 14px 16px;
+      grid-template-columns: 64px 1fr;
+      gap: 10px;
+      padding: 5px 0 5px 4px;
       align-items: baseline;
-      border-radius: 10px;
-      border: 0;
     }
-    .cal-event:hover { background: rgba(243, 231, 207, 0.025); }
-    .cal-event .when {
+    .cal-future .row .t {
       font-family: var(--mono);
-      font-size: 13px;
+      font-size: 11px;
       color: var(--ink-soft);
-      letter-spacing: 0.02em;
       font-feature-settings: "tnum" 1;
-      width: auto;
-      padding-top: 2px;
+      letter-spacing: 0.02em;
     }
-    .cal-event .what { min-width: 0; flex: none; }
-    .cal-event .title {
+    .cal-future .row .ti {
       font-family: var(--serif);
-      font-variation-settings: "opsz" 144;
-      font-size: 23px;
+      font-size: 14px;
       font-weight: 500;
       color: var(--ink);
+      letter-spacing: -0.003em;
       line-height: 1.2;
-      word-break: break-word;
-      letter-spacing: -0.005em;
-    }
-    .cal-event .loc {
-      font-family: var(--sans);
-      font-size: 11px;
-      color: var(--ink-dim);
-      margin-top: 6px;
-      letter-spacing: 0.16em;
-      text-transform: uppercase;
-    }
-    .cal-event.allday .when {
-      color: var(--terracotta);
-      font-weight: 700;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      font-size: 11px;
     }
 
     .cal-empty, .cal-error {
@@ -322,51 +372,35 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      flex: 1;
-      min-height: 220px;
+      min-height: 80px;
       text-align: center;
-      padding: 30px;
+      padding: 18px;
       color: var(--ink-soft);
+      font-family: var(--serif);
+      font-style: italic;
+      font-size: 15px;
     }
     .cal-empty::before, .cal-error::before {
       content: "✦";
       display: block;
       font-family: var(--serif);
-      font-size: 52px;
+      font-size: 28px;
       color: var(--ochre);
       opacity: 0.55;
-      margin-bottom: 18px;
+      margin-bottom: 8px;
       line-height: 1;
+      font-style: normal;
     }
-    .cal-empty {
-      font-family: var(--serif);
-      font-style: italic;
-      font-size: 20px;
-      color: var(--ink-soft);
-    }
-    .cal-error { color: var(--terracotta); font-family: var(--serif); font-style: italic; font-size: 18px; }
+    .cal-error { color: var(--terracotta); }
     .cal-error::before { color: var(--terracotta); content: "❡"; }
     .cal-error small {
       display: block;
-      margin-top: 10px;
+      margin-top: 6px;
       font-family: var(--mono);
       font-style: normal;
-      font-size: 11px;
+      font-size: 10px;
       letter-spacing: 0.05em;
       color: var(--ink-dim);
-    }
-
-    /* footer ornament — pushed to bottom of calendar body */
-    .calendar .body::after {
-      content: "❋";
-      display: block;
-      margin-top: auto;
-      text-align: center;
-      font-family: var(--serif);
-      font-size: 22px;
-      color: var(--ink-faint);
-      padding: 36px 0 8px;
-      flex-shrink: 0;
     }
 
     /* ─────────────────────────────────────────
@@ -982,11 +1016,14 @@
         <span class="glyph">¶</span>
         <span class="name">Almanac</span>
         <span class="rule"></span>
-        <span class="meta">UPCOMING</span>
+        <span class="meta">TODAY</span>
       </div>
       <div class="body" id="cal-body">
-        <div class="timeline"></div>
-        <div class="cal-empty">Loading…</div>
+        <div class="cal-allday" id="cal-allday"></div>
+        <div class="cal-today" id="cal-today"></div>
+        <div class="cal-future" id="cal-future">
+          <div class="cal-empty">Loading…</div>
+        </div>
       </div>
     </section>
 
@@ -1535,9 +1572,11 @@
     loadHourly();
     setInterval(() => { loadWeather(); loadHourly(); }, 15 * 60 * 1000); // every 15 min
 
-    // ---------- Calendar (via Vercel proxy) ----------
+    // ---------- Calendar (Google-Cal-style day view, via Vercel proxy) ----------
     const CAL_PROXY_URL = "https://family-dashboard-proxy.vercel.app/api/cal";
-    const calBody = document.getElementById("cal-body");
+    const DAY_START_H = 6;       // timeline starts 06:00
+    const DAY_END_H   = 23;      // timeline ends 23:00 (= 17 hour rules: 06..22)
+    const HOUR_H      = 28;      // px per hour, must match --hour-h CSS var
 
     function dayKey(d) {
       return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year:"numeric", month:"2-digit", day:"2-digit" }).format(d);
@@ -1554,6 +1593,18 @@
     function fmtTime(d) {
       return new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
     }
+    // London-tz minutes-since-midnight for any Date
+    function londonMins(d) {
+      try {
+        const s = new Intl.DateTimeFormat("en-GB", {
+          timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false
+        }).format(d);
+        const m = s.match(/(\d{1,2}):(\d{2})/);
+        if (m) return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+      } catch (e) {}
+      return d.getHours() * 60 + d.getMinutes();
+    }
+
     async function loadCalendar() {
       try {
         const res = await fetch(CAL_PROXY_URL, { cache: "no-store" });
@@ -1561,47 +1612,147 @@
         const { events } = await res.json();
         renderCalendar(events || []);
       } catch (err) {
-        calBody.innerHTML = `<div class="timeline"></div><div class="cal-error">Calendar unavailable<br><small>${err.message || err}</small></div>`;
+        const future = document.getElementById("cal-future");
+        if (future) {
+          while (future.firstChild) future.removeChild(future.firstChild);
+          const wrap = document.createElement("div");
+          wrap.className = "cal-error";
+          wrap.appendChild(document.createTextNode("Calendar unavailable"));
+          const small = document.createElement("small");
+          small.textContent = String(err.message || err);
+          wrap.appendChild(small);
+          future.appendChild(wrap);
+        }
       }
     }
+
     function renderCalendar(events) {
-      if (!events.length) {
-        calBody.innerHTML = `<div class="timeline"></div><div class="cal-empty">A quiet stretch ahead.</div>`;
-        return;
-      }
-      // Group by day key.
-      const groups = new Map();
+      const allDayEl = document.getElementById("cal-allday");
+      const todayEl  = document.getElementById("cal-today");
+      const futureEl = document.getElementById("cal-future");
+      if (!allDayEl || !todayEl || !futureEl) return;
+      [allDayEl, todayEl, futureEl].forEach(el => {
+        while (el.firstChild) el.removeChild(el.firstChild);
+      });
+
+      const today = dayKey(new Date());
+      const todayAllDay = [];
+      const todayTimed = [];
+      const futureByDay = new Map();
       for (const ev of events) {
         const start = new Date(ev.start);
         const k = dayKey(start);
-        if (!groups.has(k)) groups.set(k, { date: start, items: [] });
-        groups.get(k).items.push(ev);
-      }
-      const html = ['<div class="timeline"></div>'];
-      for (const [, g] of groups) {
-        const lbl = dayLabel(g.date);
-        html.push(`<div class="cal-day ${lbl.today ? "today" : ""}">${escapeHtml(lbl.label)}</div>`);
-        for (const ev of g.items) {
-          const start = new Date(ev.start);
-          const end = new Date(ev.end);
-          const when = ev.allDay ? "All day" : `${fmtTime(start)}–${fmtTime(end)}`;
-          html.push(`
-            <div class="cal-event ${ev.allDay ? "allday" : ""}">
-              <div class="when">${escapeHtml(when)}</div>
-              <div class="what">
-                <div class="title">${escapeHtml(ev.title)}</div>
-                ${ev.location ? `<div class="loc">${escapeHtml(ev.location)}</div>` : ""}
-              </div>
-            </div>`);
+        if (k === today) {
+          (ev.allDay ? todayAllDay : todayTimed).push(ev);
+        } else if (k > today) { // future only
+          if (!futureByDay.has(k)) futureByDay.set(k, { date: start, items: [] });
+          futureByDay.get(k).items.push(ev);
         }
       }
-      calBody.innerHTML = html.join("");
+
+      // ─── All-day chips
+      todayAllDay.forEach(ev => {
+        const c = document.createElement("div");
+        c.className = "chip";
+        c.textContent = ev.title;
+        allDayEl.appendChild(c);
+      });
+
+      // ─── Today timeline: hour markers
+      for (let h = DAY_START_H; h <= DAY_END_H - 1; h++) {
+        const m = document.createElement("div");
+        m.className = "hour-mark";
+        m.style.top = ((h - DAY_START_H) * HOUR_H) + "px";
+        const lbl = document.createElement("span");
+        lbl.className = "h-label";
+        lbl.textContent = String(h).padStart(2, "0");
+        m.appendChild(lbl);
+        todayEl.appendChild(m);
+      }
+
+      // ─── Now-line (positioned each tick)
+      const nowLine = document.createElement("div");
+      nowLine.className = "cal-now";
+      nowLine.id = "cal-now";
+      todayEl.appendChild(nowLine);
+
+      // ─── Event blocks
+      const nowMins = nowMinutesLondon();
+      const visibleMins = (DAY_END_H - DAY_START_H) * 60;
+      todayTimed.forEach(ev => {
+        const sM = londonMins(new Date(ev.start));
+        const eM = londonMins(new Date(ev.end));
+        const startOff = sM - DAY_START_H * 60;
+        const endOff   = eM - DAY_START_H * 60;
+        if (endOff <= 0 || startOff >= visibleMins) return;   // outside visible window
+        const clampedStart = Math.max(0, startOff);
+        const clampedEnd   = Math.min(visibleMins, endOff);
+        const top = (clampedStart / 60) * HOUR_H;
+        const height = Math.max(22, ((clampedEnd - clampedStart) / 60) * HOUR_H);
+
+        const block = document.createElement("div");
+        block.className = "cal-block" + (eM <= nowMins ? " past" : "");
+        block.style.top = top + "px";
+        block.style.height = height + "px";
+        const title = document.createElement("div");
+        title.className = "title";
+        title.textContent = ev.title;
+        const when = document.createElement("div");
+        when.className = "when";
+        when.textContent = `${fmtTime(new Date(ev.start))}–${fmtTime(new Date(ev.end))}`;
+        block.append(title, when);
+        if (ev.location) block.title = ev.location;
+        todayEl.appendChild(block);
+      });
+      positionNowLine();
+
+      // ─── Future days (max 2)
+      let dayCount = 0;
+      for (const [, g] of futureByDay) {
+        if (++dayCount > 2) break;
+        const head = document.createElement("div");
+        head.className = "day-head";
+        head.textContent = dayLabel(g.date).label;
+        futureEl.appendChild(head);
+        g.items.slice(0, 4).forEach(ev => {
+          const row = document.createElement("div");
+          row.className = "row";
+          const t = document.createElement("div");
+          t.className = "t";
+          t.textContent = ev.allDay ? "all day" : fmtTime(new Date(ev.start));
+          const ti = document.createElement("div");
+          ti.className = "ti";
+          ti.textContent = ev.title;
+          row.append(t, ti);
+          futureEl.appendChild(row);
+        });
+      }
+
+      if (!todayAllDay.length && !todayTimed.length && !futureByDay.size) {
+        const empty = document.createElement("div");
+        empty.className = "cal-empty";
+        empty.textContent = "A quiet stretch ahead.";
+        futureEl.appendChild(empty);
+      }
     }
-    function escapeHtml(s) {
-      return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[c]);
+
+    function positionNowLine() {
+      const el = document.getElementById("cal-now");
+      if (!el) return;
+      const m = nowMinutesLondon();
+      const startM = DAY_START_H * 60;
+      const endM = DAY_END_H * 60;
+      if (m < startM || m > endM) {
+        el.style.display = "none";
+        return;
+      }
+      el.style.display = "block";
+      el.style.top = (((m - startM) / 60) * HOUR_H) + "px";
     }
+
     loadCalendar();
-    setInterval(loadCalendar, 5 * 60 * 1000); // every 5 min
+    setInterval(loadCalendar, 5 * 60 * 1000); // refetch every 5 min
+    setInterval(positionNowLine, 60 * 1000);  // move the now-line every minute
 
     // ---------- Daily quote (rotates by day-of-year) ----------
     const QUOTES = [
