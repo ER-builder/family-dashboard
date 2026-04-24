@@ -66,6 +66,30 @@ Implementation note: Portal Android WebView supports `touchstart`/`touchend` —
 - **Future:** color-code events by `source` in the dashboard's day-view timeline (currently all events render in cobalt). Could use accent colors per calendar — Family = ochre, Elul = cobalt, School = sage, etc.
 - **CLI gotcha (preview env):** `vercel env add NAME preview --sensitive --yes --value "..."` returns `git_branch_required` error. Fix: pass empty string as 3rd positional arg → `vercel env add NAME preview "" --sensitive --yes --value "..."`. The CLI's `next[]` hint suggests omitting the arg, but that doesn't work non-interactively when the var also exists in production.
 
+## 📡 WiFi ADB to Terry (no cable needed)
+
+**Terry's local IP:** `192.168.1.116` (Apr 2026 — recommend setting a DHCP reservation in your router so it stays this).
+
+**Re-arm WiFi ADB after a Mac reboot or losing the connection:**
+```
+adb connect 192.168.1.116:5555
+adb devices                                                # confirm "device" status
+adb shell am start -n xyz.erapps.kiosk/.MainActivity       # launch dashboard
+```
+
+**One-time WiFi ADB setup (already done 2026-04-24):** with cable connected, ran `adb tcpip 5555` to put adb into TCP mode on Terry. Once done, port 5555 stays open until next Terry reboot — at which point you need the cable + `adb tcpip 5555` again.
+
+**If `adb connect` fails** (e.g. after Terry reboot — port 5555 closes): plug USB cable in, run `adb tcpip 5555`, unplug, then `adb connect 192.168.1.116:5555` works again. To make this fully cable-free permanently, look into Android 11+ wireless ADB pairing (Developer Options → Wireless debugging → Pair device with pairing code) — Portal's Android version may or may not support it.
+
+**Common `adb shell` commands you'll actually use:**
+```
+adb shell am start -n xyz.erapps.kiosk/.MainActivity                                  # launch dashboard
+adb shell am force-stop xyz.erapps.kiosk                                              # stop dashboard
+adb shell am force-stop xyz.erapps.kiosk && adb shell am start -n xyz.erapps.kiosk/.MainActivity  # restart
+adb shell cmd package resolve-activity -c android.intent.category.HOME -a android.intent.action.MAIN | grep packageName  # which app is currently the default Home
+adb reboot                                                                            # reboot Terry
+```
+
 ## 🚪 Exit-to-Portal
 
 - ~~**Iter 1–3 all failed** (HOME removed → kiosk invisible; explicit Aloha launch → snap-back; Settings.ACTION_HOME_SETTINGS → no-op or invisible).~~ Root cause: kiosk is the registered default Home (`xyz.erapps.kiosk` per `cmd package resolve-activity`), so any in-app exit triggers Android's home-resolution → routes back to us.
