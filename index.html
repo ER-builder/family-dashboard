@@ -269,6 +269,23 @@
       box-shadow: 0 4px 12px -8px rgba(0, 0, 0, 0.4);
     }
     .cal-block.past { opacity: 0.42; }
+
+    /* Per-source color coding (events tagged by the proxy via ICAL_LABELS).
+       Defaults to cobalt above; sources override with their own accent. */
+    .cal-block.source-family { background: var(--ochre-soft);      border-left-color: var(--ochre); }
+    .cal-block.source-elul   { background: var(--cobalt-soft);     border-left-color: var(--cobalt); }
+    .cal-block.source-school { background: var(--sage-soft);       border-left-color: var(--sage); }
+    .cal-block.source-lior   { background: var(--terracotta-soft); border-left-color: var(--terracotta); }
+
+    .cal-allday .chip.source-family { background: var(--ochre-soft);      color: var(--ochre); }
+    .cal-allday .chip.source-elul   { background: var(--cobalt-soft);     color: var(--cobalt); }
+    .cal-allday .chip.source-school { background: var(--sage-soft);       color: var(--sage); }
+    .cal-allday .chip.source-lior   { background: var(--terracotta-soft); color: var(--terracotta); }
+
+    .cal-future .row.source-family .t { color: var(--ochre); }
+    .cal-future .row.source-elul   .t { color: var(--cobalt); }
+    .cal-future .row.source-school .t { color: var(--sage); }
+    .cal-future .row.source-lior   .t { color: var(--terracotta); }
     .cal-block .title {
       font-family: var(--serif);
       font-variation-settings: "opsz" 96;
@@ -601,6 +618,7 @@
     }
     .transit .arr-row .sep { color: var(--ink-faint); }
     .transit .arr-row .none { font-family: var(--serif); font-style: italic; color: var(--ink-dim); font-size: 13px; }
+    .transit .arr-dbg { font-family: var(--mono); font-size: 9px; letter-spacing: 0.05em; color: rgba(243,231,207,0.18); padding: 4px 0 0 38px; line-height: 1; }
     .transit .arr-row .t.sched { color: var(--ink-soft); font-weight: 600; }
     .transit .arr-row .sched-tag {
       font-family: var(--sans);
@@ -1181,11 +1199,11 @@
               <div class="temp" id="w-temp">—°</div>
               <div class="desc" id="w-desc">Loading…</div>
             </div>
-            <div class="stats">
-              <span data-label="Hi" id="w-hi">—°</span>
-              <span data-label="Lo" id="w-lo">—°</span>
-              <span data-label="Feels" id="w-feels">—°</span>
-            </div>
+            <!-- Hi/Lo/Feels removed 2026-04-24 — reclaimed vertical space so the
+                 morning routine card can fit all 9 items without scrolling.
+                 The hourly strip below already gives a sense of trend. The JS
+                 still references #w-hi/#w-lo/#w-feels harmlessly (no-op when
+                 the elements are absent, no error). -->
           </div>
           <div class="hourly" id="w-hourly"></div>
         </div>
@@ -1481,9 +1499,13 @@
         document.getElementById("w-icon").textContent = ICONS[code] || "🌡️";
         document.getElementById("w-temp").textContent = Math.round(d.main.temp) + "°";
         document.getElementById("w-desc").textContent = d.weather?.[0]?.description || "";
-        document.getElementById("w-hi").textContent = Math.round(d.main.temp_max) + "°";
-        document.getElementById("w-lo").textContent = Math.round(d.main.temp_min) + "°";
-        document.getElementById("w-feels").textContent = Math.round(d.main.feels_like) + "°";
+        // Hi/Lo/Feels elements removed from the markup — guard against null.
+        const hi = document.getElementById("w-hi");
+        const lo = document.getElementById("w-lo");
+        const fl = document.getElementById("w-feels");
+        if (hi) hi.textContent = Math.round(d.main.temp_max) + "°";
+        if (lo) lo.textContent = Math.round(d.main.temp_min) + "°";
+        if (fl) fl.textContent = Math.round(d.main.feels_like) + "°";
       } catch (err) {
         document.getElementById("w-desc").textContent = "Weather unavailable";
       }
@@ -1785,6 +1807,14 @@
       }
     }
 
+    // Build a CSS class fragment from event.source (Family/Elul/School/etc).
+    // Sanitized to a slug so we can target ".source-family", ".source-elul" etc.
+    function sourceClass(ev) {
+      if (!ev || !ev.source) return "";
+      const slug = String(ev.source).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      return slug ? " source-" + slug : "";
+    }
+
     function renderCalendar(events) {
       const allDayEl = document.getElementById("cal-allday");
       const todayEl  = document.getElementById("cal-today");
@@ -1812,7 +1842,7 @@
       // ─── All-day chips
       todayAllDay.forEach(ev => {
         const c = document.createElement("div");
-        c.className = "chip";
+        c.className = "chip" + sourceClass(ev);
         c.textContent = ev.title;
         allDayEl.appendChild(c);
       });
@@ -1850,7 +1880,7 @@
         const height = Math.max(22, ((clampedEnd - clampedStart) / 60) * HOUR_H);
 
         const block = document.createElement("div");
-        block.className = "cal-block" + (eM <= nowMins ? " past" : "");
+        block.className = "cal-block" + (eM <= nowMins ? " past" : "") + sourceClass(ev);
         block.style.top = top + "px";
         block.style.height = height + "px";
         const title = document.createElement("div");
@@ -1875,7 +1905,7 @@
         futureEl.appendChild(head);
         g.items.slice(0, 5).forEach(ev => {
           const row = document.createElement("div");
-          row.className = "row";
+          row.className = "row" + sourceClass(ev);
           const t = document.createElement("div");
           t.className = "t";
           t.textContent = ev.allDay ? "all day" : fmtTime(new Date(ev.start));
@@ -1965,6 +1995,10 @@
         .slice(0, k);
     }
 
+    // Sequential rewrite — no nested Promise.all, no optional chaining of array
+    // index access. Old Portal Chromium occasionally chokes on these and the
+    // whole render aborts silently. Keeps a tiny diagnostic line at the bottom
+    // of the arrivals container so we can SEE on Terry whether render ran.
     async function loadTflArrivals() {
       const container = document.getElementById("tfl-102-arrivals");
       if (!container) return;
@@ -1973,63 +2007,77 @@
         container.style.display = "none";
         return;
       }
-      const results = await Promise.all(TFL_STOPS.map(async (s) => {
+
+      const rows = [];
+      let liveCount = 0, schedCount = 0, errCount = 0;
+
+      for (let si = 0; si < TFL_STOPS.length; si++) {
+        const s = TFL_STOPS[si];
+        let live = [];
+        let stopErr = false;
         try {
-          const res = await fetch(`https://api.tfl.gov.uk/StopPoint/${encodeURIComponent(s.id)}/Arrivals?mode=bus`, { cache: "no-store" });
+          const res = await fetch(
+            "https://api.tfl.gov.uk/StopPoint/" + encodeURIComponent(s.id) + "/Arrivals?mode=bus",
+            { cache: "no-store" }
+          );
           if (!res.ok) throw new Error("HTTP " + res.status);
           const data = await res.json();
-          const next = (Array.isArray(data) ? data : [])
-            .filter(a => a.lineId === s.route)
-            .sort((a, b) => a.timeToStation - b.timeToStation)
-            .slice(0, 3);
-          return { stop: s, next };
+          if (Array.isArray(data)) {
+            live = data.filter(function (a) { return a && a.lineId === s.route; })
+                       .sort(function (a, b) { return a.timeToStation - b.timeToStation; })
+                       .slice(0, 3);
+          }
         } catch (e) {
-          return { stop: s, next: [], err: true };
+          stopErr = true;
         }
-      }));
 
-      // Fallback: when live arrivals are dry, fetch the static timetable for this stop
-      // and show the next ~3 scheduled departures with a small "scheduled" indicator.
-      const renderRows = await Promise.all(results.map(async ({ stop, next, err }) => {
-        if (err) {
-          return `<div class="arr-row"><span class="dest">→ ${escapeHtml(stop.dest)}</span><span class="none">offline</span></div>`;
+        const dest = "→ " + escapeHtml(s.dest);
+
+        if (stopErr) {
+          errCount++;
+          rows.push('<div class="arr-row"><span class="dest">' + dest + '</span><span class="none">offline</span></div>');
+          continue;
         }
-        if (next.length) {
-          const times = next.map((a, i) => {
-            const mins = Math.round(a.timeToStation / 60);
-            const t = mins <= 0
-              ? `<span class="t due">Due</span>`
-              : `<span class="t">${mins}<span class="u">min</span></span>`;
-            return (i > 0 ? `<span class="sep">·</span>` : "") + t;
-          }).join(" ");
-          return `<div class="arr-row"><span class="dest">→ ${escapeHtml(stop.dest)}</span><span class="times">${times}</span></div>`;
+
+        if (live.length) {
+          liveCount += live.length;
+          const parts = [];
+          for (let i = 0; i < live.length; i++) {
+            const mins = Math.round(live[i].timeToStation / 60);
+            const cell = (mins <= 0)
+              ? '<span class="t due">Due</span>'
+              : '<span class="t">' + mins + '<span class="u">min</span></span>';
+            parts.push((i > 0 ? '<span class="sep">·</span>' : '') + cell);
+          }
+          rows.push('<div class="arr-row"><span class="dest">' + dest + '</span><span class="times">' + parts.join(' ') + '</span></div>');
+          continue;
         }
-        // Live empty → try schedule
-        const sched = await fetchScheduledTimes(stop);
+
+        // Live empty → schedule fallback
+        let sched = [];
+        try { sched = await fetchScheduledTimes(s); } catch (_) { sched = []; }
         const upcoming = nextScheduled(sched, 3);
         if (!upcoming.length) {
-          return `<div class="arr-row"><span class="dest">→ ${escapeHtml(stop.dest)}</span><span class="none">no buses today</span></div>`;
+          rows.push('<div class="arr-row"><span class="dest">' + dest + '</span><span class="none">no buses today</span></div>');
+          continue;
         }
-        // Render as "X min" countdown when the next bus is <60 min away,
-        // so the scheduled fallback still has the glance-value of a live countdown.
-        // Falls back to HH:MM for buses further out (evening edge).
+        schedCount += upcoming.length;
         const nowM = nowMinutesLondon();
-        const schedTimes = upcoming.map((x, i) => {
-          const delta = x.mins - nowM;
+        const sparts = [];
+        for (let i = 0; i < upcoming.length; i++) {
+          const delta = upcoming[i].mins - nowM;
           let cell;
-          if (delta <= 0) {
-            cell = `<span class="t due">Due</span>`;
-          } else if (delta < 60) {
-            cell = `<span class="t sched">${delta}<span class="u">min</span></span>`;
-          } else {
-            cell = `<span class="t sched">${escapeHtml(x.t)}</span>`;
-          }
-          return (i > 0 ? `<span class="sep">·</span>` : "") + cell;
-        }).join(" ");
-        return `<div class="arr-row"><span class="dest">→ ${escapeHtml(stop.dest)}</span><span class="times">${schedTimes}<span class="sched-tag">scheduled</span></span></div>`;
-      }));
+          if (delta <= 0)       cell = '<span class="t due">Due</span>';
+          else if (delta < 60)  cell = '<span class="t sched">' + delta + '<span class="u">min</span></span>';
+          else                  cell = '<span class="t sched">' + escapeHtml(upcoming[i].t) + '</span>';
+          sparts.push((i > 0 ? '<span class="sep">·</span>' : '') + cell);
+        }
+        rows.push('<div class="arr-row"><span class="dest">' + dest + '</span><span class="times">' + sparts.join(' ') + '<span class="sched-tag">scheduled</span></span></div>');
+      }
 
-      container.innerHTML = renderRows.join("");
+      // Tiny diagnostic strip — remove once Terry confirms rendering works.
+      const dbgLine = '<div class="arr-dbg">live=' + liveCount + ' sched=' + schedCount + ' err=' + errCount + ' @' + new Date().toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }) + '</div>';
+      container.innerHTML = rows.join("") + dbgLine;
       container.removeAttribute("hidden");
       container.style.display = "";
     }
