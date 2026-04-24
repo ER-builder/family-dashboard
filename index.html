@@ -131,13 +131,12 @@
       letter-spacing: 0.01em;
     }
     .clock {
-      font-family: var(--serif);
-      font-variation-settings: "opsz" 144, "wght" 500;
-      font-weight: 500;
-      font-size: clamp(64px, 9.5vw, 118px);
-      line-height: 0.82;
+      font-family: var(--mono);
+      font-weight: 700;
+      font-size: clamp(60px, 9vw, 108px);
+      line-height: 0.85;
       color: var(--ink);
-      letter-spacing: -0.025em;
+      letter-spacing: -0.04em;
       font-feature-settings: "tnum" 1, "lnum" 1;
       text-shadow: 0 2px 24px rgba(233, 180, 76, 0.08);
     }
@@ -434,14 +433,13 @@
       filter: drop-shadow(0 3px 10px rgba(233, 180, 76, 0.35));
     }
     .weather .temp {
-      font-family: var(--serif);
-      font-variation-settings: "opsz" 144, "wght" 400;
-      font-weight: 400;
-      font-size: clamp(40px, 4.6vw, 56px);
-      line-height: 0.92;
+      font-family: var(--mono);
+      font-weight: 700;
+      font-size: clamp(38px, 4.4vw, 52px);
+      line-height: 0.95;
       color: var(--ink);
       font-feature-settings: "tnum" 1, "lnum" 1;
-      letter-spacing: -0.025em;
+      letter-spacing: -0.04em;
     }
     .weather .desc {
       font-family: var(--serif);
@@ -593,11 +591,11 @@
       font-weight: 600;
     }
     .cd-row .cd-num {
-      font-family: var(--serif);
-      font-variation-settings: "opsz" 144, "wght" 600;
-      font-size: 28px;
+      font-family: var(--mono);
+      font-weight: 700;
+      font-size: 26px;
       line-height: 0.9;
-      letter-spacing: -0.02em;
+      letter-spacing: -0.03em;
       color: var(--sage);
       font-feature-settings: "tnum" 1;
     }
@@ -659,6 +657,20 @@
     }
     .transit .arr-row .sep { color: var(--ink-faint); }
     .transit .arr-row .none { font-family: var(--serif); font-style: italic; color: var(--ink-dim); font-size: 13px; }
+    .transit .arr-row .t.sched { color: var(--ink-soft); font-weight: 600; }
+    .transit .arr-row .sched-tag {
+      font-family: var(--sans);
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      margin-left: 8px;
+      padding: 2px 5px;
+      border: 1px solid var(--rule);
+      border-radius: 3px;
+      font-weight: 700;
+      vertical-align: 1px;
+    }
 
     /* ─────────────────────────────────────────
        ROUTINE CARDS — library card style
@@ -1156,7 +1168,6 @@
   </style>
 </head>
 <body>
-  <span id="dbg" style="position:fixed;bottom:5px;left:8px;font-family:monospace;font-size:9px;color:rgba(243,231,207,0.22);pointer-events:none;z-index:9999;letter-spacing:0.05em"></span>
   <div id="daily-quote" class="daily-quote"></div>
   <!-- 2-second long-press in bottom-right corner → fires kiosk://exit URL,
        intercepted by MainActivity's shouldOverrideUrlLoading → finishAndRemoveTask() -->
@@ -1751,14 +1762,10 @@
         // Body class lets CSS hide lower-priority cards (e.g. transit)
         // while a routine is active, freeing vertical space for the kids.
         document.body.classList.toggle("routine-active", showMorning || showEvening);
-        const dbg = document.getElementById("dbg");
-        if (dbg) dbg.textContent = "mins=" + mins;
       } catch (e) {
         setCardVisible("morning-card", false);
         setCardVisible("evening-card", false);
         document.body.classList.remove("routine-active");
-        const dbg = document.getElementById("dbg");
-        if (dbg) dbg.textContent = "vis-err:" + e.message;
       }
     }
     renderRoutines();
@@ -2073,6 +2080,47 @@
       { id: "490004463W", route: "102", dest: "Golders Green" },
     ];
 
+    // Cache scheduled timetables for the day so we don't refetch every 30s.
+    const _tflTimetableCache = {}; // key: stopId|route|YYYY-MM-DD → ["HH:MM", ...]
+    async function fetchScheduledTimes(stop) {
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: TZ });
+      const key = `${stop.id}|${stop.route}|${today}`;
+      if (_tflTimetableCache[key]) return _tflTimetableCache[key];
+      try {
+        const res = await fetch(`https://api.tfl.gov.uk/Line/${stop.route}/Timetable/${stop.id}`, { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        // Find today's schedule by name match (e.g. "Friday", "Mon-Fri", "Saturday").
+        const todayName = new Date().toLocaleDateString("en-GB", { timeZone: TZ, weekday: "long" });
+        const schedules = data?.timetable?.routes?.[0]?.schedules || [];
+        const today3 = todayName.slice(0, 3);
+        const match = schedules.find(s => {
+          const n = (s.name || "").toLowerCase();
+          return n.includes(todayName.toLowerCase())
+              || n.includes(today3.toLowerCase())
+              || (today3 !== "Sat" && today3 !== "Sun" && /mon-?fri|weekday/.test(n));
+        }) || schedules[0];
+        const journeys = match?.knownJourneys || [];
+        const times = journeys.map(j => `${String(j.hour).padStart(2, "0")}:${String(j.minute).padStart(2, "0")}`);
+        _tflTimetableCache[key] = times;
+        return times;
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function nextScheduled(times, k = 3) {
+      const now = new Date();
+      const nowMin = now.toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false });
+      const [hN, mN] = nowMin.split(":").map(Number);
+      const cur = hN * 60 + mN;
+      return times
+        .map(t => { const [h, m] = t.split(":").map(Number); return { t, mins: h * 60 + m }; })
+        .filter(x => x.mins >= cur)
+        .sort((a, b) => a.mins - b.mins)
+        .slice(0, k);
+    }
+
     async function loadTflArrivals() {
       const container = document.getElementById("tfl-102-arrivals");
       if (!container) return;
@@ -2095,22 +2143,36 @@
           return { stop: s, next: [], err: true };
         }
       }));
-      container.innerHTML = results.map(({ stop, next, err }) => {
+
+      // Fallback: when live arrivals are dry, fetch the static timetable for this stop
+      // and show the next ~3 scheduled departures with a small "scheduled" indicator.
+      const renderRows = await Promise.all(results.map(async ({ stop, next, err }) => {
         if (err) {
           return `<div class="arr-row"><span class="dest">→ ${escapeHtml(stop.dest)}</span><span class="none">offline</span></div>`;
         }
-        if (!next.length) {
-          return `<div class="arr-row"><span class="dest">→ ${escapeHtml(stop.dest)}</span><span class="none">no buses</span></div>`;
+        if (next.length) {
+          const times = next.map((a, i) => {
+            const mins = Math.round(a.timeToStation / 60);
+            const t = mins <= 0
+              ? `<span class="t due">Due</span>`
+              : `<span class="t">${mins}<span class="u">min</span></span>`;
+            return (i > 0 ? `<span class="sep">·</span>` : "") + t;
+          }).join(" ");
+          return `<div class="arr-row"><span class="dest">→ ${escapeHtml(stop.dest)}</span><span class="times">${times}</span></div>`;
         }
-        const times = next.map((a, i) => {
-          const mins = Math.round(a.timeToStation / 60);
-          const t = mins <= 0
-            ? `<span class="t due">Due</span>`
-            : `<span class="t">${mins}<span class="u">min</span></span>`;
-          return (i > 0 ? `<span class="sep">·</span>` : "") + t;
+        // Live empty → try schedule
+        const sched = await fetchScheduledTimes(stop);
+        const upcoming = nextScheduled(sched, 3);
+        if (!upcoming.length) {
+          return `<div class="arr-row"><span class="dest">→ ${escapeHtml(stop.dest)}</span><span class="none">no buses today</span></div>`;
+        }
+        const schedTimes = upcoming.map((x, i) => {
+          return (i > 0 ? `<span class="sep">·</span>` : "") + `<span class="t sched">${escapeHtml(x.t)}</span>`;
         }).join(" ");
-        return `<div class="arr-row"><span class="dest">→ ${escapeHtml(stop.dest)}</span><span class="times">${times}</span></div>`;
-      }).join("");
+        return `<div class="arr-row"><span class="dest">→ ${escapeHtml(stop.dest)}</span><span class="times">${schedTimes}<span class="sched-tag">scheduled</span></span></div>`;
+      }));
+
+      container.innerHTML = renderRows.join("");
       container.removeAttribute("hidden");
       container.style.display = "";
     }
