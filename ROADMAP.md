@@ -68,9 +68,11 @@ Implementation note: Portal Android WebView supports `touchstart`/`touchend` —
 
 ## 🚪 Exit-to-Portal
 
-- ~~**HTML + Kotlin done 2026-04-24.**~~ APK rebuilt with `shouldOverrideUrlLoading` for `kiosk://exit`. Manifest fixed: removed `category.HOME` so Android stops re-launching the kiosk as the system Home replacement (was causing the exit-then-snap-back bug). Visible button at bottom-right replaces the previous transparent corner — labeled "📞 Hold for calls" with a circular fill ring that animates as you hold (2s) so kids can see what's happening. Releasing early cancels.
-- **Pending: rebuild APK once more** to pick up the manifest fix. Run the same build/install/restart trio (see "🔧 Pending Infra" item #0).
-- Caveat: `BootReceiver` re-launches the kiosk on next boot — exit is "for now," not permanent.
+- ~~**Iter 1: HOME removed; exit worked but kiosk vanished from Portal UI.**~~ Portal's launcher whitelists what it shows, so a LAUNCHER-only app is invisible. Discovery: `adb shell cmd package resolve-activity -c android.intent.category.HOME` returns Portal's stock launcher: package `com.facebook.alohaapps.launcher` / activity `com.facebook.aloha.app.home.touch.HomeActivity` (codename Aloha).
+- ~~**Iter 2: HOME re-added + smarter exit.**~~ Manifest puts kiosk back as a HOME app (so pressing Home shows a chooser; kiosk shows up in Portal UI as selectable home). `MainActivity.exitToPortalLauncher()` explicitly launches Portal's HomeActivity by package+component name BEFORE `finishAndRemoveTask()` — Portal becomes the active home, our task removes itself, no snap-back.
+- **Pending: rebuild APK once more** to ship Iter 2. After install, on next Home press Android will show "Complete action using:" → pick **Kiosk** (and "Always" if you want it as default home). To exit: hold the bottom-right pill 2s → Portal launcher takes over cleanly.
+- **Visible button:** bold terracotta pill labeled "HOLD TO EXIT" at bottom-right, with circular ochre progress ring that fills as you hold (2s). Releasing early cancels.
+- Caveat: `BootReceiver` still re-launches the kiosk on next boot — exit is "for now," not permanent.
 
 ## 🎨 Design Refinement
 
