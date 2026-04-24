@@ -2010,8 +2010,21 @@
         if (!upcoming.length) {
           return `<div class="arr-row"><span class="dest">→ ${escapeHtml(stop.dest)}</span><span class="none">no buses today</span></div>`;
         }
+        // Render as "X min" countdown when the next bus is <60 min away,
+        // so the scheduled fallback still has the glance-value of a live countdown.
+        // Falls back to HH:MM for buses further out (evening edge).
+        const nowM = nowMinutesLondon();
         const schedTimes = upcoming.map((x, i) => {
-          return (i > 0 ? `<span class="sep">·</span>` : "") + `<span class="t sched">${escapeHtml(x.t)}</span>`;
+          const delta = x.mins - nowM;
+          let cell;
+          if (delta <= 0) {
+            cell = `<span class="t due">Due</span>`;
+          } else if (delta < 60) {
+            cell = `<span class="t sched">${delta}<span class="u">min</span></span>`;
+          } else {
+            cell = `<span class="t sched">${escapeHtml(x.t)}</span>`;
+          }
+          return (i > 0 ? `<span class="sep">·</span>` : "") + cell;
         }).join(" ");
         return `<div class="arr-row"><span class="dest">→ ${escapeHtml(stop.dest)}</span><span class="times">${schedTimes}<span class="sched-tag">scheduled</span></span></div>`;
       }));
