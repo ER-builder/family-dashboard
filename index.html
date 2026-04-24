@@ -434,24 +434,27 @@
       background: radial-gradient(circle at 88% 22%, rgba(233, 180, 76, 0.18), transparent 32%);
       pointer-events: none;
     }
-    .weather .body { gap: 16px; }
+    /* Weather: compact horizontal layout — top row inline, stats inline, hourly thin */
+    .weather { padding: 14px 18px; }
+    .weather .eyebrow { margin-bottom: 8px; }
+    .weather .body { gap: 10px; }
     .weather .top {
       display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 18px;
+      grid-template-columns: auto 1fr auto;
+      gap: 14px;
       align-items: center;
       position: relative;
     }
     .weather .icon {
-      font-size: 60px;
+      font-size: 42px;
       line-height: 1;
-      filter: drop-shadow(0 4px 14px rgba(233, 180, 76, 0.40));
+      filter: drop-shadow(0 3px 10px rgba(233, 180, 76, 0.35));
     }
     .weather .temp {
       font-family: var(--serif);
       font-variation-settings: "opsz" 144, "wght" 400;
       font-weight: 400;
-      font-size: clamp(54px, 6.5vw, 72px);
+      font-size: clamp(40px, 4.6vw, 56px);
       line-height: 0.92;
       color: var(--ink);
       font-feature-settings: "tnum" 1, "lnum" 1;
@@ -461,43 +464,39 @@
       font-family: var(--serif);
       font-style: italic;
       font-weight: 400;
-      font-size: 17px;
+      font-size: 14px;
       color: var(--ink-soft);
       text-transform: lowercase;
-      margin-top: 4px;
+      margin-top: 2px;
       letter-spacing: 0.005em;
     }
     .weather .stats {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
-      padding-top: 14px;
-      border-top: 1px dashed var(--rule);
-      font-family: var(--mono);
-      font-size: 14px;
-      color: var(--ink);
-      font-feature-settings: "tnum" 1;
-      position: relative;
-    }
-    .weather .stats span {
       display: flex;
       flex-direction: column;
-      gap: 3px;
+      gap: 1px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink);
+      font-feature-settings: "tnum" 1;
+      text-align: right;
+      line-height: 1.25;
     }
+    .weather .stats span { display: block; }
     .weather .stats span::before {
       content: attr(data-label);
       font-family: var(--sans);
-      font-size: 9px;
-      letter-spacing: 0.24em;
+      font-size: 8px;
+      letter-spacing: 0.16em;
       text-transform: uppercase;
       color: var(--ink-dim);
       font-weight: 700;
+      margin-right: 4px;
     }
     .weather .hourly {
       display: grid;
       grid-template-columns: repeat(6, 1fr);
-      gap: 6px;
-      padding-top: 12px;
+      gap: 4px;
+      padding-top: 8px;
       border-top: 1px dashed var(--rule);
       position: relative;
     }
@@ -505,24 +504,24 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 3px;
+      gap: 2px;
     }
     .weather .hourly .h .when {
       font-family: var(--sans);
-      font-size: 9px;
-      letter-spacing: 0.18em;
+      font-size: 8px;
+      letter-spacing: 0.16em;
       color: var(--ink-dim);
       font-weight: 700;
       text-transform: uppercase;
     }
     .weather .hourly .h .icon {
-      font-size: 18px;
+      font-size: 14px;
       line-height: 1;
-      filter: drop-shadow(0 2px 6px rgba(233, 180, 76, 0.25));
+      filter: drop-shadow(0 2px 5px rgba(233, 180, 76, 0.22));
     }
     .weather .hourly .h .t {
       font-family: var(--mono);
-      font-size: 13px;
+      font-size: 11px;
       color: var(--ink);
       font-feature-settings: "tnum" 1;
     }
@@ -531,29 +530,30 @@
     /* ─────────────────────────────────────────
        TRANSIT — Northern Line + Bus 102
        ───────────────────────────────────────── */
-    .transit { flex-shrink: 0; }
-    .transit .body { gap: 6px; }
+    .transit { flex-shrink: 0; padding: 12px 18px; }
+    .transit .eyebrow { margin-bottom: 6px; }
+    .transit .body { gap: 0; }
     .transit .line-row {
       display: grid;
-      grid-template-columns: 42px 1fr auto;
-      gap: 12px;
+      grid-template-columns: 36px 1fr auto;
+      gap: 10px;
       align-items: center;
-      padding: 8px 4px;
+      padding: 5px 4px;
       border-bottom: 1px solid var(--rule);
     }
     .transit .line-row:last-child { border-bottom: 0; }
     .transit .badge {
       font-family: var(--sans);
-      font-size: 11px;
+      font-size: 10px;
       font-weight: 800;
-      border-radius: 6px;
-      padding: 5px 0;
+      border-radius: 5px;
+      padding: 4px 0;
       text-align: center;
       letter-spacing: 0.04em;
     }
     .transit .line-name {
       font-family: var(--serif);
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 500;
       color: var(--ink);
       letter-spacing: -0.003em;
@@ -563,11 +563,11 @@
     }
     .transit .status {
       font-family: var(--sans);
-      font-size: 10px;
+      font-size: 9px;
       font-weight: 700;
-      letter-spacing: 0.12em;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
-      padding: 4px 10px;
+      padding: 3px 8px;
       border-radius: 999px;
       white-space: nowrap;
     }
@@ -1119,11 +1119,11 @@
               <div class="temp" id="w-temp">—°</div>
               <div class="desc" id="w-desc">Loading…</div>
             </div>
-          </div>
-          <div class="stats">
-            <span data-label="High" id="w-hi">—°</span>
-            <span data-label="Low" id="w-lo">—°</span>
-            <span data-label="Feels" id="w-feels">—°</span>
+            <div class="stats">
+              <span data-label="Hi" id="w-hi">—°</span>
+              <span data-label="Lo" id="w-lo">—°</span>
+              <span data-label="Feels" id="w-feels">—°</span>
+            </div>
           </div>
           <div class="hourly" id="w-hourly"></div>
         </div>
