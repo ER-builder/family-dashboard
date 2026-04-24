@@ -79,7 +79,7 @@
       position: relative;
       z-index: 1;
       display: grid;
-      grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.1fr);
+      grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr);
       grid-template-rows: auto auto minmax(0, 1fr);
       gap: 18px;
       padding: 18px 22px;
@@ -224,7 +224,7 @@
     /* ─────────────────────────────────────────
        CALENDAR — Google-Cal-style day view
        ───────────────────────────────────────── */
-    .calendar { grid-row: 3; grid-column: 1; --hour-h: 28px; }
+    .calendar { grid-row: 3; grid-column: 1; --hour-h: 22px; }
     .calendar .body {
       gap: 0;
       overflow-y: auto;
@@ -252,11 +252,11 @@
       letter-spacing: 0.04em;
     }
 
-    /* Today timeline (06:00–22:00 = 17 hour rules) */
+    /* Today timeline (06:00–21:00 = 16 hour rules) */
     .cal-today {
       position: relative;
-      height: calc(var(--hour-h) * 17);
-      margin: 4px 0 14px;
+      height: calc(var(--hour-h) * 16);
+      margin: 4px 0 12px;
     }
     .cal-today .hour-mark {
       position: absolute;
@@ -1673,8 +1673,8 @@
     // ---------- Calendar (Google-Cal-style day view, via Vercel proxy) ----------
     const CAL_PROXY_URL = "https://family-dashboard-proxy.vercel.app/api/cal";
     const DAY_START_H = 6;       // timeline starts 06:00
-    const DAY_END_H   = 23;      // timeline ends 23:00 (= 17 hour rules: 06..22)
-    const HOUR_H      = 28;      // px per hour, must match --hour-h CSS var
+    const DAY_END_H   = 22;      // timeline ends 22:00 (16 hour rules: 06..21)
+    const HOUR_H      = 22;      // px per hour, must match --hour-h CSS var
 
     function dayKey(d) {
       return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year:"numeric", month:"2-digit", day:"2-digit" }).format(d);
@@ -1804,15 +1804,15 @@
       });
       positionNowLine();
 
-      // ─── Future days (max 2)
+      // ─── Future days — only tomorrow, to keep the card compact
       let dayCount = 0;
       for (const [, g] of futureByDay) {
-        if (++dayCount > 2) break;
+        if (++dayCount > 1) break;
         const head = document.createElement("div");
         head.className = "day-head";
         head.textContent = dayLabel(g.date).label;
         futureEl.appendChild(head);
-        g.items.slice(0, 4).forEach(ev => {
+        g.items.slice(0, 5).forEach(ev => {
           const row = document.createElement("div");
           row.className = "row";
           const t = document.createElement("div");
