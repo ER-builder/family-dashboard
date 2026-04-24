@@ -68,9 +68,9 @@ Implementation note: Portal Android WebView supports `touchstart`/`touchend` —
 
 ## 🚪 Exit-to-Portal
 
-- **HTML side: done.** Bottom-right corner has a transparent 72×72px button. Long-pressing it for 2 seconds fires `window.location.href = "kiosk://exit"`.
-- **Kotlin side: pending** (part of APK rebuild above). Once `shouldOverrideUrlLoading` intercepts `kiosk://exit` and calls `finishAndRemoveTask()`, the gesture will return to Portal's launcher.
-- Caveat: `BootReceiver` re-launches the kiosk on next boot — this is "exit for now," not permanent.
+- ~~**HTML + Kotlin done 2026-04-24.**~~ APK rebuilt with `shouldOverrideUrlLoading` for `kiosk://exit`. Manifest fixed: removed `category.HOME` so Android stops re-launching the kiosk as the system Home replacement (was causing the exit-then-snap-back bug). Visible button at bottom-right replaces the previous transparent corner — labeled "📞 Hold for calls" with a circular fill ring that animates as you hold (2s) so kids can see what's happening. Releasing early cancels.
+- **Pending: rebuild APK once more** to pick up the manifest fix. Run the same build/install/restart trio (see "🔧 Pending Infra" item #0).
+- Caveat: `BootReceiver` re-launches the kiosk on next boot — exit is "for now," not permanent.
 
 ## 🎨 Design Refinement
 

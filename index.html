@@ -1052,6 +1052,68 @@
       40%      { transform: scale(1.08); }
     }
 
+    /* Exit-to-Portal button — bottom-right, hold 2s to leave kiosk */
+    #exit-corner {
+      position: fixed;
+      bottom: 14px;
+      right: 14px;
+      z-index: 9999;
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px 10px 12px;
+      background: var(--paper-2);
+      color: var(--ink-soft);
+      border: 1px solid var(--rule-strong);
+      border-radius: 999px;
+      font-family: var(--sans);
+      font-weight: 600;
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: none;
+      user-select: none;
+      box-shadow: 0 6px 16px -8px rgba(0, 0, 0, 0.6);
+      opacity: 0.85;
+      transition: opacity 160ms ease, transform 100ms ease;
+    }
+    #exit-corner:hover { opacity: 1; }
+    #exit-corner:active { transform: scale(0.97); }
+    #exit-corner.holding {
+      opacity: 1;
+      color: var(--ink);
+      border-color: var(--ochre);
+    }
+    .exit-ring {
+      position: relative;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      border: 2px solid var(--ink-faint);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    #exit-corner.holding .exit-ring { border-color: var(--ochre); }
+    .exit-fill {
+      position: absolute;
+      inset: -2px;
+      border-radius: 50%;
+      background: conic-gradient(var(--ochre) 0%, transparent 0%);
+      transition: background 80ms linear;
+      mask: radial-gradient(circle, transparent 50%, #000 52%);
+      -webkit-mask: radial-gradient(circle, transparent 50%, #000 52%);
+      pointer-events: none;
+    }
+    .exit-icon {
+      position: absolute;
+      font-size: 13px;
+      line-height: 1;
+    }
+    .exit-label { letter-spacing: 0.08em; }
+
     /* Daily quote — fixed bottom-center, low contrast */
     .daily-quote {
       position: fixed;
@@ -1087,9 +1149,16 @@
 </head>
 <body>
   <div id="daily-quote" class="daily-quote"></div>
-  <!-- 2-second long-press in bottom-right corner → fires kiosk://exit URL,
-       intercepted by MainActivity's shouldOverrideUrlLoading → finishAndRemoveTask() -->
-  <button id="exit-corner" aria-label="Exit kiosk" style="position:fixed;bottom:0;right:0;width:72px;height:72px;background:transparent;border:none;cursor:pointer;z-index:9999;-webkit-tap-highlight-color:transparent;touch-action:none"></button>
+  <!-- Visible exit button: long-press 2s to exit kiosk and return to Portal home.
+       Long-press (not tap) so kids don't trigger by accident. The progress ring
+       fills as you hold; releasing early cancels. Intercepted in MainActivity. -->
+  <button id="exit-corner" aria-label="Hold to exit to Portal home">
+    <span class="exit-ring">
+      <span class="exit-fill"></span>
+      <span class="exit-icon">📞</span>
+    </span>
+    <span class="exit-label">Hold for calls</span>
+  </button>
 
   <div class="app">
     <header class="masthead">
@@ -2055,27 +2124,47 @@
     loadTflArrivals();
     setInterval(loadTflArrivals, 30 * 1000); // bus arrivals every 30s
 
-    // ---------- Exit-to-Portal long-press (bottom-right corner, 2 s) ----------
-    // Kotlin side: shouldOverrideUrlLoading intercepts "kiosk://exit" → finishAndRemoveTask()
+    // ---------- Exit-to-Portal long-press (visible bottom-right button) ----------
+    // 2-second hold fires kiosk://exit URL; intercepted by MainActivity.kt's
+    // shouldOverrideUrlLoading → finishAndRemoveTask() → returns to Portal launcher.
     (function() {
       const btn = document.getElementById("exit-corner");
       if (!btn) return;
-      let timer;
-      function arm(e) {
-        if (e.cancelable) e.preventDefault();
-        clearTimeout(timer);
-        timer = setTimeout(function() {
+      const fill = btn.querySelector(".exit-fill");
+      const HOLD_MS = 2000;
+      let raf, startedAt;
+
+      function tick() {
+        const elapsed = performance.now() - startedAt;
+        const pct = Math.min(100, (elapsed / HOLD_MS) * 100);
+        if (fill) fill.style.background =
+          `conic-gradient(var(--ochre) ${pct}%, transparent ${pct}%)`;
+        if (pct >= 100) {
+          stop();
           window.location.href = "kiosk://exit";
-        }, 2000);
+          return;
+        }
+        raf = requestAnimationFrame(tick);
       }
-      function disarm() { clearTimeout(timer); }
-      btn.addEventListener("touchstart",  arm,    { passive: false });
-      btn.addEventListener("touchend",    disarm, { passive: true });
-      btn.addEventListener("touchcancel", disarm, { passive: true });
-      // Mouse fallback for desktop testing
-      btn.addEventListener("mousedown",  arm);
-      btn.addEventListener("mouseup",    disarm);
-      btn.addEventListener("mouseleave", disarm);
+      function start(e) {
+        if (e.cancelable) e.preventDefault();
+        stop();
+        btn.classList.add("holding");
+        startedAt = performance.now();
+        raf = requestAnimationFrame(tick);
+      }
+      function stop() {
+        if (raf) cancelAnimationFrame(raf);
+        raf = null;
+        btn.classList.remove("holding");
+        if (fill) fill.style.background = "conic-gradient(var(--ochre) 0%, transparent 0%)";
+      }
+      btn.addEventListener("touchstart",  start, { passive: false });
+      btn.addEventListener("touchend",    stop,  { passive: true });
+      btn.addEventListener("touchcancel", stop,  { passive: true });
+      btn.addEventListener("mousedown",   start);
+      btn.addEventListener("mouseup",     stop);
+      btn.addEventListener("mouseleave",  stop);
     })();
   </script>
 </body>
