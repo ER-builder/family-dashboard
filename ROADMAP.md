@@ -74,9 +74,9 @@ Implementation note: Portal Android WebView supports `touchstart`/`touchend` —
 
 ## 📅 Calendar — Multi-Source Merge
 
-- **Let the proxy merge multiple iCal feeds.** Today the Vercel proxy reads a single `ICAL_URL` env var (the family-shared Google Calendar). Manually copying personal events to the family cal isn't sustainable.
-- Change to: `ICAL_URLS` (comma-separated list of secret iCal URLs). The serverless function fetches each, concatenates the parsed VEVENTs, dedupes by UID, and returns one merged sorted JSON list. Each event optionally tagged with a `source` label (e.g. "Family", "Elul", "School") so the dashboard could color-code in future.
-- Repo: `ER-builder/family-dashboard-proxy` at `~/Projects/apps/family-dashboard-proxy/`. Single file `api/cal.js`. Update env var via Vercel dashboard or CLI (`vercel env rm ICAL_URL && printf '%s' "$URLS" | vercel env add ICAL_URLS production --sensitive`). Note: each source is a *secret iCal URL* (Settings → Integrate calendar → Secret address in iCal format) — not a public URL. Calendars stay private.
+- ~~**Let the proxy merge multiple iCal feeds.**~~ **Done 2026-04-24.** Proxy now reads `ICAL_URLS` (comma-separated) + `ICAL_LABELS` (parallel labels: "Family,Elul"). Fetches in parallel, dedupes by `uid+start`, returns merged sorted list. Each event tagged with its `source` label. Dashboard side needed no changes — already reads `events` array.
+- **Future:** color-code events by `source` in the dashboard's day-view timeline (currently all events render in cobalt). Could use accent colors per calendar — Family = ochre, Elul = cobalt, School = sage, etc.
+- **CLI gotcha (preview env):** `vercel env add NAME preview --sensitive --yes --value "..."` returns `git_branch_required` error. Fix: pass empty string as 3rd positional arg → `vercel env add NAME preview "" --sensitive --yes --value "..."`. The CLI's `next[]` hint suggests omitting the arg, but that doesn't work non-interactively when the var also exists in production.
 
 ## 🚪 Exit-to-Portal
 
