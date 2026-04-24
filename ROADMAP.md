@@ -50,7 +50,8 @@ Implementation note: Portal Android WebView supports `touchstart`/`touchend` —
 
 ## 🏠 Smart Home Hub
 
-1. ~~**🚇 Live Transport (status)**~~ **Done 2026-04-24.** Northern Line + Bus 102 (toward E. Finchley / Golders Green) live status from `api.tfl.gov.uk/Line/{id}/Status` (no key needed). Color-coded: sage = good, ochre = minor, terracotta = severe. Polled every 5 min. *Future: live arrivals — needs a stop ID; pick one via TfL website "find a stop" → use the 16-char Naptan code.*
+1. ~~**🚇 Live Transport (status)**~~ **Done 2026-04-24.** Northern Line + Bus 102 (toward E. Finchley / Golders Green) live status from `api.tfl.gov.uk/Line/{id}/Status` (no key needed). Color-coded: sage = good, ochre = minor, terracotta = severe. Polled every 5 min.
+1a. **🚌 Live 102 bus arrivals — framework shipped, awaiting stop IDs.** `index.html` now has a `TFL_STOPS` array (just below the line-status loader). Add entries like `{ id: "490004733E", route: "102", dest: "Edgware" }` — IDs come from clicking a stop on https://tfl.gov.uk/bus/route/102/ (URL contains the StopID). Add one entry per direction. Once filled in, arrivals show under the 102 row, polled every 30s, with "Due" highlighted in ochre.
 2. **📦 Delivery Tracker** — Show expected deliveries today (parse from Gmail via Google API).
 3. **🗓️ Family Countdown** — Big visual countdowns: *"Holiday in 23 days 🏖️"*, *"Mum's birthday in 5 days 🎂"*.
 4. **🏫 School / Activities** — Daily schedule for kids: *"Swimming 4pm, Piano 5:30pm"*.
