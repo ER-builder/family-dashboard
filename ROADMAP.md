@@ -81,13 +81,24 @@ adb shell am start -n xyz.erapps.kiosk/.MainActivity       # launch dashboard
 
 **If `adb connect` fails** (e.g. after Terry reboot — port 5555 closes): plug USB cable in, run `adb tcpip 5555`, unplug, then `adb connect 192.168.1.116:5555` works again. To make this fully cable-free permanently, look into Android 11+ wireless ADB pairing (Developer Options → Wireless debugging → Pair device with pairing code) — Portal's Android version may or may not support it.
 
-**Common `adb shell` commands you'll actually use:**
+**Use the `terry` CLI (preferred — wraps all the adb commands):** Located at `~/bin/terry`. Auto-reconnects WiFi if needed. Subcommands:
 ```
-adb shell am start -n xyz.erapps.kiosk/.MainActivity                                  # launch dashboard
-adb shell am force-stop xyz.erapps.kiosk                                              # stop dashboard
-adb shell am force-stop xyz.erapps.kiosk && adb shell am start -n xyz.erapps.kiosk/.MainActivity  # restart
-adb shell cmd package resolve-activity -c android.intent.category.HOME -a android.intent.action.MAIN | grep packageName  # which app is currently the default Home
-adb reboot                                                                            # reboot Terry
+terry              # launch dashboard (default)
+terry on           # launch dashboard
+terry off          # stop dashboard, return to Portal
+terry restart      # force-stop + relaunch
+terry home         # switch to Portal (kiosk keeps running in background)
+terry status       # show connection, default home, foreground app
+terry reboot       # reboot Terry (~30s)
+terry connect      # re-arm WiFi adb after Mac reboot
+terry help         # show usage
+```
+
+**If you ever need raw adb directly** (with WiFi connected via `terry connect`):
+```
+adb -s 192.168.1.116:5555 shell am start -n xyz.erapps.kiosk/.MainActivity   # launch
+adb -s 192.168.1.116:5555 shell am force-stop xyz.erapps.kiosk               # stop
+adb -s 192.168.1.116:5555 reboot                                             # reboot Terry
 ```
 
 ## 🚪 Exit-to-Portal
