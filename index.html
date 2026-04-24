@@ -1662,10 +1662,23 @@
         el.style.display = "none";
       }
     }
+    function isWeekendLondon() {
+      // Robust on old WebViews — toLocaleDateString with weekday is well-supported.
+      try {
+        const wd = new Date().toLocaleDateString("en-GB", { timeZone: TZ, weekday: "short" });
+        return /^(Sat|Sun)/i.test(wd);
+      } catch (e) {
+        const day = new Date().getDay(); // 0=Sun,6=Sat
+        return day === 0 || day === 6;
+      }
+    }
     function updateRoutineVisibility() {
       try {
         const mins = nowMinutesLondon();
-        const showMorning = mins >= 6 * 60 && mins < 9 * 60;
+        const weekend = isWeekendLondon();
+        // Morning routine = school-day prep, hide on Sat/Sun.
+        // Evening routine still useful on weekends (dinner/shower/PJ/reading), keep it.
+        const showMorning = !weekend && mins >= 6 * 60 && mins < 9 * 60;
         const showEvening = mins >= 15 * 60 + 30 && mins < 20 * 60 + 30;
         setCardVisible("morning-card", showMorning);
         setCardVisible("evening-card", showEvening);
