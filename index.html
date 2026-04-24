@@ -7,7 +7,7 @@
   <meta http-equiv="refresh" content="300" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,400;1,9..144,500;1,9..144,600&family=Public+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,400;1,9..144,500;1,9..144,600&family=Public+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@300;400;500;700&display=swap" rel="stylesheet" />
   <style>
     :root {
       /* warm cream text on deep aubergine night */
@@ -35,9 +35,14 @@
       --rule:        rgba(243, 231, 207, 0.10);
       --rule-strong: rgba(243, 231, 207, 0.22);
 
-      --serif: "Fraunces", "Heebo", "Frank Ruhl Libre", Georgia, "Times New Roman", serif;
-      --sans:  "Public Sans", "Heebo", "Frank Ruhl Libre", system-ui, -apple-system, "Segoe UI", sans-serif;
-      --mono:  "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+      --serif:   "Fraunces", "Heebo", "Frank Ruhl Libre", Georgia, "Times New Roman", serif;
+      --sans:    "Public Sans", "Heebo", "Frank Ruhl Libre", system-ui, -apple-system, "Segoe UI", sans-serif;
+      --mono:    "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+      /* Display face for big glanceable numbers (clock, weather temp).
+         DM Serif Display: high-contrast Bodoni-style — looks like an editorial
+         masthead, but its tall narrow tabular figures read instantly at
+         across-the-kitchen distance. Each digit is unmistakable as a shape. */
+      --display: "DM Serif Display", "Fraunces", Georgia, serif;
     }
 
     * { box-sizing: border-box; }
@@ -130,14 +135,20 @@
       letter-spacing: 0.01em;
     }
     .clock {
-      font-family: var(--mono);
-      font-weight: 700;
-      font-size: clamp(60px, 9vw, 108px);
-      line-height: 0.85;
+      /* DM Serif Display — editorial masthead numbers. Tall, dramatic, glanceable.
+         Each digit is a memorable shape (flat-bottomed 2, tailed 5, sharp 7) so
+         kids parse it instantly without sounding it out. Single weight by design;
+         the high-contrast strokes do the visual work. */
+      font-family: var(--display);
+      font-weight: 400;
+      font-style: normal;
+      font-size: clamp(64px, 9.6vw, 116px);
+      line-height: 0.88;
       color: var(--ink);
-      letter-spacing: -0.04em;
+      letter-spacing: -0.015em;
       font-feature-settings: "tnum" 1, "lnum" 1;
-      text-shadow: 0 2px 24px rgba(233, 180, 76, 0.08);
+      /* Soft pendant-light glow tying back to the masthead spotlight motif. */
+      text-shadow: 0 2px 28px rgba(233, 180, 76, 0.12);
     }
 
     /* ─────────────────────────────────────────
@@ -449,13 +460,17 @@
       filter: drop-shadow(0 3px 10px rgba(233, 180, 76, 0.35));
     }
     .weather .temp {
-      font-family: var(--mono);
-      font-weight: 700;
-      font-size: clamp(38px, 4.4vw, 52px);
+      /* Same display face as the clock, but in OCHRE — visually warm, signals
+         "info you actually need to plan your day." Pairs with the warm pendant
+         spotlight already living in the weather card's gradient. */
+      font-family: var(--display);
+      font-weight: 400;
+      font-size: clamp(44px, 5vw, 60px);
       line-height: 0.95;
-      color: var(--ink);
+      color: var(--ochre);
       font-feature-settings: "tnum" 1, "lnum" 1;
-      letter-spacing: -0.04em;
+      letter-spacing: -0.02em;
+      text-shadow: 0 2px 18px rgba(233, 180, 76, 0.20);
     }
     .weather .desc {
       font-family: var(--serif);
