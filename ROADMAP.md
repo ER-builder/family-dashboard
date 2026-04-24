@@ -16,16 +16,15 @@ A backlog of ideas for the Portal ("Terry") dashboard. Pick & build whenever.
 - **Morning + Evening routine visibility — Morning confirmed working 2026-04-24.** 22:58 BST and morning windows both verified ✓. Fix uses `setAttribute("hidden","")` + `style.display="none"` together so old WebViews can't ignore either. A `<span id="dbg">` in the bottom-left corner shows `mins=NNN` live. **Still to verify: evening window (15:30–20:30).** Once evening is also confirmed, remove the `dbg` indicator (search `id="dbg"` in `index.html`).
 - **Bus 102 countdown not rendering on Terry (2026-04-24).** Code verified correct in the deployed HTML and in a Node simulation against live TfL: should render `4 min · 10 min · 16 min · SCHEDULED` below the "Good Service" badge. Terry continues to show "Good Service" only after multiple meta-refresh windows — stale-cache explanation ran out of time budget. Next diagnostic steps: (1) add a visible debug span in the arrivals card area (mirrors the routine-visibility `dbg` pattern) printing the last-fetch outcome (`live=N sched=N err=...`) so we can see on Terry whether `loadTflArrivals()` runs and which branch it takes; (2) suspect the old Portal Chromium choking on the nested `await Promise.all(results.map(async ...))` — try flattening to a sequential render to rule out; (3) confirm CSS isn't hiding `.arrivals` via some other selector. Priority: medium — scheduled fallback is the polish; line status already works and the card still reads right for "is there traffic."
 
-## 🔧 Pending Infra (needs Mac Terminal.app + Terry connected via USB)
+## 🔧 Kiosk APK Rebuild Recipe (when MainActivity.kt or AndroidManifest.xml change)
 
-0. **Rebuild + reinstall kiosk APK.** Source already patched (both `LOAD_NO_CACHE` cache mode and the `kiosk://exit` URL interceptor in `MainActivity.kt`). Just build + install from Terminal.app:
-   ```
-   /Users/elul/Projects/apps/kiosk-webview/build.sh && \
-   adb install -r /Users/elul/Projects/apps/kiosk-webview/app/build/outputs/apk/debug/app-debug.apk && \
-   adb shell am force-stop xyz.erapps.kiosk && \
-   adb shell am start -n xyz.erapps.kiosk/.MainActivity
-   ```
-   After this: every dashboard push propagates on the 5-min meta-refresh (no `pm clear`), and long-pressing the bottom-right corner for 2s exits the kiosk.
+Needs Mac Terminal.app (sandbox-blocked from Claude Code) — but **no cable required** thanks to WiFi ADB:
+```
+/Users/elul/Projects/apps/kiosk-webview/build.sh && \
+adb -s 192.168.1.116:5555 install -r /Users/elul/Projects/apps/kiosk-webview/app/build/outputs/apk/debug/app-debug.apk && \
+terry restart
+```
+Cable only required if WiFi adb port 5555 has closed (Terry was rebooted) — re-arm with `adb tcpip 5555` then unplug.
 
 ---
 
@@ -107,8 +106,7 @@ adb -s 192.168.1.116:5555 reboot                                             # r
 ## 🚪 Exit-to-Portal
 
 - ~~**Iter 1–3 all failed** (HOME removed → kiosk invisible; explicit Aloha launch → snap-back; Settings.ACTION_HOME_SETTINGS → no-op or invisible).~~ Root cause: kiosk is the registered default Home (`xyz.erapps.kiosk` per `cmd package resolve-activity`), so any in-app exit triggers Android's home-resolution → routes back to us.
-- **Iter 4 (current, awaiting rebuild): activity-alias toggle.** Manifest split: MainActivity is LAUNCHER-only; new `<activity-alias name=".HomeAlias">` carries the HOME category and is toggleable via `PackageManager.setComponentEnabledSetting`. `exitToPortalLauncher()` disables HomeAlias *before* launching Aloha and finishing — Android can't snap back because we're no longer a registered Home. `MainActivity.onCreate()` re-enables HomeAlias on every fresh launch (incl. BootReceiver path), so kiosk is restored as a Home choice automatically on next reboot.
-- **Pending: rebuild APK** (`/Users/elul/Projects/apps/kiosk-webview/build.sh && adb install -r ...`).
+- ~~**Iter 4 (shipped, verified working 2026-04-24): activity-alias toggle.**~~ Manifest split: MainActivity is LAUNCHER-only; new `<activity-alias name=".HomeAlias">` carries the HOME category and is toggleable via `PackageManager.setComponentEnabledSetting`. `exitToPortalLauncher()` disables HomeAlias *before* launching Aloha and finishing — Android can't snap back because we're no longer a registered Home. `MainActivity.onCreate()` re-enables HomeAlias on every fresh launch (incl. BootReceiver path), so kiosk is restored as a Home choice automatically on next reboot. After install, user picked **Portal Launcher → Always** in the system home picker — Aloha is now permanent default home, exit transitions cleanly with no chooser, BootReceiver still auto-launches kiosk on reboot.
 - **Visible button:** bold terracotta pill labeled "HOLD TO EXIT" at bottom-right, with circular ochre progress ring (2s).
 - **Trade-off accepted:** returning to kiosk after exit requires power-cycling Terry (BootReceiver fires) OR `adb shell am start -n xyz.erapps.kiosk/.MainActivity`. Aloha doesn't surface LAUNCHER-only apps in any reachable UI we've found. Future work: install Lawnchair/Nova as alternate launcher OR set up WiFi ADB so Elul can re-launch from his phone OR investigate `ShortcutManager.requestPinShortcut` to pin a kiosk shortcut on Aloha if it supports the API.
 
