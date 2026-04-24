@@ -84,6 +84,7 @@ Implementation note: Portal Android WebView supports `touchstart`/`touchend` —
 - ~~**"The Rifman Almanac · Kitchen Edition" brand line is too small and unnecessary.**~~ **Done.** Removed. Greeting is now slightly larger (clamp 30–44px).
 - ~~**Calendar card huge and empty; routine card too narrow.**~~ **Done 2026-04-24.** Grid changed `1.65fr / 1fr` → `0.95fr / 1.1fr` (kid columns ~290px, was ~210). Calendar rebuilt as Google-Cal-style day view: 06:00–22:00 timeline with hour markers, all-day chips strip, terracotta "now" line, future days as compact list below. Eyebrow meta = TODAY.
 - **Follow-up if routines still feel cramped during active windows:** swap left/right placements via a body class set by JS (e.g. `body.mode-morning` / `body.mode-evening` → routine takes the wider left slot, calendar moves right). Not built — see how the current resize feels first.
+- **Weather card is wide — open slot for a sibling.** After the right column got wider, the weather card spans the full width and feels stretched. We can split it into a 2-column row inside the right column: weather on the left (~60%), and a small companion card on the right (~40%). Good candidates for the companion: TfL transit (always-visible instead of routine-conditional), Family Countdowns, Bin schedule (multi-bin), Spotify Now Playing, Daily Photo, or a "next event in N min" callout. Easy implementation: wrap weather + companion in a `<div class="wx-row">` that's `display: grid; grid-template-columns: 1.5fr 1fr` inside `.right`.
 
 ## ✨ UX Polish
 
