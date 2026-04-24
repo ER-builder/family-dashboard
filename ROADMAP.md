@@ -4,6 +4,12 @@ A backlog of ideas for the Portal ("Terry") dashboard. Pick & build whenever.
 
 ---
 
+## 🧠 Re-evaluate / Refine (queued 2026-04-24)
+
+- **Hide morning routine on Sat & Sun.** Kids don't have school on weekends — the morning checklist is irrelevant and just adds noise. **Keep evening routine on weekends** (still useful: dinner, shower, PJ, brush teeth, reading). Implementation: in `updateRoutineVisibility()`, get current weekday in `Europe/London` (use `toLocaleDateString("en-GB", { weekday: "short" })` and check `"Sat"`/`"Sun"`). Set `showMorning = false` when weekend, regardless of hour. Don't gate evening.
+- **Bin reminder banner — is it pulling its weight?** Tuesday bin day already shows up in the family Google Calendar (recurring event), so the dedicated banner from Mon 18:00 → Tue 09:00 is duplicative. Two options: (a) **delete the banner entirely** (calendar handles it, less UI clutter), or (b) **keep but make it smarter** — only show during a tighter window (e.g. Mon 19:00 → Mon 23:00 only, as a true "act now" reminder; or Tue 06:00–08:00 as a final wake-up nudge). Decide which after living with both for a week.
+- **Layout outside routine windows.** When neither morning (06–09) nor evening (15:30–20:30) is showing — i.e. ~09:00–15:29 weekdays + most of weekends — the right column has weather + transit + todos. Currently todos uses `flex: 1` so it grows, but visually the column may look unbalanced (lots of vertical todos). Consider: (a) different cards rotate into the routine slot during off-windows (e.g. Drive folder shortcuts, family photo of the day, "today in history" card), or (b) the calendar/timeline card grows wider during off-windows, or (c) a single "ambient" card (rotating quote, photo, or family fact) fills the slot. **Recommendation:** start with (c) — one card, low friction, lots of design upside.
+
 ## 🐞 Open Bugs
 
 - **Morning + Evening routine visibility — Morning confirmed working 2026-04-24.** 22:58 BST and morning windows both verified ✓. Fix uses `setAttribute("hidden","")` + `style.display="none"` together so old WebViews can't ignore either. A `<span id="dbg">` in the bottom-left corner shows `mins=NNN` live. **Still to verify: evening window (15:30–20:30).** Once evening is also confirmed, remove the `dbg` indicator (search `id="dbg"` in `index.html`).
