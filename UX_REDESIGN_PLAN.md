@@ -2,6 +2,10 @@
 
 **Status:** decision pending. **Audience:** Elul + family. **Scope:** dashboard layout & information architecture only — no backend/proxy/kiosk-app changes.
 
+**Revision history:**
+- v1 (initial 4 options): missed the Stars card (it was added by the parallel Pi session mid-planning) and treated Transit as already-handled. Did not consider redesigning the left column / calendar at all.
+- v2 (current): Stars + Transit folded into each option's accounting; new Option E added that touches the calendar; explicit explanation for why the calendar was originally left alone.
+
 ---
 
 ## Why we're redesigning
@@ -14,33 +18,44 @@ This is a structural problem, not a tweak.
 
 At 1280×800, after masthead + padding + gaps the right column has **~636px of vertical room**. Card heights when present:
 
-| Card | Height | Can shrink? |
-| --- | --- | --- |
-| Weather | ~130px | no |
-| Morning routine (9 items × 2 kids) | ~430px | no |
-| Evening routine (10 items × 2 kids) | ~470px | no |
-| Transit | ~90px (hidden during routines) | no |
-| To-Do | absorbs leftover | yes, collapses to nothing |
+| Card | Height | Can shrink? | Visibility |
+| --- | --- | --- | --- |
+| Weather | ~130px | no | always |
+| Morning routine (9 items × 2 kids) | ~430px | no | weekdays 06:00–08:59 |
+| Evening routine (10 items × 2 kids) | ~470px | no | every day 15:30–20:29 |
+| Transit (Northern + Bus 102) | ~90px | no | hidden during routine windows |
+| Stars (Table Stars mirror, per-kid prizes + cycle pips) | ~90px | no | hidden during routine windows |
+| To-Do | absorbs leftover | yes, collapses to nothing | always present (but invisible when crushed) |
 
-**Three real states today:**
+**Three real states today** (now including Stars):
 
 ```
 WEEKDAY 06–09 (morning):
-  weather 130 + gap 18 + morning 440 + gap 18 + transit hidden + todos = ?
+  weather 130 + gap 18 + morning 440 + (transit + stars hidden) + todos = ?
   → todos gets ~30px → unreachable
 
 EVERY DAY 15:30–20:30 (evening):
-  weather 130 + gap 18 + evening 470 + gap 18 + transit hidden + todos = ?
+  weather 130 + gap 18 + evening 470 + (transit + stars hidden) + todos = ?
   → todos gets ~0px → completely gone
 
 DAYTIME / WEEKEND MORNING:
-  weather 130 + gap 18 + transit 90 + gap 18 + todos = 256px used
-  → todos gets ~380px → fine
+  weather 130 + gap 18 + transit 90 + gap 18 + stars 90 + gap 18 + todos = 374px used
+  → todos gets ~262px → reachable, but tighter than v1 estimate (Stars added ~110px to off-routine accounting)
 ```
 
 We've already sacrificed weather detail (Hi/Lo/Feels removed) for routine fit. Further compression hits the ≥40px kid-touch floor (AGENTS.md hard constraint). The only way out is structural.
 
 ---
+
+## Why the calendar (left column) was originally left untouched
+
+Honest reasoning behind the v1 scope:
+
+- The unreachable-tasks problem is **entirely on the right column.** The calendar isn't part of it — its `.body { overflow-y: auto }` already handles its own overflow, and it sits in its own grid column unaffected by what happens next door.
+- Touching the calendar would expand the redesign blast radius without solving the actual bug. "Smallest fix that solves the problem" pulled my attention right.
+- The calendar IS the canonical "what's happening today" view. Shrinking it has costs (events get truncated, hour rows get tighter, future days disappear) that aren't obviously worth the gains for the right column.
+
+**But you're right that real "redesign" should ask the bigger question:** does the calendar deserve 39% of the screen, or could it shrink/move to give the right side breathing room? That's now Option E below.
 
 ## Project context (so your future-self remembers)
 
@@ -52,9 +67,19 @@ We've already sacrificed weather detail (Hi/Lo/Feels removed) for routine fit. F
 
 ---
 
-## Four design options
+## Five design options
 
 Each option has a one-line idea, an ASCII sketch, and honest pros/cons. **No recommendation buried inside — see "What I'd pick" at the bottom.**
+
+**How Stars + Transit fit under each option** (called out explicitly per the v2 update):
+
+| Option | Stars | Transit |
+| --- | --- | --- |
+| A — Scheduling | Joins the time-conditional rotation. Visible during commute hours + late-day "look back at what kids earned today." Hidden during routine windows like today. | Same as today: hidden during routines, visible otherwise. Rules unchanged. |
+| B — Swipe pages | Both stay on Page 1 (right column). Page 2 = full-screen To-Do. No change to Stars/Transit visibility. | Same. |
+| C — Scroll | Both join the scrollable stack. End up below the fold during routines just like today. | Same. |
+| D — Hybrid | **Stars + Transit fold into the top "context strip"** as small inline elements: weather emoji+temp, transit one-line, stars-mini (`🎁 Eitan 4 · Tamar 2`). All glanceable from one row. | Same — strip element. |
+| E — Rebalance left/right | Both keep their current cards, just with more horizontal room. Stars could split into 2 columns (Eitan / Tamar side-by-side instead of stacked). | Same. |
 
 ---
 
@@ -195,18 +220,63 @@ To-Do becomes the DEFAULT primary panel — visible most of the day. Routines ta
 
 ---
 
+### Option E — Rebalance the left/right column split (touch the calendar)
+
+> Address the unreachable-tasks problem by giving the right column **more width**, taken from the calendar. The right column gets breathing room without changing its structure.
+
+Today: `0.78fr / 1.22fr` → calendar 39% wide / right 61% wide. Roughly the calendar gets 478px and the right gets 750px at 1280-44 padding-18 gap = 1218px.
+
+**Three sub-variants of this option, depending on how aggressive you want to be:**
+
+**E.1 — Light shrink (calendar narrower):** `0.55fr / 1.45fr` → calendar ~340px, right ~860px. Calendar event blocks get shorter titles (longer ones truncate with ellipsis), but the timeline + future days still work. Right column has ~110px more width — Stars can become a horizontal row instead of stacked, freeing ~40px vertical.
+
+**E.2 — Calendar today-only (drop "future days" and timeline shrinks):** Calendar shows today only — timeline 06:00–21:00 plus all-day chips, no future-days list. Maybe also tighten hour rows from 22px to 18px. That's a vertical save (~70-150px) but doesn't directly help the right column unless we ALSO shrink width. So pair with E.1.
+
+**E.3 — Calendar as horizontal strip on top (radical):** Calendar becomes a wide horizontal "today only" timeline above the right column. Right column gets the full screen width.
+```
+┌─────────────────────────────────────────────┐
+│ Masthead w/ clock                           │
+├─────────────────────────────────────────────┤
+│ ▣ Today  06─07─08─09─10─11─12─...─21        │ ← calendar strip (~120px tall)
+├─────────────────────────────────────────────┤
+│ Weather │ Routine/To-Do │ Stars │ Transit  │ ← right cards in 2x2 grid
+├─────────┼────────────────┼───────┼──────────┤
+│         │                │       │          │
+└─────────────────────────────────────────────┘
+```
+Big remodel. Future days disappear (or move to a popover on tap).
+
+**Pros (E in general)**
+- Solves the right-column crush by addressing the root cause: not enough width was allocated
+- Smallest of the structural changes (E.1 alone is ~10 lines of CSS)
+- Touches the dimension we never questioned — the column ratio
+- Preserves single-screen, no gestures
+- Compatible with A or D layered on top later
+
+**Cons**
+- Calendar event titles get tighter — Hebrew titles already long, ellipsis hits sooner
+- Future-days view (E.2/E.3) loses information you may want
+- E.3 is a "the dashboard now looks completely different" change
+- Doesn't solve the **routine-window** crush — even at 860px wide, weather+routine+todos still don't all fit vertically. Need to combine E with A or D for full fix.
+
+**Implementation footprint:** small (E.1) → medium (E.2) → large (E.3). E.1 alone won't fully solve the routine-window problem — best paired with A or D.
+
+---
+
 ## Comparison matrix
 
-| | A — Scheduling | B — Swipe | C — Scroll | D — Hybrid |
-| --- | --- | --- | --- | --- |
-| To-Do always reachable | ✓ (as strip) | ✓ (full page) | ✗ (below fold) | ✓ (full panel default) |
-| Single-screen feel | ✓ | ✗ | ✓ | ✓ |
-| No new gestures | ✓ | ✗ | ✓ | ✓ |
-| Routine card uncompromised | ✓ | ✓ | ✓ | ✓ |
-| Implementation effort | medium | medium-large | trivial | large |
-| Risk on old Portal Chromium | low | medium (touch) | low | low |
-| Future extensibility | medium (more states) | high (more pages) | low | medium |
-| Aesthetic cohesion | high | medium | low | high |
+| | A — Scheduling | B — Swipe | C — Scroll | D — Hybrid | E — Rebalance columns |
+| --- | --- | --- | --- | --- | --- |
+| To-Do always reachable | ✓ (as strip) | ✓ (full page) | ✗ (below fold) | ✓ (full panel default) | partial — only if combined with A or D |
+| Solves routine-window crush | ✓ | ✓ | ✗ | ✓ | partial (helps off-routine; routine-window still tight) |
+| Single-screen feel | ✓ | ✗ | ✓ | ✓ | ✓ |
+| No new gestures | ✓ | ✗ | ✓ | ✓ | ✓ |
+| Routine card uncompromised | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Touches calendar | ✗ | ✗ | ✗ | ✗ | ✓ |
+| Implementation effort | medium | medium-large | trivial | large | small (E.1) → large (E.3) |
+| Risk on old Portal Chromium | low | medium (touch) | low | low | low |
+| Future extensibility | medium | high | low | medium | low |
+| Aesthetic cohesion | high | medium | low | high | depends on variant |
 
 (Discovery / onboarding deliberately omitted — family-only project, not a concern.)
 
@@ -224,16 +294,19 @@ To-Do becomes the DEFAULT primary panel — visible most of the day. Routines ta
 
 ## What I'd pick — and why
 
-**Recommendation: Option D** (hybrid: sticky context strip + rotating primary panel).
+**Recommendation: D + E.1 layered.** Hybrid layout (D) plus a small calendar-narrowing (E.1 — `0.55fr / 1.45fr` column ratio) underneath it.
 
 Reasoning:
 
-1. **Kitchen behavior favors zero-tap glanceability.** During the 7am rush you don't want to swipe to check tasks. D keeps everything visible.
-2. **To-Do deserves to be the DEFAULT view.** It's the most-edited card and currently the least reachable. Flipping that priority is the single biggest UX win.
-3. **B's discovery argument got weaker** once you confirmed it's family-only — but the touch-handling risk on Portal's old Chromium is still real, and the "swipe to add a task while cooking" friction is still there.
-4. **D doesn't preclude B.** Once the hybrid layout is shipped, you can add a swipe-to-page-2 later if you want a photos page or similar — without redoing the main layout.
-5. **A is the lighter alternative to D.** Same destination, less rebuild, but adds the complexity of a new "masthead strip + overlay" pattern that's neither here nor there.
-6. **C is a band-aid** — doesn't solve the real problem, just shifts it.
+1. **D solves the routine-window crush** — the headline problem. To-Do becomes the default primary panel, visible most of the day. Routines take it over only during their windows. No card competes for vertical space.
+2. **E.1 gives D more horizontal room to breathe** — at 860px wide instead of 750px, the primary panel can show a 2-column todo layout (next 5 active, recently checked) instead of single column. Stars in the context strip can show both kids inline instead of stacked.
+3. **Together they touch both columns** so the redesign feels intentional, not lopsided. Just D would leave the calendar feeling oversized; E.1 alone wouldn't fix the routine crush.
+4. **Stars + Transit get a real home** in the context strip (under D) — they're small-info elements anyway, ideal for a horizontal row.
+5. **E.2 / E.3 are too aggressive** for v1 — losing the future-days view or making the calendar a horizontal strip both have real costs. Easier to ship D + E.1 first, then iterate to E.2 if calendar still feels too big.
+6. **B (swipe) stays available as a future addition** — if you want a photos page or recipes page someday, layer it on top of D + E.1 without redoing the main layout.
+7. **C is a band-aid** — doesn't solve the real problem.
+
+**Honest caveat:** D + E.1 is the largest combined change. If you want to ship something this weekend, **A alone** is the lighter fix (medium effort, single-screen, no calendar disruption). It just doesn't make To-Do the visual default the way D does.
 
 ---
 
@@ -272,6 +345,6 @@ Reasoning:
 
 ## Next step
 
-Reply with **A / B / C / D** (or a hybrid like "D but with the swipe-to-page-2 included now") and I'll write the detailed implementation plan + start building.
+Reply with **A / B / C / D / E** (or a layered combo like "D + E.1" or "A then add B later") and I'll write the detailed implementation plan + start building.
 
 If you want to think on it overnight, this doc is committed to the repo at `UX_REDESIGN_PLAN.md` — readable on GitHub from any device.
