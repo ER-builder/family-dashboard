@@ -52,9 +52,10 @@ URL: https://er-builder.github.io/family-dashboard/ (GitHub Pages, public). Auto
 ## External APIs
 
 - **OpenWeather** (free, key in source — public). `/weather` (current) + `/forecast` (3-hourly).
-- **TfL** at `api.tfl.gov.uk/Line/{id}/Status` — **no auth needed** for line status. Severity scale: `≥10` Good, `7-9` Minor, `≤6` Severe.
+- **TfL** at `api.tfl.gov.uk/Line/{id}/Status` — **no auth needed** for line status. Severity scale: `≥10` Good, `7-9` Minor, `≤6` Severe. Bus 102 has no AVL feed → use `/Line/102/Timetable/{stopId}` for scheduled times rendered as countdown fallback.
 - **Calendar** via `family-dashboard-proxy` Vercel function (single `ICAL_URL` env var; multi-source merge is on roadmap).
 - **Google Apps Script** for shared to-dos (endpoint hard-coded in `index.html`).
+- **Table Stars** at `tablestars.erapps.xyz/api/public/stats?key=…` — keyed (`STATS_READ_KEY` in Vercel), wildcard CORS, returns `{kids: [{name, emoji, prize_count, cycle_progress}]}`. Powers the Stars card in the right column (off-routine windows only, hidden via `body.routine-active`). Polled every 30 min.
 
 ## Roadmap is authoritative
 
