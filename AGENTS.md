@@ -16,7 +16,13 @@ URL: https://er-builder.github.io/family-dashboard/ (GitHub Pages, public). Auto
 
 `index.html` is the entire dashboard: Tailwind-free vanilla CSS, vanilla JS. Auto-refresh every 5 min via `<meta http-equiv="refresh">`. All state in `localStorage` (routine checks, celebration flags) except shared to-dos which live in a Google Sheet via Apps Script endpoint.
 
-**Layout (right column priority during routine windows):** weather → routine → todos → transit (transit hides during routine windows via `body.routine-active` so kids' card has full height).
+**Layout (UX redesign D + E.1, 2026-04-26):**
+- Two-column grid: calendar 27.5% / right 72.5% (`0.55fr / 1.45fr`).
+- Right column has TWO regions only:
+  1. `.context-strip` (top, ~120px, always visible, horizontal): `cs-weather` + `cs-divider` + `cs-transit` + `cs-divider` + `cs-stars`. Compact form of three former cards.
+  2. `.primary-panel` (bottom, fills remaining ~500px, content swaps via `body[data-mode]`): one of `#morning-card` / `#evening-card` / `.todos`.
+- Mode picker: `pickMode()` returns `"morning" | "evening" | "todo"` based on time + weekday. Updates every 60s.
+- **Result:** To-Do is the DEFAULT primary panel content (visible most of the day) — routines take it over only during their windows. To-Do reachable in every state — fixed the v0 bug where it was crushed to invisibility.
 
 **Calendar:** Google-Cal-style day view — 06:00–21:00 timeline (16 hours × 22px = 352px), all-day chips strip on top, terracotta "now" line, tomorrow as a compact list below.
 
@@ -33,7 +39,7 @@ URL: https://er-builder.github.io/family-dashboard/ (GitHub Pages, public). Auto
 
 ## Old WebView gotchas (Portal runs an aging Chromium)
 
-- **`element.hidden = bool` is unreliable.** Use `setAttribute("hidden","") + style.display="none"` together (and `removeAttribute + style.display=""` to show). The dashboard uses a `setCardVisible(id, visible)` helper.
+- **`element.hidden = bool` is unreliable.** Use `setAttribute("hidden","") + style.display="none"` together (and `removeAttribute + style.display=""` to show). Helper `setCardVisible(id, visible)` exists but is now unused — primary-panel mode switching uses CSS rules keyed off `body[data-mode]` instead.
 - **`Intl.DateTimeFormat#formatToParts` may not exist.** Use `toLocaleTimeString({timeZone})` and regex-parse, with a `getHours()` fallback. See `nowMinutesLondon()` and `londonMins()`.
 - **`:has()` selector** is risky — prefer body classes set by JS (e.g. `body.routine-active`) for conditional layouts.
 - **Cache:** APK currently uses `LOAD_DEFAULT` — until rebuilt, dashboard pushes need `pm clear` to be visible. Source already patched to `LOAD_NO_CACHE` in `MainActivity.kt`; pending rebuild.
