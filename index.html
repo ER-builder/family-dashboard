@@ -1384,6 +1384,14 @@
         0 10px 24px -6px rgba(200, 85, 61, 0.65),
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
     }
+    /* Stage 2 of the dual-hold (long-hold for sticky exit) — emphasize the glow. */
+    #exit-corner.holding-long {
+      box-shadow:
+        0 0 0 5px rgba(200, 85, 61, 0.40),
+        0 12px 28px -4px rgba(200, 85, 61, 0.80),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    #exit-corner.holding-long .exit-ring { border-color: var(--terracotta); }
     .exit-ring {
       position: relative;
       width: 28px;
@@ -1445,14 +1453,14 @@
   <!-- Visible exit button: long-press 2s to exit kiosk and return to Portal home.
        Long-press (not tap) so kids don't trigger by accident. The progress ring
        fills as you hold; releasing early cancels. Intercepted in MainActivity. -->
-  <button id="exit-corner" aria-label="Hold to exit to Portal home (dashboard auto-returns in 10 minutes)">
+  <button id="exit-corner" aria-label="Hold to exit to Portal — short hold returns in 5 min, long hold stays until reboot">
     <span class="exit-ring">
       <span class="exit-fill"></span>
       <span class="exit-icon">📞</span>
     </span>
     <span class="exit-label">
       Hold to exit
-      <span class="exit-sublabel">back in 10m</span>
+      <span class="exit-sublabel">5m · keep holding for all day</span>
     </span>
   </button>
 
@@ -2489,23 +2497,47 @@
     setInterval(loadStars, 30 * 60 * 1000); // stars change 1-2x per day; 30 min is plenty
 
     // ---------- Exit-to-Portal long-press (visible bottom-right button) ----------
-    // 2-second hold fires kiosk://exit URL; intercepted by MainActivity.kt's
-    // shouldOverrideUrlLoading → finishAndRemoveTask() → returns to Portal launcher.
+    // Two-stage hold:
+    //   0–2s   ring fills ochre  → release at 2s+ fires kiosk://exit (auto-return 5m)
+    //   2–5s   ring fills terracotta over the ochre → release at 5s+ fires
+    //          kiosk://exit?sticky=1 (no auto-return, stays in Portal until reboot/manual)
+    //   <2s    release before stage 1 completes = cancel
+    // Sublabel updates as user holds so they know what they'll trigger.
     (function() {
       const btn = document.getElementById("exit-corner");
       if (!btn) return;
       const fill = btn.querySelector(".exit-fill");
-      const HOLD_MS = 2000;
+      const sub  = btn.querySelector(".exit-sublabel");
+      const SHORT_MS = 2000;   // exit + 5min auto-return
+      const LONG_MS  = 5000;   // exit, no auto-return (sticky)
+      const SUB_DEFAULT = "5m · keep holding for all day";
+      const SUB_STAGE2  = "Keep holding for ALL DAY…";
+      const SUB_READY_LONG = "Release for ALL-DAY exit";
       let raf, startedAt;
 
+      function setRingPct(pct, color) {
+        if (!fill) return;
+        const c = color || "var(--ochre)";
+        fill.style.background = `conic-gradient(${c} ${pct}%, transparent ${pct}%)`;
+      }
       function tick() {
         const elapsed = performance.now() - startedAt;
-        const pct = Math.min(100, (elapsed / HOLD_MS) * 100);
-        if (fill) fill.style.background =
-          `conic-gradient(var(--ochre) ${pct}%, transparent ${pct}%)`;
-        if (pct >= 100) {
+        if (elapsed < SHORT_MS) {
+          // Stage 1: ring fills ochre 0→100% over 2s
+          setRingPct((elapsed / SHORT_MS) * 100, "var(--ochre)");
+          if (sub) sub.textContent = SUB_DEFAULT;
+          btn.classList.remove("holding-long");
+        } else if (elapsed < LONG_MS) {
+          // Stage 2: ring switches to terracotta + refills 0→100% over the next 3s.
+          // Color change at 2s = clear "crossed into stage 2" signal.
+          const stage2Pct = ((elapsed - SHORT_MS) / (LONG_MS - SHORT_MS)) * 100;
+          setRingPct(stage2Pct, "var(--terracotta)");
+          if (sub) sub.textContent = stage2Pct > 70 ? SUB_READY_LONG : SUB_STAGE2;
+          btn.classList.add("holding-long");
+        } else {
+          // Held all the way to LONG_MS: fire sticky exit
           stop();
-          window.location.href = "kiosk://exit";
+          window.location.href = "kiosk://exit?sticky=1";
           return;
         }
         raf = requestAnimationFrame(tick);
@@ -2518,10 +2550,21 @@
         raf = requestAnimationFrame(tick);
       }
       function stop() {
+        const elapsed = startedAt ? performance.now() - startedAt : 0;
         if (raf) cancelAnimationFrame(raf);
         raf = null;
         btn.classList.remove("holding");
-        if (fill) fill.style.background = "conic-gradient(var(--ochre) 0%, transparent 0%)";
+        setRingPct(0);
+        if (sub) sub.textContent = SUB_DEFAULT;
+        // Decide what to fire on release based on how long they held.
+        if (elapsed >= LONG_MS) {
+          // Already fired in tick(); no-op.
+        } else if (elapsed >= SHORT_MS) {
+          // Stage 1 complete + released before stage 2 done → standard exit (5min auto-return)
+          window.location.href = "kiosk://exit";
+        }
+        // else: <SHORT_MS → cancel, do nothing
+        startedAt = null;
       }
       btn.addEventListener("touchstart",  start, { passive: false });
       btn.addEventListener("touchend",    stop,  { passive: true });
