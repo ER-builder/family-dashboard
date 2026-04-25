@@ -84,7 +84,7 @@
       position: relative;
       z-index: 1;
       display: grid;
-      grid-template-columns: minmax(0, 0.78fr) minmax(0, 1.22fr);
+      grid-template-columns: minmax(0, 0.55fr) minmax(0, 1.45fr);
       grid-template-rows: auto auto minmax(0, 1fr);
       gap: 18px;
       padding: 18px 22px;
@@ -415,15 +415,193 @@
     }
 
     /* ─────────────────────────────────────────
-       RIGHT COLUMN — flex stack
+       RIGHT COLUMN — context strip (top) + primary panel (bottom)
+       UX redesign D + E.1, 2026-04-26.
+       Top region is a horizontal "always-on" strip with weather, transit,
+       stars compacted into one row. Bottom region is a single primary panel
+       that swaps content via body[data-mode] — morning routine, evening
+       routine, or to-do (default). Every card ALWAYS reachable now.
        ───────────────────────────────────────── */
     .right {
       grid-row: 3;
       grid-column: 2;
       display: flex;
       flex-direction: column;
-      gap: 18px;
+      gap: 14px;
       min-height: 0;
+    }
+
+    /* ── CONTEXT STRIP (top) ── */
+    .context-strip {
+      flex-shrink: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) 1px minmax(0, 1.4fr) 1px minmax(0, 1fr);
+      gap: 14px;
+      align-items: stretch;
+      padding: 14px 18px;
+      background: var(--paper-2);
+      border: 1px solid var(--rule);
+      border-radius: 18px;
+      box-shadow:
+        inset 0 1px 0 rgba(243, 231, 207, 0.04),
+        0 18px 44px -20px rgba(0, 0, 0, 0.65);
+      overflow: hidden;
+      position: relative;
+    }
+    .cs-divider {
+      width: 1px;
+      background: linear-gradient(to bottom, transparent, var(--rule-strong) 25%, var(--rule-strong) 75%, transparent);
+      align-self: stretch;
+    }
+
+    /* Weather slot */
+    .cs-weather {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+    .cs-weather .icon {
+      font-size: 38px;
+      line-height: 1;
+      filter: drop-shadow(0 3px 10px rgba(233, 180, 76, 0.35));
+      flex-shrink: 0;
+    }
+    .cs-weather .info {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .cs-weather .temp {
+      font-family: var(--display);
+      font-weight: 400;
+      font-size: clamp(40px, 4.4vw, 54px);
+      line-height: 0.95;
+      color: var(--ochre);
+      font-feature-settings: "tnum" 1, "lnum" 1;
+      letter-spacing: -0.02em;
+      text-shadow: 0 2px 18px rgba(233, 180, 76, 0.20);
+    }
+    .cs-weather .desc {
+      font-family: var(--serif);
+      font-style: italic;
+      font-size: 13px;
+      color: var(--ink-soft);
+      text-transform: lowercase;
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Transit slot */
+    .cs-transit {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+      min-width: 0;
+    }
+    .cs-transit .row {
+      display: grid;
+      grid-template-columns: 32px 1fr auto;
+      gap: 8px;
+      align-items: center;
+    }
+    .cs-transit .badge {
+      font-family: var(--sans);
+      font-size: 9px;
+      font-weight: 800;
+      border-radius: 4px;
+      padding: 3px 0;
+      text-align: center;
+      letter-spacing: 0.04em;
+    }
+    .cs-transit .name {
+      font-family: var(--serif);
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--ink);
+      letter-spacing: -0.003em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .cs-transit .status {
+      font-family: var(--sans);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 3px 7px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .cs-transit .status.good   { background: var(--sage-soft);       color: var(--sage); }
+    .cs-transit .status.minor  { background: var(--ochre-soft);      color: var(--ochre); }
+    .cs-transit .status.severe { background: var(--terracotta-soft); color: var(--terracotta); }
+
+    /* Stars slot */
+    .cs-stars {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+      min-width: 0;
+      text-align: right;
+    }
+    .cs-stars .kid {
+      display: flex;
+      align-items: baseline;
+      justify-content: flex-end;
+      gap: 8px;
+      font-family: var(--sans);
+      font-size: 13px;
+    }
+    .cs-stars .kid .label {
+      font-weight: 600;
+      color: var(--ink);
+      letter-spacing: 0.005em;
+    }
+    .cs-stars .kid .count {
+      font-family: var(--display);
+      font-size: 22px;
+      line-height: 0.9;
+      color: var(--ochre);
+      font-feature-settings: "tnum" 1;
+    }
+    .cs-stars .kid[data-kid="eitan"] .count { color: var(--cobalt); }
+    .cs-stars .kid[data-kid="tamar"] .count { color: var(--terracotta); }
+    .cs-stars .kid .count {
+      transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+      display: inline-block;
+    }
+    .cs-stars .kid .count.pulse { transform: scale(1.22); }
+
+    /* ── PRIMARY PANEL (bottom) ── */
+    .primary-panel {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    /* Default: hide all primary-panel children. Mode-specific rules show one. */
+    .primary-panel > .card,
+    .primary-panel > section {
+      display: none;
+    }
+    body[data-mode="morning"] .primary-panel > #morning-card,
+    body[data-mode="evening"] .primary-panel > #evening-card,
+    body[data-mode="todo"]    .primary-panel > .todos {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+    }
+    /* The visible card fills the panel — release the old `flex-shrink: 0` and
+       any internal max-height that capped them when stacked. */
+    .primary-panel > .card {
+      flex-shrink: 1;
     }
 
     /* ─────────────────────────────────────────
@@ -862,6 +1040,10 @@
     }
     /* Hide transit during a routine window so kids' card has room.
        Parents see transit before/after routine times. */
+    /* Pre-redesign rules — kept only as inert no-ops. The .right column no
+       longer has direct .transit / .stars children; both live in .context-strip
+       (always visible). Body.routine-active also removed in favor of body[data-mode],
+       but harmless if anything still toggles it. */
     body.routine-active .right > .transit { display: none; }
     body.routine-active .right > .stars   { display: none; }
     .routine li:hover { background: rgba(243, 231, 207, 0.05); }
@@ -1259,7 +1441,7 @@
     }
   </style>
 </head>
-<body>
+<body data-mode="todo">
   <!-- Visible exit button: long-press 2s to exit kiosk and return to Portal home.
        Long-press (not tap) so kids don't trigger by accident. The progress ring
        fills as you hold; releasing early cancels. Intercepted in MainActivity. -->
@@ -1300,31 +1482,43 @@
     </section>
 
     <div class="right">
-      <section class="card weather">
-        <div class="eyebrow">
-          <span class="glyph">◐</span>
-          <span class="name">London</span>
-          <span class="rule"></span>
-          <span class="meta">NOW</span>
-        </div>
-        <div class="body">
-          <div class="top">
-            <div class="icon" id="w-icon">⛅</div>
-            <div>
-              <div class="temp" id="w-temp">—°</div>
-              <div class="desc" id="w-desc">Loading…</div>
-            </div>
-            <!-- Hi/Lo/Feels removed 2026-04-24 — reclaimed vertical space so the
-                 morning routine card can fit all 9 items without scrolling.
-                 The hourly strip below already gives a sense of trend. The JS
-                 still references #w-hi/#w-lo/#w-feels harmlessly (no-op when
-                 the elements are absent, no error). -->
+      <!-- ── CONTEXT STRIP: weather · transit · stars in one horizontal row.
+           Always visible. Compact form of three former cards.
+           IDs preserved so existing data-fetching JS still finds its targets. -->
+      <section class="context-strip" id="context-strip">
+        <div class="cs-weather">
+          <div class="icon" id="w-icon">⛅</div>
+          <div class="info">
+            <div class="temp" id="w-temp">—°</div>
+            <div class="desc" id="w-desc">Loading…</div>
           </div>
-          <div class="hourly" id="w-hourly"></div>
+          <!-- #w-hi/#w-lo/#w-feels intentionally absent; loadWeather() null-guards.
+               #w-hourly also dropped from v1; loadHourly() null-guards similarly. -->
+        </div>
+        <div class="cs-divider"></div>
+        <div class="cs-transit">
+          <div class="row" id="tfl-northern">
+            <span class="badge" style="background:#000;color:#fff;">N</span>
+            <span class="name">Northern Line</span>
+            <span class="status">…</span>
+          </div>
+          <div class="row" id="tfl-102">
+            <span class="badge" style="background:#dc241f;color:#fff;">102</span>
+            <span class="name">Bus 102</span>
+            <span class="status">…</span>
+          </div>
+          <!-- #tfl-102-arrivals dropped from v1 context strip. JS guarded. -->
+        </div>
+        <div class="cs-divider"></div>
+        <div class="cs-stars" id="stars-body">
+          <!-- Populated by loadStars() — keeps the same #stars-body container ID -->
         </div>
       </section>
 
-      <section class="card routine morning" id="morning-card" hidden>
+      <!-- ── PRIMARY PANEL: the dominant task of the moment.
+           One child visible at a time, picked by body[data-mode]. -->
+      <section class="primary-panel" id="primary-panel">
+        <section class="card routine morning" id="morning-card">
         <div class="topstripe"><i></i><i></i></div>
         <div class="inner">
           <div class="eyebrow">
@@ -1350,7 +1544,7 @@
         </div>
       </section>
 
-      <section class="card routine evening" id="evening-card" hidden>
+        <section class="card routine evening" id="evening-card">
         <div class="topstripe"><i></i><i></i></div>
         <div class="inner">
           <div class="eyebrow">
@@ -1376,39 +1570,11 @@
         </div>
       </section>
 
-      <section class="card transit">
-        <div class="eyebrow">
-          <span class="glyph">⇄</span>
-          <span class="name">Transit</span>
-          <span class="rule"></span>
-          <span class="meta">LIVE</span>
-        </div>
-        <div class="body">
-          <div class="line-row" id="tfl-northern">
-            <span class="badge" style="background:#000;color:#fff;">N</span>
-            <span class="line-name">Northern Line</span>
-            <span class="status">…</span>
-          </div>
-          <div class="line-row" id="tfl-102">
-            <span class="badge" style="background:#dc241f;color:#fff;">102</span>
-            <span class="line-name">Bus → E. Finchley · Golders Green</span>
-            <span class="status">…</span>
-          </div>
-          <div class="arrivals" id="tfl-102-arrivals" hidden></div>
-        </div>
-      </section>
+        <!-- Old transit + stars cards removed 2026-04-26: their content now
+             lives inside .context-strip above. JS for `loadTfl()` and
+             `loadStars()` writes into the new compact slots. -->
 
-      <section class="card stars" id="stars-card" hidden>
-        <div class="eyebrow">
-          <span class="glyph">⭐</span>
-          <span class="name">Stars</span>
-          <span class="rule"></span>
-          <span class="meta">PROGRESS</span>
-        </div>
-        <div class="body" id="stars-body"></div>
-      </section>
-
-      <section class="card todos">
+        <section class="card todos">
         <div class="eyebrow">
           <span class="glyph">✎</span>
           <span class="name">Family To-Do</span>
@@ -1423,8 +1589,9 @@
           <ul class="todo-list" id="todo-list"></ul>
         </div>
       </section>
-    </div>
-  </div>
+      </section><!-- /.primary-panel -->
+    </div><!-- /.right -->
+  </div><!-- /.app -->
 
   <script>
     // ---------- Config ----------
@@ -1863,28 +2030,34 @@
         return day === 0 || day === 6;
       }
     }
-    function updateRoutineVisibility() {
+    // UX redesign D + E.1 (2026-04-26): primary panel mode picker.
+    // Sets body[data-mode] to "morning" | "evening" | "todo" — CSS rules in
+    // the .primary-panel block show exactly one child for the active mode.
+    // Replaces the old setCardVisible + body.routine-active mechanism.
+    function pickMode() {
       try {
         const mins = nowMinutesLondon();
         const weekend = isWeekendLondon();
-        // Morning routine = school-day prep, hide on Sat/Sun.
-        // Evening routine still useful on weekends (dinner/shower/PJ/reading), keep it.
-        const showMorning = !weekend && mins >= 6 * 60 && mins < 9 * 60;
-        const showEvening = mins >= 15 * 60 + 30 && mins < 20 * 60 + 30;
-        setCardVisible("morning-card", showMorning);
-        setCardVisible("evening-card", showEvening);
-        // Body class lets CSS hide lower-priority cards (e.g. transit)
-        // while a routine is active, freeing vertical space for the kids.
-        document.body.classList.toggle("routine-active", showMorning || showEvening);
+        // Morning routine = weekday school prep only.
+        if (!weekend && mins >= 6 * 60 && mins < 9 * 60) return "morning";
+        // Evening routine = every day (incl. weekends).
+        if (mins >= 15 * 60 + 30 && mins < 20 * 60 + 30) return "evening";
+        return "todo";
       } catch (e) {
-        setCardVisible("morning-card", false);
-        setCardVisible("evening-card", false);
-        document.body.classList.remove("routine-active");
+        return "todo";  // safe default — todo always works
       }
     }
+    function updateMode() {
+      const mode = pickMode();
+      document.body.setAttribute("data-mode", mode);
+      // Backwards-compat: keep the routine-active class around in case any
+      // straggler CSS still references it (transit + stars rules — both removed
+      // from markup but the rule itself doesn't hurt).
+      document.body.classList.toggle("routine-active", mode === "morning" || mode === "evening");
+    }
     renderRoutines();
-    updateRoutineVisibility();
-    setInterval(() => { renderRoutines(); updateRoutineVisibility(); }, 60 * 1000);
+    updateMode();
+    setInterval(() => { renderRoutines(); updateMode(); }, 60 * 1000);
 
     loadWeather();
     loadHourly();
@@ -2261,48 +2434,37 @@
       return (name || "").toLowerCase().replace(/[^a-z]/g, "");
     }
 
+    // 2026-04-26 redesign: compact context-strip rendering.
+    // Old stars-card is gone; #stars-body now lives inside .cs-stars in the
+    // context strip and shows one row per kid: "🎁 NAME N" — no pips, no ratio.
+    // Full pip display + cycle progress can come back as a primary-panel mode
+    // in v2 if Elul wants to "open" the stars card.
     function renderStars(kids) {
       const body = document.getElementById("stars-body");
-      const card = document.getElementById("stars-card");
-      if (!body || !card) return;
+      if (!body) return;
       if (!kids || !kids.length) {
-        card.setAttribute("hidden", "");
-        card.style.display = "none";
+        body.innerHTML = "";
         return;
       }
       const rows = kids.map(function(k) {
         const slug = slugKid(k.name);
-        const cycle = Math.max(0, Math.min(10, k.cycle_progress || 0));
-        const on  = "★".repeat(cycle);
-        const off = "☆".repeat(10 - cycle);
-        const pc  = k.prize_count || 0;
+        const pc = k.prize_count || 0;
         const idAttr = escapeHtml(k.id);
         return (
-          '<div class="kid-row ' + escapeHtml(slug) + '" data-kid="' + idAttr + '">' +
-            '<div class="kid-id">' +
-              '<span class="kid-emoji">' + escapeHtml(k.emoji || "") + '</span>' +
-              '<span class="kid-name">' + escapeHtml(k.name || "") + '</span>' +
-            '</div>' +
-            '<div class="prize-count" data-kid="' + idAttr + '">' +
-              '<span class="gift">🎁</span>' +
-              '<span class="times">×</span>' +
-              '<span class="n">' + pc + '</span>' +
-            '</div>' +
-            '<div class="bar">' +
-              '<div class="pips"><span class="on">' + on + '</span><span class="off">' + off + '</span></div>' +
-              '<div class="ratio">' + cycle + '/10</div>' +
-            '</div>' +
+          '<div class="kid" data-kid="' + escapeHtml(slug) + '" data-id="' + idAttr + '">' +
+            '<span class="label">' + escapeHtml(k.emoji || "🎁") + ' ' + escapeHtml(k.name || "") + '</span>' +
+            '<span class="count">' + pc + '</span>' +
           '</div>'
         );
       });
       body.innerHTML = rows.join("");
 
-      // Pulse the prize count when it increments between polls.
+      // Pulse the count when it increments between polls.
       kids.forEach(function(k) {
         const prev = _lastPrizeCount[k.id];
         const now = k.prize_count || 0;
         if (prev !== undefined && now > prev) {
-          const el = body.querySelector('.prize-count[data-kid="' + CSS.escape(String(k.id)) + '"]');
+          const el = body.querySelector('.kid[data-id="' + CSS.escape(String(k.id)) + '"] .count');
           if (el) {
             el.classList.add("pulse");
             setTimeout(function() { el.classList.remove("pulse"); }, 320);
@@ -2310,9 +2472,6 @@
         }
         _lastPrizeCount[k.id] = now;
       });
-
-      card.removeAttribute("hidden");
-      card.style.display = "";
     }
 
     async function loadStars() {
