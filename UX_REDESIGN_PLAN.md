@@ -347,4 +347,105 @@ Reasoning:
 
 Reply with **A / B / C / D / E** (or a layered combo like "D + E.1" or "A then add B later") and I'll write the detailed implementation plan + start building.
 
+---
+
+## Implementation Plan: D + E.1 (chosen 2026-04-26)
+
+### Decisions baked into v1 (override before I start if you disagree)
+
+- **Transit in context strip:** minimal — Northern Line and Bus 102 each as a small badge + status pill (Good/Minor/Severe). Bus 102 inline shows next arrival as `Due / 4 min / 12:34` if available, otherwise just status. The expanded arrivals row (`#tfl-102-arrivals`) is dropped from v1 — too much info for the strip. If you miss it, we promote Transit to its own primary-panel mode in v1.5.
+- **Weather hourly strip:** dropped from v1 context strip. Glanceable now (temp + icon + condition word) is enough for casual checks. If you miss the hourly trend, we add a "weather details" panel mode later.
+- **Stars in context strip:** per-kid compact `🎁 Name N` (no pips) — saves horizontal room. Full Stars card with pips becomes a primary-panel mode you can pin manually if desired (v2).
+- **Late-night ambient mode:** skipped from v1. Primary panel just shows To-Do all night. Add ambient mode later if it bugs you.
+- **To-Do layout:** stays single-column for v1. Easy to bump to 2 columns later if the list typically has 8+ items.
+- **Column ratio (E.1):** `0.55fr / 1.45fr` (calendar 27.5% / right 72.5%). At 1280px viewport this gives calendar ~335px (was ~478px), right ~880px (was ~750px). Calendar event titles will truncate sooner — Hebrew titles especially. If the calendar feels too cramped, we relax to `0.65fr / 1.35fr`.
+
+### Architecture
+
+**Right column restructured into two regions** — context strip on top, primary panel below:
+
+```
+.right (flex column)
+├── .context-strip (fixed ~110px, always visible, horizontal flex row)
+│    ├── .cs-weather   (icon · big temp · desc)
+│    ├── .cs-divider   (vertical hairline)
+│    ├── .cs-transit   (N · status pill   |   102 · next/status)
+│    ├── .cs-divider
+│    └── .cs-stars     (🎁 Eitan N · 🎁 Tamar N)
+└── .primary-panel (flex: 1, fills remaining, data-mode swaps content)
+     ├── .card.routine.morning  (#morning-card preserved)
+     ├── .card.routine.evening  (#evening-card preserved)
+     └── .card.todos             (preserved)
+```
+
+CSS-only mode switching via `body[data-mode="..."]`:
+```css
+.primary-panel > * { display: none !important; }
+body[data-mode="morning"] .primary-panel > #morning-card { display: flex !important; }
+body[data-mode="evening"] .primary-panel > #evening-card { display: flex !important; }
+body[data-mode="todo"]    .primary-panel > .todos        { display: flex !important; }
+```
+
+`updateRoutineVisibility()` becomes `updateMode()` — picks one of `morning | evening | todo` and sets `body[data-mode]`. Wraps the same `nowMinutesLondon()` + `isWeekendLondon()` logic.
+
+### Files touched
+
+- `/Users/elul/Projects/family-dashboard/index.html` — CSS (grid, context strip, primary panel modes), markup restructure, JS rename + state machine
+- `/Users/elul/Projects/family-dashboard/AGENTS.md` — update architecture section to reflect context-strip + primary-panel design
+- `/Users/elul/Projects/family-dashboard/ROADMAP.md` — close "layout outside routine windows" + "to-do unreachable" entries; add "v1.5 / v2" follow-ups for the deferred decisions above
+
+### IDs/classes that MUST survive (JS depends on them)
+
+- `#cal-body`, `.cal-allday`, `.cal-today`, `.cal-future` (calendar — left column unchanged except width)
+- `#w-icon`, `#w-temp`, `#w-desc` (weather — relocated to `.cs-weather`)
+- `#w-hi`, `#w-lo`, `#w-feels` (already removed from markup — JS guards against null)
+- `#w-hourly` (weather hourly strip — being dropped from markup; null-guard the JS that populates it OR delete that JS block)
+- `#tfl-northern`, `#tfl-102` (transit line rows — relocated, kept as inline elements)
+- `#tfl-102-arrivals` (bus arrivals — being dropped from v1; remove the JS function that populates it OR keep as no-op if element is absent)
+- `#morning-card`, `#evening-card` (routine cards — relocated into primary panel)
+- `.kid[data-kid="eitan-morning"|"tamar-morning"|"eitan-evening"|"tamar-evening"]` (routine kid columns — preserved)
+- `#prog-eitan-morning` etc. and `#bar-eitan-morning` etc. (progress counters/bars — preserved)
+- `#todo-list`, `#todo-form`, `#todo-input` (todo — relocated)
+- Stars per-kid IDs (whatever Pi added — preserve)
+- `#exit-corner` and its children (exit button — fixed position, unaffected)
+
+### JS changes
+
+- Rename `updateRoutineVisibility()` → `updateMode()`. Same trigger frequency (60s + on load).
+- Replace `setCardVisible("morning-card", ...)` calls with `document.body.setAttribute("data-mode", pickMode())`.
+- Drop `body.routine-active` class — the new `body[data-mode]` does the same job for other selectors. Update transit/stars CSS rules that referenced `body.routine-active`.
+- Drop `loadHourlyForecast()` (or just stop calling it) since hourly markup is gone.
+- Drop the bus-102 expanded arrivals render. Keep `loadTfl()` for line status — populates inline `#tfl-northern` and `#tfl-102` status pills.
+- Update transit JS to write a "next arrival" snippet inline next to the 102 badge if live data is available.
+
+### Build order (incremental, each step shippable)
+
+1. **CSS grid ratio change (E.1 alone)** — change `.app` columns to `0.55fr / 1.45fr`. Verify calendar doesn't break, right column has more breathing room. Roughly 1 line of CSS, instantly verifiable. SAFE TO SHIP ALONE.
+2. **Context strip skeleton** — add empty `.context-strip` markup at top of `.right`, define CSS for it, leave existing cards in place. No visual change yet.
+3. **Move weather into context strip** — relocate `#w-icon`, `#w-temp`, `#w-desc` into `.cs-weather`. Delete old `.card.weather` wrapper. Style as inline.
+4. **Move transit into context strip** — relocate `#tfl-northern`, `#tfl-102` into `.cs-transit`. Style as inline pills. Drop `#tfl-102-arrivals` markup + populate JS.
+5. **Move stars into context strip** — relocate Stars elements into `.cs-stars`. Style as inline.
+6. **Primary panel skeleton + mode CSS** — wrap remaining cards (`#morning-card`, `#evening-card`, `.todos`) in `<section class="primary-panel">`. Add the `body[data-mode] .primary-panel > X` show/hide rules.
+7. **JS: updateMode()** — rename function, replace setCardVisible calls, drop the body.routine-active class.
+8. **Polish + verification** — test all four real states on Terry, fix any layout bugs, update AGENTS.md and ROADMAP.md.
+9. **Commit + push at logical breakpoints** — each numbered step above is its own commit. Allows easy rollback if any step breaks something on Terry.
+
+### Verification matrix (run on Terry after step 8)
+
+| State | Time | Expected primary panel | Expected context strip | Expected calendar |
+| --- | --- | --- | --- | --- |
+| Weekday morning | 06:00–08:59 | Morning routine (full, 9 items × 2 kids, no scroll) | Weather + Transit + Stars all visible | Today's events |
+| Weekday daytime | 09:00–15:29 | To-Do (default) | Weather + Transit + Stars | Today's events |
+| Every day evening | 15:30–20:29 | Evening routine (full, 10 items × 2 kids, no scroll) | Weather + Transit + Stars | Today's events |
+| Late evening | 20:30+ | To-Do | Weather + Transit + Stars | Today's events |
+| Weekend morning | Sat/Sun 06:00+ | To-Do (NOT morning routine — that's weekday only) | Weather + Transit + Stars | Today's events |
+
+For each state: confirm a To-Do can be added from the dashboard. (This was the original failure mode and must be fixed in every state outside routine windows.)
+
+### Estimated effort
+
+End-to-end: ~2 hours of focused build + iteration. Steps 1–2 are minutes. Steps 3–5 are the bulk (each card needs new CSS for the inline form). Step 6 is small. Step 7 is small. Step 8 is the long tail.
+
+**Heads up on size of diff:** this redesign touches a lot of CSS rules and reshuffles markup, but doesn't change any of the data-fetching JS (calendar, weather, transit, todo, stars, routine). Risk concentrated in CSS layout, not in functionality.
+
 If you want to think on it overnight, this doc is committed to the repo at `UX_REDESIGN_PLAN.md` — readable on GitHub from any device.
