@@ -37,23 +37,28 @@ URL: https://er-builder.github.io/family-dashboard/ (GitHub Pages, public). Auto
 - **Never push secrets** — push protection blocks. The OpenWeather API key is a public key (intentional exception).
 - **Apps Script TODO endpoint** is hard-coded in `index.html`. Don't change.
 
+## Kiosk app (kiosk-webview) — Android-side facts
+
+- **HOME registration is a runtime-toggleable `<activity-alias>`**, not on MainActivity directly. Disabled via `PackageManager.setComponentEnabledSetting` *before* exit; otherwise Android's home-resolution snaps right back. Re-enabled in `onCreate`. Only iteration that broke the snap-back loop after 4 prior attempts.
+- **Auto-return = `onStop` schedules an AlarmManager exact alarm; `onStart` cancels it.** Lifecycle hooks fire for ALL backgrounding (manual exit, incoming call, screen-off), so we get one consistent path. `AUTO_RETURN_MS` = 5 min.
+- **Receiver is call-aware:** before launching, checks `AudioManager.getMode()` for `MODE_IN_COMMUNICATION` (VoIP / Portal video) or `MODE_IN_CALL` (cellular). If active, reschedules itself for 5 min later instead of yanking out of the call. No permissions needed.
+- **WiFi ADB endpoint:** `192.168.1.116:5555` (MAC `a4:0e:2b:74:d4:85`). `~/bin/terry` wrapper auto-discovers via ARP if cached IP shifts.
+- **Portal launcher (Aloha):** `com.facebook.alohaapps.launcher` / activity `com.facebook.aloha.app.home.touch.HomeActivity`. Set as default Home; doesn't surface third-party LAUNCHER apps in its UI (kiosk only relaunchable via terry CLI, BootReceiver, or as registered HOME alternate).
+
 ## Old WebView gotchas (Portal runs an aging Chromium)
 
-- **`element.hidden = bool` is unreliable.** Use `setAttribute("hidden","") + style.display="none"` together (and `removeAttribute + style.display=""` to show). Helper `setCardVisible(id, visible)` exists but is now unused — primary-panel mode switching uses CSS rules keyed off `body[data-mode]` instead.
+- **`element.hidden = bool` is unreliable.** Use `setAttribute("hidden","") + style.display="none"` together. Helper `setCardVisible(id, visible)` exists but is now unused — primary-panel mode switching uses CSS rules keyed off `body[data-mode]` instead.
 - **`Intl.DateTimeFormat#formatToParts` may not exist.** Use `toLocaleTimeString({timeZone})` and regex-parse, with a `getHours()` fallback. See `nowMinutesLondon()` and `londonMins()`.
-- **`:has()` selector** is risky — prefer body classes set by JS (e.g. `body.routine-active`) for conditional layouts.
-- **Cache:** APK currently uses `LOAD_DEFAULT` — until rebuilt, dashboard pushes need `pm clear` to be visible. Source already patched to `LOAD_NO_CACHE` in `MainActivity.kt`; pending rebuild.
+- **`:has()` selector** is risky — prefer body classes set by JS (e.g. `body[data-mode]`) for conditional layouts.
 
 ## Design language
 
-"The Rifman Almanac, Kitchen Edition" — editorial print on midnight-aubergine. Fraunces serif + Public Sans + JetBrains Mono + Heebo (Hebrew) + Frank Ruhl Libre (Hebrew fallback) via Google Fonts. Muted print accents: ochre, terracotta, sage, cobalt, lavender. **Eitan = cobalt, Tamar = terracotta** (these are load-bearing in the kid card CSS — don't flip).
+"The Rifman Almanac, Kitchen Edition" — editorial print on midnight-aubergine. **Each font has ONE job:** DM Serif Display = big glanceable numbers (clock + weather temp); Fraunces = prose; Public Sans = labels; JetBrains Mono = tabular alignment; Heebo + Frank Ruhl Libre = Hebrew fallback. Muted print accents: ochre, terracotta, sage, cobalt, lavender. **Eitan = cobalt, Tamar = terracotta** — load-bearing in kid card CSS, don't flip.
 
 ## Family facts that show up in code
 
-- Location: London. Northern Line + Bus 102 (toward East Finchley / Golders Green) shown in transit card.
-- **Bins go out Tuesday.** Banner appears Mon 18:00 → Tue 09:00.
-- World clock shows **Tel Aviv** (family abroad).
-- Kids' routines hard-coded in `ROUTINES` const — edit there to add/change items.
+- Location: London. Northern Line + Bus 102 (toward East Finchley / Golders Green).
+- Kids' routines hard-coded in `ROUTINES` const.
 
 ## External APIs
 
@@ -61,7 +66,7 @@ URL: https://er-builder.github.io/family-dashboard/ (GitHub Pages, public). Auto
 - **TfL** at `api.tfl.gov.uk/Line/{id}/Status` — **no auth needed** for line status. Severity scale: `≥10` Good, `7-9` Minor, `≤6` Severe. Bus 102 has no AVL feed → use `/Line/102/Timetable/{stopId}` for scheduled times rendered as countdown fallback.
 - **Calendar** via `family-dashboard-proxy` Vercel function (single `ICAL_URL` env var; multi-source merge is on roadmap).
 - **Google Apps Script** for shared to-dos (endpoint hard-coded in `index.html`).
-- **Table Stars** at `tablestars.erapps.xyz/api/public/stats?key=…` — keyed (`STATS_READ_KEY` in Vercel), wildcard CORS, returns `{kids: [{name, emoji, prize_count, cycle_progress}]}`. Powers the Stars card in the right column (off-routine windows only, hidden via `body.routine-active`). Polled every 30 min.
+- **Table Stars** at `tablestars.erapps.xyz/api/public/stats?key=…` — keyed (`STATS_READ_KEY` in Vercel), wildcard CORS, returns `{kids: [{name, emoji, prize_count, cycle_progress}]}`. Powers the Stars slot in the context strip (compact: `🎁 Name N` per kid, no pips in v1). Polled every 30 min.
 
 ## Roadmap is authoritative
 
