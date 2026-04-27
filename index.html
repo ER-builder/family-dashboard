@@ -1876,8 +1876,11 @@
         "tamar-morning": ["Breakfast","Get Dressed","Brush Teeth","Socks and Shoes","Hair","Water Bottle","Pack a Snack","Pack Your Bag"]
       },
       evening: {
-        "eitan-evening": ["Homework","(Optional) TV / Games","Dinner Prep","Dinner","House Chores","(Optional) Dessert","Shower","PJ","Brush Teeth","Reading Time (in bed)"],
-        "tamar-evening": ["Homework","(Optional) TV / Games","Dinner Prep","Dinner","House Chores","(Optional) Dessert","Shower","PJ","Brush Teeth","Reading Time (in bed)"]
+        // 8 chores per kid (was 10; "(Optional) Dessert" + "Reading Time" dropped
+        // 2026-04-27 — celebration overlay handles the "good night, story time"
+        // moment instead. "(Optional) TV / Games" renamed to "Free Time".
+        "eitan-evening": ["Homework","Free Time","Dinner Prep","Dinner","House Chores","Shower","PJ","Brush Teeth"],
+        "tamar-evening": ["Homework","Free Time","Dinner Prep","Dinner","House Chores","Shower","PJ","Brush Teeth"]
       }
     };
     function todayKey() {
@@ -1910,16 +1913,13 @@
       "Water Bottle": "💧",
       "Pack a Snack": "🍎",
       "Pack Your Bag": "🎒",
-      "Free Time / TV :)": "📺",
       "Homework": "✏️",
-      "(Optional) TV / Games": "🎮",
+      "Free Time": "🎮",
       "Dinner Prep": "🍳",
       "Dinner": "🍽️",
       "House Chores": "🧹",
-      "(Optional) Dessert": "🍰",
       "Shower": "🚿",
-      "PJ": "🩳",
-      "Reading Time (in bed)": "📚"
+      "PJ": "🩳"
     };
     function cleanLabel(label) {
       return label.replace(/^\(Optional\)\s*/, "");
@@ -1929,31 +1929,45 @@
     function celebrationKey(kid) { return `celebrated:${todayKey()}:${kid}`; }
     function maybeCelebrate(kid, allDone, kidEl) {
       if (!allDone) return;
-      if (!kid.endsWith("-morning")) return; // morning only for now
+      // Fires for both -morning and -evening kids; key includes the suffix so
+      // morning + evening celebrations are independent (one of each per day).
+      if (!kid.endsWith("-morning") && !kid.endsWith("-evening")) return;
       if (localStorage.getItem(celebrationKey(kid))) return;
       localStorage.setItem(celebrationKey(kid), "1");
       fireCelebration(kid, kidEl);
     }
     function fireCelebration(kid, kidEl) {
-      const name = kid.split("-")[0];
+      const parts = kid.split("-");                 // ["eitan","morning"] etc.
+      const name = parts[0];
+      const slot = parts[1];                        // "morning" | "evening"
       const display = name.charAt(0).toUpperCase() + name.slice(1);
       const accent = name === "eitan" ? "var(--cobalt)" : "var(--terracotta)";
       const wrap = document.createElement("div");
       wrap.className = "celebration";
       const toast = document.createElement("div");
       toast.className = "toast";
-      // Headline: name in their accent + "all done!" — celebratory & specific
       const nameEl = document.createElement("span");
       nameEl.className = "name";
       nameEl.style.color = accent;
       nameEl.textContent = display;
-      toast.appendChild(document.createTextNode("🎉 "));
+
+      // Headline + sub copy depend on slot — different vibe morning vs evening.
+      let leadEmoji, leadTrail, subText;
+      if (slot === "evening") {
+        leadEmoji = "🌙 ";
+        leadTrail = " — all set!";
+        subText = "good night · story time · sweet dreams ✨";
+      } else {
+        leadEmoji = "🎉 ";
+        leadTrail = " — all done!";
+        subText = "ready for school · free time until 8:30 ☀️";
+      }
+      toast.appendChild(document.createTextNode(leadEmoji));
       toast.appendChild(nameEl);
-      toast.appendChild(document.createTextNode(" — all done!"));
-      // Sub: "ready for school · free time until 8:30 ☀️"
+      toast.appendChild(document.createTextNode(leadTrail));
       const sub = document.createElement("div");
       sub.className = "sub";
-      sub.textContent = "ready for school · free time until 8:30 ☀️";
+      sub.textContent = subText;
       toast.appendChild(sub);
       wrap.appendChild(toast);
       for (let i = 0; i < 44; i++) {
