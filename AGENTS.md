@@ -26,12 +26,14 @@ URL: https://er-builder.github.io/family-dashboard/ (GitHub Pages, public). Auto
 
 **Calendar:** Google-Cal-style day view — 06:00–21:00 timeline (16 hours × 22px = 352px), all-day chips strip on top, terracotta "now" line, tomorrow as a compact list below.
 
-**Routines:** time-windowed (morning 06–09, evening 15:30–20:30 London tz). 9 morning items per kid, 10 evening. **MUST fit without scrolling** — driving constraint for the whole layout. Items at 40px min-height (compromise from 44px for fit; checkbox is 28px).
+**Routines:** time-windowed (morning 06–09 weekdays only; evening 15:30–20:30 every day, London tz). **8 morning + 8 evening items per kid** (TV / Dessert / Reading dropped — celebration overlay handles the "all done" moment). MUST fit without scrolling. Items at 40px min-height; checkbox 28px. Celebration triggers once per kid per day per slot when all 8 are checked.
+
+**Testing:** append `?mode=morning|evening|todo` to the dashboard URL to force a mode for that page load (laptop/phone preview without waiting for the time window). Normal reload reverts to time-based logic.
 
 ## Hard constraints
 
 - **No scroll on the routine card.** Kids tap items in order; scrolling breaks the flow. Layout decisions ladder up to this.
-- **Touch targets ≥40px** (was ≥44px target; routine items dropped to 40px to fit all 10 evening items).
+- **Touch targets ≥40px** for routine items (was ≥44px goal; 40px is the practical floor).
 - **Width 1280, height 800** (Portal screen). Test against this — narrower dev browsers will lie about routine fit.
 - **Hebrew + RTL must keep working** in calendar event titles. Heebo loaded as Hebrew fallback; Fraunces has no Hebrew so the cascade falls through automatically.
 - **Never push secrets** — push protection blocks. The OpenWeather API key is a public key (intentional exception).
@@ -39,9 +41,9 @@ URL: https://er-builder.github.io/family-dashboard/ (GitHub Pages, public). Auto
 
 ## Kiosk app (kiosk-webview) — Android-side facts
 
-- **HOME registration is a runtime-toggleable `<activity-alias>`**, not on MainActivity directly. Disabled via `PackageManager.setComponentEnabledSetting` *before* exit; otherwise Android's home-resolution snaps right back. Re-enabled in `onCreate`. Only iteration that broke the snap-back loop after 4 prior attempts.
+- **HOME registration is on a `<activity-alias>`**, not MainActivity directly. **Stays enabled at all times** — Aloha is permanent default Home (user picked "Always") so no snap-back risk, AND the kiosk needs launcher status to satisfy Android 10+'s background-activity-start rule (without it, the AutoReturnReceiver's startActivity is silently dropped — root cause of auto-return failing 2026-04-26 even though alarms fired correctly). The `setComponentEnabledSetting(DISABLED)` step that earlier iterations used is **gone** — do not reintroduce.
 - **Auto-return = `onStop` schedules an AlarmManager exact alarm; `onStart` cancels it.** Lifecycle hooks fire for ALL backgrounding (manual exit, incoming call, screen-off), so we get one consistent path. `AUTO_RETURN_MS` = 5 min.
-- **Receiver is call-aware:** before launching, checks `AudioManager.getMode()` for `MODE_IN_COMMUNICATION` (VoIP / Portal video) or `MODE_IN_CALL` (cellular). If active, reschedules itself for 5 min later instead of yanking out of the call. No permissions needed.
+- **Receiver is call-aware:** before launching, checks `AudioManager.getMode()` for `MODE_IN_COMMUNICATION` (VoIP / Portal video) or `MODE_IN_CALL` (cellular). If active, reschedules for 5 min later instead of yanking out of the call. No permissions needed.
 - **WiFi ADB endpoint:** `192.168.1.116:5555` (MAC `a4:0e:2b:74:d4:85`). `~/bin/terry` wrapper auto-discovers via ARP if cached IP shifts.
 - **Portal launcher (Aloha):** `com.facebook.alohaapps.launcher` / activity `com.facebook.aloha.app.home.touch.HomeActivity`. Set as default Home; doesn't surface third-party LAUNCHER apps in its UI (kiosk only relaunchable via terry CLI, BootReceiver, or as registered HOME alternate).
 
