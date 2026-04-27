@@ -10,30 +10,30 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,400;1,9..144,500;1,9..144,600&family=Public+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@300;400;500;700&display=swap" rel="stylesheet" />
   <style>
     :root {
-      /* warm cream text on deep aubergine night */
-      --ink:        #f3e7cf;
-      --ink-soft:   #c7b89e;
-      --ink-dim:    #8a7d62;
-      --ink-faint:  #58503f;
+      /* warm cream text on deep aubergine night — brightness boost 2026-04-27 */
+      --ink:        #fbf0d6;   /* was #f3e7cf */
+      --ink-soft:   #d6c6a5;   /* was #c7b89e */
+      --ink-dim:    #998a6f;   /* was #8a7d62 */
+      --ink-faint:  #6a6048;   /* was #58503f */
 
-      --paper:      #14101a;   /* deepest bg */
-      --paper-2:    #1f1925;   /* card */
-      --paper-3:    #2a2230;   /* raised */
+      --paper:      #1a1422;   /* was #14101a — slightly lifted */
+      --paper-2:    #281f30;   /* was #1f1925 — brighter cards */
+      --paper-3:    #322738;   /* was #2a2230 */
 
-      /* print-mag accents (deliberately muted, not neon) */
-      --ochre:      #e9b44c;
-      --ochre-soft: rgba(233, 180, 76, 0.14);
-      --terracotta: #c8553d;
-      --terracotta-soft: rgba(200, 85, 61, 0.13);
-      --sage:       #6ba883;
-      --sage-soft:  rgba(107, 168, 131, 0.12);
-      --cobalt:     #6e95c8;
-      --cobalt-soft: rgba(110, 149, 200, 0.13);
-      --lavender:   #b4a6c9;
-      --lavender-soft: rgba(180, 166, 201, 0.13);
+      /* print-mag accents — slightly more saturation in soft tints */
+      --ochre:      #f0bc55;   /* was #e9b44c — touch warmer */
+      --ochre-soft: rgba(240, 188, 85, 0.18);
+      --terracotta: #d05f48;   /* was #c8553d */
+      --terracotta-soft: rgba(208, 95, 72, 0.17);
+      --sage:       #76b48f;   /* was #6ba883 */
+      --sage-soft:  rgba(118, 180, 143, 0.15);
+      --cobalt:     #7ba0d4;   /* was #6e95c8 */
+      --cobalt-soft: rgba(123, 160, 212, 0.16);
+      --lavender:   #c0b3d4;   /* was #b4a6c9 */
+      --lavender-soft: rgba(192, 179, 212, 0.16);
 
-      --rule:        rgba(243, 231, 207, 0.10);
-      --rule-strong: rgba(243, 231, 207, 0.22);
+      --rule:        rgba(251, 240, 214, 0.13);
+      --rule-strong: rgba(251, 240, 214, 0.26);
 
       --serif:   "Fraunces", "Heebo", "Frank Ruhl Libre", Georgia, "Times New Roman", serif;
       --sans:    "Public Sans", "Heebo", "Frank Ruhl Libre", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -60,12 +60,12 @@
       letter-spacing: 0.005em;
       -webkit-font-smoothing: antialiased;
       background:
-        /* warm pendant-light spotlight, top-left */
-        radial-gradient(ellipse 90% 70% at 18% -8%, rgba(233, 180, 76, 0.18) 0%, transparent 55%),
-        /* gentle warm glow, bottom-right corner */
-        radial-gradient(ellipse 70% 90% at 112% 112%, rgba(200, 85, 61, 0.10) 0%, transparent 55%),
-        /* base midnight gradient */
-        linear-gradient(180deg, #110d16 0%, #181219 55%, #110d16 100%);
+        /* warm pendant-light spotlight, top-left — brighter 2026-04-27 */
+        radial-gradient(ellipse 95% 75% at 18% -8%, rgba(240, 188, 85, 0.26) 0%, transparent 60%),
+        /* warm glow, bottom-right corner — brighter */
+        radial-gradient(ellipse 75% 95% at 112% 112%, rgba(208, 95, 72, 0.16) 0%, transparent 58%),
+        /* base midnight gradient — lifted */
+        linear-gradient(180deg, #1a1422 0%, #221a2a 55%, #1a1422 100%);
     }
 
     /* paper grain overlay — subtle, like newsprint */
@@ -578,6 +578,17 @@
     }
     .cs-stars .kid .count.pulse { transform: scale(1.22); }
 
+    /* Morning mode: weather forecast is critical — give weather more room and
+       hide the Stars slot (kids' stars matter more in the afternoon/evening
+       when they reflect what got earned that day). Reclaims the right ~25%. */
+    body[data-mode="morning"] .context-strip {
+      grid-template-columns: minmax(0, 1.5fr) 1px minmax(0, 1.4fr);
+    }
+    body[data-mode="morning"] .cs-stars,
+    body[data-mode="morning"] .context-strip > .cs-divider:nth-of-type(2) {
+      display: none;
+    }
+
     /* ── PRIMARY PANEL (bottom) ── */
     .primary-panel {
       flex: 1;
@@ -952,17 +963,18 @@
     .routine .cols {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 12px;
+      gap: 22px;          /* was 12px — wider visual separation between kids */
       min-height: 0;
     }
 
     .routine .kid {
       --kid: var(--ochre);
       --kid-soft: var(--ochre-soft);
-      padding: 11px 10px 12px;
-      border-radius: 13px;
+      padding: 12px 12px 14px 14px;
+      border-radius: 14px;
       background: var(--kid-soft);
-      border: 1px solid rgba(243, 231, 207, 0.05);
+      border: 1px solid rgba(251, 240, 214, 0.10);
+      border-left: 5px solid var(--kid);   /* thick left stripe in kid accent — strong column ID */
       display: flex;
       flex-direction: column;
       gap: 6px;
@@ -1312,12 +1324,18 @@
       letter-spacing: -0.01em;
     }
     .celebration .toast .name {
-      display: block;
-      margin-top: 8px;
       font-family: var(--serif);
-      font-size: 0.62em;
-      font-weight: 600;
+      font-weight: 700;
       letter-spacing: 0.01em;
+    }
+    .celebration .toast .sub {
+      font-family: var(--sans);
+      font-style: normal;
+      font-weight: 600;
+      font-size: 0.32em;
+      letter-spacing: 0.06em;
+      color: var(--ink-soft);
+      margin-top: 16px;
     }
     .celebration.fading .toast {
       animation: celebFade 600ms cubic-bezier(0.4, 0, 0.6, 1) both;
@@ -1852,8 +1870,10 @@
     // ---------- Routines (per-kid, daily reset, time-windowed) ----------
     const ROUTINES = {
       morning: {
-        "eitan-morning": ["Breakfast","Get Dressed","Brush Teeth","Socks and Shoes","Vitamin","Water Bottle","Pack a Snack","Pack Your Bag","Free Time / TV :)"],
-        "tamar-morning": ["Breakfast","Get Dressed","Brush Teeth","Socks and Shoes","Hair","Water Bottle","Pack a Snack","Pack Your Bag","Free Time / TV :)"]
+        // 8 chores per kid (was 9; "Free Time / TV" dropped 2026-04-27 — replaced
+        // by the celebration overlay that fires when all 8 are checked).
+        "eitan-morning": ["Breakfast","Get Dressed","Brush Teeth","Socks and Shoes","Vitamin","Water Bottle","Pack a Snack","Pack Your Bag"],
+        "tamar-morning": ["Breakfast","Get Dressed","Brush Teeth","Socks and Shoes","Hair","Water Bottle","Pack a Snack","Pack Your Bag"]
       },
       evening: {
         "eitan-evening": ["Homework","(Optional) TV / Games","Dinner Prep","Dinner","House Chores","(Optional) Dessert","Shower","PJ","Brush Teeth","Reading Time (in bed)"],
@@ -1922,12 +1942,19 @@
       wrap.className = "celebration";
       const toast = document.createElement("div");
       toast.className = "toast";
-      toast.appendChild(document.createTextNode("🎉 You did it!"));
+      // Headline: name in their accent + "all done!" — celebratory & specific
       const nameEl = document.createElement("span");
       nameEl.className = "name";
       nameEl.style.color = accent;
       nameEl.textContent = display;
+      toast.appendChild(document.createTextNode("🎉 "));
       toast.appendChild(nameEl);
+      toast.appendChild(document.createTextNode(" — all done!"));
+      // Sub: "ready for school · free time until 8:30 ☀️"
+      const sub = document.createElement("div");
+      sub.className = "sub";
+      sub.textContent = "ready for school · free time until 8:30 ☀️";
+      toast.appendChild(sub);
       wrap.appendChild(toast);
       for (let i = 0; i < 44; i++) {
         const c = document.createElement("span");
