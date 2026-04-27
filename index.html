@@ -561,6 +561,72 @@
     .cs-transit .status.good   { background: var(--sage-soft);       color: var(--sage); }
     .cs-transit .status.minor  { background: var(--ochre-soft);      color: var(--ochre); }
     .cs-transit .status.severe { background: var(--terracotta-soft); color: var(--terracotta); }
+    /* When live arrivals are present on the 102, hide the "Good Service" pill —
+       knowing the next bus is more useful than knowing the line is fine.
+       The pill comes back automatically as a fallback if live data drops out. */
+    .cs-transit .row.has-arrivals .status { display: none; }
+
+    /* Live arrivals strip under the 102 row — one mini-row per stop/direction. */
+    .cs-arrivals {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      padding: 4px 0 0 40px;   /* indent past the 102 badge column */
+    }
+    .cs-arrivals:empty { display: none; }
+    .cs-arrivals .arr-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+      align-items: baseline;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-soft);
+      font-feature-settings: "tnum" 1;
+    }
+    .cs-arrivals .arr-row .dest {
+      font-family: var(--sans);
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .cs-arrivals .arr-row .times { display: flex; gap: 6px; align-items: baseline; flex-wrap: nowrap; }
+    .cs-arrivals .arr-row .t { color: var(--ink); font-weight: 700; font-size: 13px; }
+    .cs-arrivals .arr-row .t.due { color: var(--ochre); }
+    .cs-arrivals .arr-row .t.sched { color: var(--ink-soft); font-weight: 500; }
+    .cs-arrivals .arr-row .t .u {
+      font-family: var(--sans);
+      font-size: 8px;
+      letter-spacing: 0.10em;
+      color: var(--ink-dim);
+      text-transform: uppercase;
+      margin-left: 1px;
+      font-weight: 600;
+    }
+    .cs-arrivals .arr-row .sep { color: var(--ink-faint); }
+    .cs-arrivals .arr-row .none {
+      font-family: var(--serif);
+      font-style: italic;
+      color: var(--ink-dim);
+      font-size: 11px;
+    }
+    .cs-arrivals .arr-row .sched-tag {
+      font-family: var(--sans);
+      font-size: 7px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      margin-left: 4px;
+      padding: 1px 4px;
+      border: 1px solid var(--rule);
+      border-radius: 3px;
+      font-weight: 700;
+    }
 
     /* Stars slot */
     .cs-stars {
@@ -1595,7 +1661,12 @@
             <span class="name">Bus 102</span>
             <span class="status">…</span>
           </div>
-          <!-- #tfl-102-arrivals dropped from v1 context strip. JS guarded. -->
+          <!-- Live arrivals strip: rendered by loadTflArrivals(). When live data
+               is available (TfL Countdown returns predictions), the 102's status
+               pill above is hidden via .has-arrivals class — the live times ARE
+               the status. If TfL has no live data, falls back to schedule
+               (with SCHED chip) and the status pill remains visible. -->
+          <div class="cs-arrivals" id="tfl-102-arrivals"></div>
         </div>
         <div class="cs-divider cs-divider-stars"></div>
         <div class="cs-stars" id="stars-body">
@@ -2561,11 +2632,19 @@
         rows.push('<div class="arr-row"><span class="dest">' + dest + '</span><span class="times">' + sparts.join(' ') + '<span class="sched-tag">scheduled</span></span></div>');
       }
 
-      // Tiny diagnostic strip — remove once Terry confirms rendering works.
-      const dbgLine = '<div class="arr-dbg">live=' + liveCount + ' sched=' + schedCount + ' err=' + errCount + ' @' + new Date().toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }) + '</div>';
-      container.innerHTML = rows.join("") + dbgLine;
+      container.innerHTML = rows.join("");
       container.removeAttribute("hidden");
       container.style.display = "";
+
+      // If we got LIVE arrivals (predictions, not just scheduled), hide the
+      // line's "Good Service" pill — the live times convey the same info more
+      // usefully. If only scheduled fallback or all errors, keep the pill so
+      // the user still has the line-status signal.
+      const tfl102 = document.getElementById("tfl-102");
+      if (tfl102) {
+        if (liveCount > 0) tfl102.classList.add("has-arrivals");
+        else               tfl102.classList.remove("has-arrivals");
+      }
     }
 
     async function loadTfl() {
