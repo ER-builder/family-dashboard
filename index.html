@@ -269,9 +269,30 @@
       letter-spacing: 0.06em;
     }
     .cal-block {
+      /* Overlap-aware positioning. JS sets --col (column index, 0-based) and
+         --total (number of tracks in this event's overlap cluster) on each
+         block. Within the timeline track area (left of 38px reserved for hour
+         labels, right of 6px gutter), divide horizontal space into N equal
+         tracks with a 4px gap between them. Single-event clusters use 1 track
+         and look identical to the old full-width layout. */
       position: absolute;
-      left: 38px;
-      right: 6px;
+      --col: 0;
+      --total: 1;
+      --track-gap: 4px;
+      --inset-left: 38px;
+      --inset-right: 6px;
+      left: calc(
+        var(--inset-left)
+        + var(--col) * (
+          (100% - var(--inset-left) - var(--inset-right) - (var(--total) - 1) * var(--track-gap))
+          / var(--total)
+          + var(--track-gap)
+        )
+      );
+      width: calc(
+        (100% - var(--inset-left) - var(--inset-right) - (var(--total) - 1) * var(--track-gap))
+        / var(--total)
+      );
       background: var(--cobalt-soft);
       border-left: 3px solid var(--cobalt);
       border-radius: 6px;
@@ -2280,10 +2301,58 @@
       nowLine.id = "cal-now";
       todayEl.appendChild(nowLine);
 
-      // ─── Event blocks
+      // ─── Event blocks (overlap-aware layout)
       const nowMins = nowMinutesLondon();
       const visibleMins = (DAY_END_H - DAY_START_H) * 60;
-      todayTimed.forEach(ev => {
+
+      // Lay out overlapping events into horizontal tracks (Google-Cal style).
+      // Sort by start asc (then by longer-first as a tiebreaker so big events
+      // get column 0). Greedy column assignment: each event takes the
+      // lowest-numbered track whose previous occupant has ended. Then group
+      // events into clusters of mutually-overlapping events; every event in a
+      // cluster uses the same column count = max columns in that cluster, so
+      // tracks within a cluster line up evenly.
+      function layoutOverlaps(items) {
+        const sorted = items
+          .map(ev => ({
+            ev,
+            startMs: new Date(ev.start).getTime(),
+            endMs: Math.max(new Date(ev.start).getTime() + 1, new Date(ev.end).getTime())
+          }))
+          .sort((a, b) => a.startMs - b.startMs || b.endMs - a.endMs);
+        // Step 1: assign each event to the lowest available column.
+        const tracks = []; // tracks[c] = endMs of last event placed in column c
+        sorted.forEach(item => {
+          let col = tracks.findIndex(end => end <= item.startMs);
+          if (col === -1) { col = tracks.length; tracks.push(0); }
+          tracks[col] = item.endMs;
+          item.col = col;
+        });
+        // Step 2: group into clusters of mutually-overlapping events.
+        let clusterStart = 0;
+        let clusterMaxEnd = sorted.length ? sorted[0].endMs : 0;
+        const clusters = [];
+        for (let i = 1; i < sorted.length; i++) {
+          if (sorted[i].startMs >= clusterMaxEnd) {
+            clusters.push({ start: clusterStart, end: i - 1 });
+            clusterStart = i;
+            clusterMaxEnd = sorted[i].endMs;
+          } else {
+            clusterMaxEnd = Math.max(clusterMaxEnd, sorted[i].endMs);
+          }
+        }
+        if (sorted.length) clusters.push({ start: clusterStart, end: sorted.length - 1 });
+        // Step 3: each cluster's totalCols = max(col+1) in that cluster.
+        clusters.forEach(c => {
+          let maxCol = 0;
+          for (let i = c.start; i <= c.end; i++) maxCol = Math.max(maxCol, sorted[i].col);
+          for (let i = c.start; i <= c.end; i++) sorted[i].totalCols = maxCol + 1;
+        });
+        return sorted;
+      }
+
+      const laidOut = layoutOverlaps(todayTimed);
+      laidOut.forEach(({ ev, col, totalCols }) => {
         const sM = londonMins(new Date(ev.start));
         const eM = londonMins(new Date(ev.end));
         const startOff = sM - DAY_START_H * 60;
@@ -2298,6 +2367,8 @@
         block.className = "cal-block" + (eM <= nowMins ? " past" : "") + sourceClass(ev);
         block.style.top = top + "px";
         block.style.height = height + "px";
+        block.style.setProperty("--col", String(col));
+        block.style.setProperty("--total", String(totalCols));
         const title = document.createElement("div");
         title.className = "title";
         title.textContent = ev.title;
