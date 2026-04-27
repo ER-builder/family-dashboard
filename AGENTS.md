@@ -69,7 +69,7 @@ URL: https://er-builder.github.io/family-dashboard/ (GitHub Pages, public). Auto
 - **TfL** at `api.tfl.gov.uk/Line/{id}/Status` — **no auth needed** for line status. Severity scale: `≥10` Good, `7-9` Minor, `≤6` Severe. Bus 102 has no AVL feed → use `/Line/102/Timetable/{stopId}` for scheduled times rendered as countdown fallback.
 - **Calendar** via `family-dashboard-proxy` Vercel function (single `ICAL_URL` env var; multi-source merge is on roadmap).
 - **Google Apps Script** for shared to-dos (endpoint hard-coded in `index.html`).
-- **Table Stars** at `tablestars.erapps.xyz/api/public/stats?key=…` — keyed (`STATS_READ_KEY` in Vercel), wildcard CORS, returns `{kids: [{name, emoji, prize_count, cycle_progress}]}`. Powers the Stars slot in the context strip (compact: `🎁 Name N` per kid, no pips in v1). Polled every 30 min.
+- **Table Stars** at `tablestars.erapps.xyz/api/public/stats?key=…` — keyed (`STATS_READ_KEY` in Vercel), wildcard CORS, returns `{kids: [{name, emoji, prize_count, cycle_progress}]}`. Powers the Stars slot in the context strip — per kid: `🎁 NAME N ⭐ X/10` (slow milestone count + fast daily-effort ratio). Both pulse on increment. Polled every 30 min.
 
 ## Roadmap is authoritative
 

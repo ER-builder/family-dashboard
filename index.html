@@ -664,6 +664,26 @@
       display: inline-block;
     }
     .cs-stars .kid .count.pulse { transform: scale(1.22); }
+    /* Cycle progress (X/10) — fast-moving feedback for daily stars earned.
+       Mono so it reads as a counter, not a milestone. Pulses on increment. */
+    .cs-stars .kid .cycle {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--ink-soft);
+      letter-spacing: 0.02em;
+      font-feature-settings: "tnum" 1;
+      transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1), color 200ms ease;
+      display: inline-block;
+    }
+    .cs-stars .kid[data-kid="eitan"] .cycle.full { color: var(--cobalt); }
+    .cs-stars .kid[data-kid="tamar"] .cycle.full { color: var(--terracotta); }
+    .cs-stars .kid .cycle.pulse { transform: scale(1.18); }
+    .cs-stars .kid .cycle .star {
+      color: var(--ochre);
+      margin-right: 2px;
+      vertical-align: -1px;
+    }
 
     /* Morning mode: weather forecast is critical — give weather most of the
        row, hide the Stars slot (kids' stars matter more in the afternoon /
@@ -2684,16 +2704,15 @@
     const STARS_ENDPOINT =
       "https://tablestars.erapps.xyz/api/public/stats?key=810c212871db6636f5b773b301f4a5e7d56bc51aaf88b657";
     const _lastPrizeCount = {}; // kid.id -> last seen prize_count (drives pulse)
+    const _lastCycleProgress = {}; // kid.id -> last seen cycle_progress (drives pulse)
 
     function slugKid(name) {
       return (name || "").toLowerCase().replace(/[^a-z]/g, "");
     }
 
-    // 2026-04-26 redesign: compact context-strip rendering.
-    // Old stars-card is gone; #stars-body now lives inside .cs-stars in the
-    // context strip and shows one row per kid: "🎁 NAME N" — no pips, no ratio.
-    // Full pip display + cycle progress can come back as a primary-panel mode
-    // in v2 if Elul wants to "open" the stars card.
+    // Compact context-strip rendering: per-kid row with prize count (slow,
+    // celebratory milestone) AND cycle progress X/10 (fast daily-effort metric).
+    // Both pulse on increment between polls. Cycle highlights kid-accent when full.
     function renderStars(kids) {
       const body = document.getElementById("stars-body");
       if (!body) return;
@@ -2704,28 +2723,45 @@
       const rows = kids.map(function(k) {
         const slug = slugKid(k.name);
         const pc = k.prize_count || 0;
+        const cycle = Math.max(0, Math.min(10, k.cycle_progress || 0));
+        const cycleClass = "cycle" + (cycle >= 10 ? " full" : "");
         const idAttr = escapeHtml(k.id);
         return (
           '<div class="kid" data-kid="' + escapeHtml(slug) + '" data-id="' + idAttr + '">' +
             '<span class="label">' + escapeHtml(k.emoji || "🎁") + ' ' + escapeHtml(k.name || "") + '</span>' +
             '<span class="count">' + pc + '</span>' +
+            '<span class="' + cycleClass + '"><span class="star">⭐</span>' + cycle + '/10</span>' +
           '</div>'
         );
       });
       body.innerHTML = rows.join("");
 
-      // Pulse the count when it increments between polls.
+      // Pulse on increment for both metrics.
       kids.forEach(function(k) {
-        const prev = _lastPrizeCount[k.id];
-        const now = k.prize_count || 0;
-        if (prev !== undefined && now > prev) {
-          const el = body.querySelector('.kid[data-id="' + CSS.escape(String(k.id)) + '"] .count');
+        const id = String(k.id);
+        const sel = '.kid[data-id="' + CSS.escape(id) + '"]';
+
+        const prevPc = _lastPrizeCount[k.id];
+        const nowPc = k.prize_count || 0;
+        if (prevPc !== undefined && nowPc > prevPc) {
+          const el = body.querySelector(sel + " .count");
           if (el) {
             el.classList.add("pulse");
             setTimeout(function() { el.classList.remove("pulse"); }, 320);
           }
         }
-        _lastPrizeCount[k.id] = now;
+        _lastPrizeCount[k.id] = nowPc;
+
+        const prevCy = _lastCycleProgress[k.id];
+        const nowCy = Math.max(0, Math.min(10, k.cycle_progress || 0));
+        if (prevCy !== undefined && nowCy > prevCy) {
+          const el = body.querySelector(sel + " .cycle");
+          if (el) {
+            el.classList.add("pulse");
+            setTimeout(function() { el.classList.remove("pulse"); }, 320);
+          }
+        }
+        _lastCycleProgress[k.id] = nowCy;
       });
     }
 
