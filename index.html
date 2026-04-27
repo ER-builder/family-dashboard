@@ -2062,6 +2062,17 @@
     // the .primary-panel block show exactly one child for the active mode.
     // Replaces the old setCardVisible + body.routine-active mechanism.
     function pickMode() {
+      // Dev / testing override: ?mode=morning|evening|todo forces a mode for
+      // the current page load. Lets us test routines outside their windows
+      // (e.g. preview morning at 11am from a laptop browser). No persistence —
+      // a normal reload without the query goes back to time-based logic.
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const override = params.get("mode");
+        if (override === "morning" || override === "evening" || override === "todo") {
+          return override;
+        }
+      } catch (_) {}
       try {
         const mins = nowMinutesLondon();
         const weekend = isWeekendLondon();
