@@ -2488,6 +2488,10 @@
       }
     }
     function updateMode() {
+      // Don't clobber the spotify card while it's open — its own auto-close
+      // timer (90s) will return us to the time-of-day mode. Without this guard,
+      // the 60s interval below stomps on data-mode mid-play.
+      if (document.body.getAttribute("data-mode") === "spotify") return;
       const mode = pickMode();
       document.body.setAttribute("data-mode", mode);
       // Backwards-compat: keep the routine-active class around in case any
