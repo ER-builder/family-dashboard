@@ -129,9 +129,9 @@
       font-family: var(--serif);
       font-style: italic;
       font-weight: 400;
-      font-size: clamp(13px, 1.4vw, 16px);
+      font-size: clamp(18px, 1.8vw, 22px);
       color: var(--ink-soft);
-      margin-top: 6px;
+      margin-top: 8px;
       letter-spacing: 0.01em;
     }
     .clock {
@@ -174,9 +174,9 @@
       align-items: center;
       gap: 10px;
       font-family: var(--sans);
-      font-size: 10px;
+      font-size: 12px;
       font-weight: 700;
-      letter-spacing: 0.32em;
+      letter-spacing: 0.30em;
       text-transform: uppercase;
       color: var(--ink-dim);
       margin-bottom: 14px;
@@ -186,7 +186,7 @@
       color: var(--ochre);
       font-family: var(--serif);
       font-style: italic;
-      font-size: 14px;
+      font-size: 17px;
       letter-spacing: 0;
       line-height: 1;
     }
@@ -200,8 +200,8 @@
     }
     .eyebrow .meta {
       font-family: var(--mono);
-      font-size: 9px;
-      letter-spacing: 0.2em;
+      font-size: 11px;
+      letter-spacing: 0.18em;
       color: var(--ink-dim);
       font-weight: 400;
     }
@@ -216,7 +216,7 @@
     /* ─────────────────────────────────────────
        CALENDAR — Google-Cal-style day view
        ───────────────────────────────────────── */
-    .calendar { grid-row: 3; grid-column: 1; --hour-h: 22px; }
+    .calendar { grid-row: 3; grid-column: 1; --hour-h: 26px; }
     .calendar .body {
       gap: 0;
       overflow-y: auto;
@@ -235,11 +235,11 @@
     .cal-allday:empty { display: none; }
     .cal-allday .chip {
       font-family: var(--sans);
-      font-size: 11px;
+      font-size: 13px;
       font-weight: 700;
       color: var(--terracotta);
       background: var(--terracotta-soft);
-      padding: 4px 10px;
+      padding: 5px 12px;
       border-radius: 999px;
       letter-spacing: 0.04em;
     }
@@ -260,9 +260,9 @@
     .cal-today .hour-mark .h-label {
       position: absolute;
       left: 0;
-      top: -7px;
+      top: -8px;
       font-family: var(--mono);
-      font-size: 10px;
+      font-size: 12px;
       color: var(--ink-dim);
       background: var(--paper-2);
       padding-right: 8px;
@@ -321,7 +321,7 @@
     .cal-block .title {
       font-family: var(--serif);
       font-variation-settings: "opsz" 96;
-      font-size: 14px;
+      font-size: 16px;
       font-weight: 600;
       color: var(--ink);
       line-height: 1.18;
@@ -332,7 +332,7 @@
     }
     .cal-block .when {
       font-family: var(--mono);
-      font-size: 10px;
+      font-size: 12px;
       color: var(--ink-soft);
       font-feature-settings: "tnum" 1;
       letter-spacing: 0.02em;
@@ -370,33 +370,33 @@
       font-family: var(--serif);
       font-style: italic;
       font-weight: 500;
-      font-size: 14px;
+      font-size: 17px;
       color: var(--ochre);
-      margin-top: 10px;
+      margin-top: 12px;
       letter-spacing: 0.005em;
     }
     .cal-future .day-head:first-child { margin-top: 0; }
     .cal-future .row {
       display: grid;
-      grid-template-columns: 64px 1fr;
+      grid-template-columns: 72px 1fr;
       gap: 10px;
-      padding: 5px 0 5px 4px;
+      padding: 6px 0 6px 4px;
       align-items: baseline;
     }
     .cal-future .row .t {
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 13px;
       color: var(--ink-soft);
       font-feature-settings: "tnum" 1;
       letter-spacing: 0.02em;
     }
     .cal-future .row .ti {
       font-family: var(--serif);
-      font-size: 14px;
+      font-size: 17px;
       font-weight: 500;
       color: var(--ink);
       letter-spacing: -0.003em;
-      line-height: 1.2;
+      line-height: 1.22;
     }
 
     .cal-empty, .cal-error {
@@ -483,7 +483,7 @@
       min-width: 0;
     }
     .cs-weather .icon {
-      font-size: 38px;
+      font-size: 46px;
       line-height: 1;
       filter: drop-shadow(0 3px 10px rgba(233, 180, 76, 0.35));
       flex-shrink: 0;
@@ -496,7 +496,7 @@
     .cs-weather .temp {
       font-family: var(--display);
       font-weight: 400;
-      font-size: clamp(40px, 4.4vw, 54px);
+      font-size: clamp(48px, 5vw, 62px);
       line-height: 0.95;
       color: var(--ochre);
       font-feature-settings: "tnum" 1, "lnum" 1;
@@ -506,10 +506,10 @@
     .cs-weather .desc {
       font-family: var(--serif);
       font-style: italic;
-      font-size: 13px;
+      font-size: 16px;
       color: var(--ink-soft);
       text-transform: lowercase;
-      margin-top: 2px;
+      margin-top: 3px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -520,27 +520,27 @@
       display: flex;
       flex-direction: column;
       justify-content: center;
-      gap: 6px;
+      gap: 8px;
       min-width: 0;
     }
     .cs-transit .row {
       display: grid;
-      grid-template-columns: 32px 1fr auto;
-      gap: 8px;
+      grid-template-columns: 38px 1fr auto;
+      gap: 10px;
       align-items: center;
     }
     .cs-transit .badge {
       font-family: var(--sans);
-      font-size: 9px;
+      font-size: 12px;
       font-weight: 800;
-      border-radius: 4px;
-      padding: 3px 0;
+      border-radius: 5px;
+      padding: 4px 0;
       text-align: center;
       letter-spacing: 0.04em;
     }
     .cs-transit .name {
       font-family: var(--serif);
-      font-size: 12px;
+      font-size: 16px;
       font-weight: 500;
       color: var(--ink);
       letter-spacing: -0.003em;
@@ -550,11 +550,11 @@
     }
     .cs-transit .status {
       font-family: var(--sans);
-      font-size: 9px;
+      font-size: 11px;
       font-weight: 700;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      padding: 3px 7px;
+      padding: 4px 9px;
       border-radius: 999px;
       white-space: nowrap;
     }
@@ -570,23 +570,23 @@
     .cs-arrivals {
       display: flex;
       flex-direction: column;
-      gap: 2px;
-      padding: 4px 0 0 40px;   /* indent past the 102 badge column */
+      gap: 3px;
+      padding: 5px 0 0 48px;   /* indent past the 102 badge column */
     }
     .cs-arrivals:empty { display: none; }
     .cs-arrivals .arr-row {
       display: grid;
       grid-template-columns: 1fr auto;
-      gap: 8px;
+      gap: 10px;
       align-items: baseline;
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 13px;
       color: var(--ink-soft);
       font-feature-settings: "tnum" 1;
     }
     .cs-arrivals .arr-row .dest {
       font-family: var(--sans);
-      font-size: 9px;
+      font-size: 11px;
       letter-spacing: 0.14em;
       text-transform: uppercase;
       color: var(--ink-dim);
@@ -595,17 +595,17 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .cs-arrivals .arr-row .times { display: flex; gap: 6px; align-items: baseline; flex-wrap: nowrap; }
-    .cs-arrivals .arr-row .t { color: var(--ink); font-weight: 700; font-size: 13px; }
+    .cs-arrivals .arr-row .times { display: flex; gap: 7px; align-items: baseline; flex-wrap: nowrap; }
+    .cs-arrivals .arr-row .t { color: var(--ink); font-weight: 700; font-size: 16px; }
     .cs-arrivals .arr-row .t.due { color: var(--ochre); }
     .cs-arrivals .arr-row .t.sched { color: var(--ink-soft); font-weight: 500; }
     .cs-arrivals .arr-row .t .u {
       font-family: var(--sans);
-      font-size: 8px;
+      font-size: 10px;
       letter-spacing: 0.10em;
       color: var(--ink-dim);
       text-transform: uppercase;
-      margin-left: 1px;
+      margin-left: 2px;
       font-weight: 600;
     }
     .cs-arrivals .arr-row .sep { color: var(--ink-faint); }
@@ -613,16 +613,16 @@
       font-family: var(--serif);
       font-style: italic;
       color: var(--ink-dim);
-      font-size: 11px;
+      font-size: 13px;
     }
     .cs-arrivals .arr-row .sched-tag {
       font-family: var(--sans);
-      font-size: 7px;
+      font-size: 9px;
       letter-spacing: 0.16em;
       text-transform: uppercase;
       color: var(--ink-dim);
-      margin-left: 4px;
-      padding: 1px 4px;
+      margin-left: 5px;
+      padding: 2px 5px;
       border: 1px solid var(--rule);
       border-radius: 3px;
       font-weight: 700;
@@ -641,9 +641,9 @@
       display: flex;
       align-items: baseline;
       justify-content: flex-end;
-      gap: 8px;
+      gap: 10px;
       font-family: var(--sans);
-      font-size: 13px;
+      font-size: 16px;
     }
     .cs-stars .kid .label {
       font-weight: 600;
@@ -652,7 +652,7 @@
     }
     .cs-stars .kid .count {
       font-family: var(--display);
-      font-size: 22px;
+      font-size: 28px;
       line-height: 0.9;
       color: var(--ochre);
       font-feature-settings: "tnum" 1;
@@ -668,7 +668,7 @@
        Mono so it reads as a counter, not a milestone. Pulses on increment. */
     .cs-stars .kid .cycle {
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 14px;
       font-weight: 700;
       color: var(--ink-soft);
       letter-spacing: 0.02em;
@@ -766,7 +766,11 @@
       padding: 6px;
       -webkit-tap-highlight-color: transparent;
     }
-    /* Spotify launch button -- bottom-left corner, mirrors exit button */
+    /* Spotify launch button -- bottom-left corner, mirrors exit button.
+       Editorial-palette tone (paper card + sage accent) instead of Spotify
+       brand green — matches the rest of the dashboard's print aesthetic.
+       Sage is the calm/ambient accent and doesn't conflict with the kid colors
+       (cobalt = Eitan, terracotta = Tamar). */
     #spotify-corner {
       position: fixed;
       bottom: 16px;
@@ -774,28 +778,32 @@
       z-index: 9999;
       display: inline-flex;
       align-items: center;
-      gap: 9px;
+      gap: 10px;
       padding: 10px 16px 10px 12px;
-      background: linear-gradient(135deg, #1DB954 0%, #158a3e 100%);
-      color: #fff;
-      border: 1px solid rgba(255,255,255,0.22);
+      background: linear-gradient(135deg, var(--paper-3) 0%, var(--paper-2) 100%);
+      color: var(--ink);
+      border: 1px solid var(--rule-strong);
       border-radius: 999px;
       font-family: var(--sans);
       font-weight: 800;
       font-size: 12px;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
       user-select: none;
       box-shadow:
-        0 8px 20px -6px rgba(29, 185, 84, 0.5),
-        inset 0 1px 0 rgba(255,255,255,0.2);
+        0 8px 20px -6px rgba(0, 0, 0, 0.55),
+        inset 0 1px 0 rgba(243, 231, 207, 0.05);
       transition: transform 100ms ease, box-shadow 200ms ease;
     }
     #spotify-corner:active { transform: scale(0.97); }
-    #spotify-corner .sp-corner-icon { font-size: 16px; line-height: 1; }
+    #spotify-corner .sp-corner-icon {
+      font-size: 18px;
+      line-height: 1;
+      color: var(--sage);
+    }
     #spotify-corner .sp-corner-label {
       display: flex;
       flex-direction: column;
@@ -804,12 +812,12 @@
     }
     #spotify-corner .sp-corner-sub {
       font-family: var(--mono);
-      font-size: 8px;
-      letter-spacing: 0.12em;
-      color: rgba(255,255,255,0.6);
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      color: var(--ink-dim);
       text-transform: uppercase;
       font-weight: 500;
-      margin-top: 3px;
+      margin-top: 4px;
     }
     /* Morning mode: weather forecast is critical — give weather most of the
        row, hide the Stars slot (kids' stars matter more in the afternoon /
@@ -825,9 +833,9 @@
     /* Weather contents grow to fill the new room: bigger temp, bigger icon,
        hourly outlook becomes visible. */
     body[data-mode="morning"] .cs-weather { gap: 18px; }
-    body[data-mode="morning"] .cs-weather .icon { font-size: 56px; }
-    body[data-mode="morning"] .cs-weather .temp { font-size: clamp(54px, 5.5vw, 68px); }
-    body[data-mode="morning"] .cs-weather .desc { font-size: 15px; }
+    body[data-mode="morning"] .cs-weather .icon { font-size: 62px; }
+    body[data-mode="morning"] .cs-weather .temp { font-size: clamp(60px, 6vw, 76px); }
+    body[data-mode="morning"] .cs-weather .desc { font-size: 18px; }
     body[data-mode="morning"] .cs-weather .w-outlook {
       display: grid !important;
       grid-template-columns: repeat(6, minmax(0, 1fr));
@@ -848,20 +856,20 @@
     }
     .w-outlook .h .when {
       font-family: var(--sans);
-      font-size: 9px;
-      letter-spacing: 0.16em;
+      font-size: 11px;
+      letter-spacing: 0.14em;
       color: var(--ink-dim);
       font-weight: 700;
       text-transform: uppercase;
     }
     .w-outlook .h .icon {
-      font-size: 18px;
+      font-size: 22px;
       line-height: 1;
       filter: drop-shadow(0 2px 6px rgba(240, 188, 85, 0.25));
     }
     .w-outlook .h .t {
       font-family: var(--mono);
-      font-size: 13px;
+      font-size: 16px;
       font-weight: 700;
       color: var(--ink);
       font-feature-settings: "tnum" 1;
@@ -1508,7 +1516,7 @@
       flex: 1;
       font-family: var(--serif);
       font-variation-settings: "opsz" 144;
-      font-size: 20px;
+      font-size: 22px;
       font-weight: 400;
       word-break: break-word;
       line-height: 1.25;
@@ -2439,7 +2447,7 @@
     const CAL_PROXY_URL = "https://family-dashboard-proxy.vercel.app/api/cal";
     const DAY_START_H = 6;       // timeline starts 06:00
     const DAY_END_H   = 22;      // timeline ends 22:00 (16 hour rules: 06..21)
-    const HOUR_H      = 22;      // px per hour, must match --hour-h CSS var
+    const HOUR_H      = 26;      // px per hour, must match --hour-h CSS var
 
     function dayKey(d) {
       return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year:"numeric", month:"2-digit", day:"2-digit" }).format(d);
@@ -2607,7 +2615,7 @@
         const clampedStart = Math.max(0, startOff);
         const clampedEnd   = Math.min(visibleMins, endOff);
         const top = (clampedStart / 60) * HOUR_H;
-        const height = Math.max(22, ((clampedEnd - clampedStart) / 60) * HOUR_H);
+        const height = Math.max(26, ((clampedEnd - clampedStart) / 60) * HOUR_H);
 
         const block = document.createElement("div");
         block.className = "cal-block" + (eM <= nowMins ? " past" : "") + sourceClass(ev);
