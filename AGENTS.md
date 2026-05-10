@@ -42,11 +42,14 @@ URL: https://er-builder.github.io/family-dashboard/ (GitHub Pages, public). Auto
 ## Kiosk app (kiosk-webview) — Android-side facts
 
 - **HOME registration is on a `<activity-alias>`**, not MainActivity directly. **Stays enabled at all times** — Aloha is permanent default Home (user picked "Always") so no snap-back risk. The `setComponentEnabledSetting(DISABLED)` step earlier iterations used is **gone** — do not reintroduce.
-- **`SYSTEM_ALERT_WINDOW` permission is REQUIRED** (Android 10+ / SDK 29+, which Portal is). Without it, AutoReturnReceiver's `startActivity` is silently dropped — `appops get xyz.erapps.kiosk SYSTEM_ALERT_WINDOW` shows `default; rejectTime=…` against our background launches. Launcher status / HomeAlias enabled is NOT enough on its own (we tested). User must grant once via "Display over other apps"; MainActivity.onCreate auto-opens that settings page if `Settings.canDrawOverlays()` is false.
-- **Auto-return = `onStop` schedules an AlarmManager exact alarm; `onStart` cancels it.** Lifecycle hooks fire for ALL backgrounding (manual exit, incoming call, screen-off), so we get one consistent path. `AUTO_RETURN_MS` = 5 min.
-- **Receiver is call-aware:** before launching, checks `AudioManager.getMode()` for `MODE_IN_COMMUNICATION` (VoIP / Portal video) or `MODE_IN_CALL` (cellular). If active, reschedules for 5 min later instead of yanking out of the call. No permissions needed.
+- **`SYSTEM_ALERT_WINDOW` permission is REQUIRED** (Android 10+ / SDK 29+, which Portal is). Without it, AutoReturnReceiver's `startActivity` is silently dropped — `appops get xyz.erapps.kiosk SYSTEM_ALERT_WINDOW` shows `default; rejectTime=…` against our background launches. Launcher status / HomeAlias enabled is NOT enough on its own (we tested). User must grant once via "Display over other apps"; MainActivity.onCreate auto-opens that settings page if `Settings.canDrawOverlays()` is false. **Same permission also powers the OverlayService floating button.**
+- **Auto-return = `onStop` schedules an AlarmManager exact alarm; `onStart` cancels it.** Lifecycle hooks fire for ALL backgrounding (manual exit, incoming call, screen-off), so we get one consistent path. `AUTO_RETURN_MS` = **2 min** (was 5; shortened 2026-05-10 alongside the OverlayService rollout — kids can't leave Spotify open forever).
+- **Receiver is call-aware:** before launching, checks `AudioManager.getMode()` for `MODE_IN_COMMUNICATION` (VoIP / Portal video) or `MODE_IN_CALL` (cellular). If active, reschedules for `RESCHEDULE_MS` (2 min) later instead of yanking out of the call. **Music is intentionally NOT a deferral signal** — defer-while-music-plays was tried and rejected because kids would leave Spotify on indefinitely.
+- **OverlayService (added 2026-05-10):** floating "← Dashboard" pill drawn via `WindowManager` + `TYPE_APPLICATION_OVERLAY`. `MainActivity.onStop` starts it, `onStart` stops it. Sits top-right at `y=dp(68)` — `TYPE_APPLICATION_OVERLAY` (Android 8+) renders BELOW system UI, so anything <~50dp from the top gets covered by Portal's status bar (battery/wifi). Pill text 15sp, padding 18×11dp, semi-transparent aubergine background. Tap → launches MainActivity → onStart cleans up the service.
+- **Spotify URI handlers (added 2026-05-10):** `MainActivity.shouldOverrideUrlLoading` intercepts `kiosk://spotify/{launch,play,pause,prev,next}`. `launch` opens the Spotify APK via `getLaunchIntentForPackage("com.spotify.music")`; controls send broadcast intents (`com.spotify.mobile.android.ui.widget.{PLAY,PAUSE,PREVIOUS,NEXT}`) targeted at the Spotify package. Broadcasts only affect the local Spotify instance — Spotify-on-phone playback can't be controlled this way.
 - **WiFi ADB endpoint:** `192.168.1.116:5555` (MAC `a4:0e:2b:74:d4:85`). `~/bin/terry` wrapper auto-discovers via ARP if cached IP shifts.
 - **Portal launcher (Aloha):** `com.facebook.alohaapps.launcher` / activity `com.facebook.aloha.app.home.touch.HomeActivity`. Set as default Home; doesn't surface third-party LAUNCHER apps in its UI (kiosk only relaunchable via terry CLI, BootReceiver, or as registered HOME alternate).
+- **Portal is degoogled:** no Google Play Services (`com.google.android.gms`), no Chrome stable. Only `org.chromium.chrome` for browsers. Has bearing on any 3rd-party app login that uses Custom Tabs / browser deep-linking — see Spotify section below.
 
 ## Old WebView gotchas (Portal runs an aging Chromium)
 
@@ -67,10 +70,25 @@ URL: https://er-builder.github.io/family-dashboard/ (GitHub Pages, public). Auto
 
 - **OpenWeather** (free, key in source — public). `/weather` (current) + `/forecast` (3-hourly).
 - **TfL** at `api.tfl.gov.uk/Line/{id}/Status` — **no auth needed** for line status. Severity scale: `≥10` Good, `7-9` Minor, `≤6` Severe. Bus 102 has no AVL feed → use `/Line/102/Timetable/{stopId}` for scheduled times rendered as countdown fallback.
-- **Calendar** via `family-dashboard-proxy` Vercel function (single `ICAL_URL` env var; multi-source merge is on roadmap).
+- **Calendar** via `family-dashboard-proxy` Vercel function (`ICAL_URLS` comma-separated + `ICAL_LABELS` parallel labels).
 - **Google Apps Script** for shared to-dos (endpoint hard-coded in `index.html`).
 - **Table Stars** at `tablestars.erapps.xyz/api/public/stats?key=…` — keyed (`STATS_READ_KEY` in Vercel), wildcard CORS, returns `{kids: [{name, emoji, prize_count, cycle_progress}]}`. Powers the Stars slot in the context strip — per kid: `🎁 NAME N ⭐ X/10` (slow milestone count + fast daily-effort ratio). Both pulse on increment. Polled every 30 min.
+- **Spotify** via `family-dashboard-proxy` Vercel function (`/api/spotify-now`). Refresh-token auth (`SPOTIFY_CLIENT_ID` + `SPOTIFY_CLIENT_SECRET` + `SPOTIFY_REFRESH_TOKEN` env vars, all sensitive). Returns `{isPlaying, track, artist, album, albumArt, progress, duration, spotifyUrl}` or `{isPlaying:false}`. Polled every 10s; proxy caches 8s. See Spotify section below for the full integration.
+
+## Spotify integration (shipped 2026-05-10)
+
+**Three surfaces, all in `index.html` + `MainActivity.kt`:**
+
+1. **Polled now-playing display** — drives the auto-opening full player card (no ambient strip; that was removed).
+2. **Full player card** — `<section id="spotify-card">` inside `.primary-panel`. Visible only when `body[data-mode="spotify"]`. Auto-opens on the false→true playback transition **only when current mode is `todo`** (kids' morning/evening checklists are load-bearing — music doesn't yank them). Auto-closes after 90s back into the time-of-day mode (calls `updateMode()`, not a hard-coded "todo" — important for sessions that span a routine boundary). ⏮ ⏸ ⏭ buttons fire `kiosk://spotify/{cmd}` URIs that the kiosk WebView turns into Android broadcast intents to Spotify on Terry.
+3. **Green ♫ corner button** — bottom-left mirror of the exit button. Smart click: music playing → opens the dashboard's full player card; nothing playing → fires `kiosk://spotify/launch`.
+
+**Critical Spotify-on-Terry version pin: 8.6.98.900 universal nodpi from APKMirror.** Spotify 9.x forces browser-based auth via Custom Tabs; Portal is degoogled (no Play Services, only bare Chromium), so the post-captcha `spotify://` deep-link callback never fires → infinite login loop. **Do not "upgrade" Spotify on Terry.** 8.6.x has the in-app email/password form that bypasses the browser entirely. Tolerate the "outdated app" nags from Spotify.
+
+**Cross-account Connect:** Spotify Connect only lets devices on the same account target each other. To play to Terry from a non-Terry-account phone, options are: (a) share login (cleanest for shared family use); (b) Premium-only Spotify Jam (host targets Terry, shares ephemeral link/QR, guest joins); (c) Bluetooth-pair the phone to Terry (bypasses Spotify-on-Terry entirely; dashboard strip won't show the music since it's tied to the refresh-token's account).
+
+**`updateMode()` quirk:** the time-of-day mode picker runs on a 60s interval and stomps `body[data-mode]` to `pickMode()`. Without a guard it would force-close the spotify card. Guard added 2026-05-10: `updateMode()` skips the override if current mode is already `"spotify"`. Don't remove the guard.
 
 ## Roadmap is authoritative
 
-`ROADMAP.md` is the source of truth for next steps, open bugs, and "📚 Guides for Elul" (Spotify setup walkthrough, multi-source iCal merge instructions). Update it whenever you ship/change something.
+`ROADMAP.md` is the source of truth for next steps, open bugs, and shipped-feature notes. The "📚 Guides for Elul" section was for unbuilt features (multi-source iCal, Spotify) — both shipped, refer to the as-built notes. Update `ROADMAP.md` whenever you ship/change something. Open tests/follow-ups live in the **"✅ Open Tests / Follow-ups"** section there.

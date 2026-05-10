@@ -112,9 +112,9 @@ adb -s 192.168.1.116:5555 reboot                                             # r
 - ~~**Iter 1–3 all failed** (HOME removed → kiosk invisible; explicit Aloha launch → snap-back; Settings.ACTION_HOME_SETTINGS → no-op or invisible).~~ Root cause: kiosk is the registered default Home (`xyz.erapps.kiosk` per `cmd package resolve-activity`), so any in-app exit triggers Android's home-resolution → routes back to us.
 - ~~**Iter 4 (shipped, verified working 2026-04-24): activity-alias toggle.**~~ Manifest split: MainActivity is LAUNCHER-only; new `<activity-alias name=".HomeAlias">` carries the HOME category and is toggleable via `PackageManager.setComponentEnabledSetting`. `exitToPortalLauncher()` disables HomeAlias *before* launching Aloha and finishing — Android can't snap back because we're no longer a registered Home. `MainActivity.onCreate()` re-enables HomeAlias on every fresh launch (incl. BootReceiver path), so kiosk is restored as a Home choice automatically on next reboot. After install, user picked **Portal Launcher → Always** in the system home picker — Aloha is now permanent default home, exit transitions cleanly with no chooser, BootReceiver still auto-launches kiosk on reboot.
 - **Visible button:** bold terracotta pill labeled "HOLD TO EXIT" at bottom-right, with circular ochre progress ring (2s).
-- ~~**Iter 5 (shipped 2026-04-24, awaiting build): auto-return after 10 min.**~~ `exitToPortalLauncher()` now schedules an `AlarmManager.setExactAndAllowWhileIdle` 10 minutes ahead BEFORE disabling HomeAlias. New `AutoReturnReceiver.kt` BroadcastReceiver fires the alarm and relaunches MainActivity. `AUTO_RETURN_MS` constant in MainActivity.kt — tune if 10 min feels wrong (5 = aggressive, interrupts most calls; 10 = sweet spot; 15 = safer for long calls). Alarm survives app death; replacing alarm via `FLAG_UPDATE_CURRENT` means a fresh exit always starts a new 10-min timer. Visible button label updated to show "back in 10m" so kids know what to expect. **Pending: APK rebuild** — needs Mac Terminal.app via `terry`-friendly command in 🔧 Pending Infra section.
-- **WiFi ADB available as a manual override:** `terry on` from any laptop, no waiting for the 10-min auto-return.
-- **Future "smart skip":** auto-return could detect active video calls (via foreground app check or `AudioManager.MODE_IN_COMMUNICATION`) and reschedule another 10 min instead of interrupting. Simple v1 just relaunches; if interruption proves annoying, add the check.
+- ~~**Iter 5 (shipped 2026-04-24): auto-return after N min.**~~ `exitToPortalLauncher()` now schedules an `AlarmManager.setExactAndAllowWhileIdle` `AUTO_RETURN_MS` ahead BEFORE disabling HomeAlias. New `AutoReturnReceiver.kt` BroadcastReceiver fires the alarm and relaunches MainActivity. **2026-05-10:** `AUTO_RETURN_MS` shortened from 5 min → **2 min**, paired with the new floating "← Dashboard" overlay (see Spotify Integration section). Receiver still call-aware (`AudioManager.MODE_IN_COMMUNICATION`/`MODE_IN_CALL` → reschedule). **Music is intentionally NOT a deferral signal** — kids can leave Spotify playing forever otherwise.
+- **WiFi ADB available as a manual override:** `terry on` from any laptop, no waiting for the auto-return.
+- **Floating overlay button (shipped 2026-05-10):** `OverlayService.kt` paints a "← Dashboard" pill via `WindowManager` + `TYPE_APPLICATION_OVERLAY` whenever the kiosk is in background. Started in `MainActivity.onStop`, stopped in `onStart`. Sits top-right at `y=68dp` to clear Portal's status bar (the bar draws above `TYPE_APPLICATION_OVERLAY`, so smaller offsets get covered).
 
 ## 🎨 Design Refinement
 
@@ -135,7 +135,7 @@ adb -s 192.168.1.116:5555 reboot                                             # r
 
 ## 🎮 Fun / Vibe
 
-12. **🎵 Spotify "Now Playing"** — What's playing on the home speaker (free Spotify API). *Needs: OAuth flow.*
+12. ~~**🎵 Spotify integration**~~ **Done 2026-05-10.** Full now-playing + control + launcher + audio-on-Terry. See "Spotify Integration" section below for architecture, login gotchas, and the version pin (8.6.x ONLY — newer versions break login on this degoogled Portal).
 13. ~~**🌍 World Clock**~~ **Done.** Tel Aviv time line under the masthead date (🇮🇱 + city + time, mono). Add more cities by extending the `tick()` worldclock block.
 14. **📸 Photo Slideshow Background** — Rotate family photos behind the dashboard cards. *Needs: photo source (Drive folder? Google Photos OAuth?).*
 15. **🐾 Chore Wheel** — Random daily chore assignments per family member, resets each morning. *Needs: chore list.*
@@ -145,29 +145,7 @@ adb -s 192.168.1.116:5555 reboot                                             # r
 
 ## 📚 Guides for Elul (work that needs your hands, not Pi's)
 
-### Spotify "Now Playing" — full setup
-**Goal:** show what's playing on the home Spotify on the dashboard.
-
-1. **Register the app.** Go to https://developer.spotify.com/dashboard, log in with your personal Spotify account, "Create app". Note the **Client ID** and **Client Secret**.
-2. **Add a redirect URI** in the app settings — use your Vercel proxy URL: `https://family-dashboard-proxy.vercel.app/api/spotify-callback`.
-3. **Do the OAuth dance once** (manual, browser-based) to capture a **refresh token**:
-   - Open this URL in a browser (substitute `<CLIENT_ID>`):
-     `https://accounts.spotify.com/authorize?client_id=<CLIENT_ID>&response_type=code&redirect_uri=https%3A%2F%2Ffamily-dashboard-proxy.vercel.app%2Fapi%2Fspotify-callback&scope=user-read-currently-playing+user-read-playback-state`
-   - Authorize → callback URL contains `?code=...`. Capture that `code`.
-   - In a terminal, exchange `code` for tokens:
-     ```bash
-     curl -X POST https://accounts.spotify.com/api/token \
-       -d grant_type=authorization_code \
-       -d code=<CODE> \
-       -d redirect_uri=https://family-dashboard-proxy.vercel.app/api/spotify-callback \
-       -u <CLIENT_ID>:<CLIENT_SECRET>
-     ```
-   - Response includes `refresh_token`. Store it in Vercel env: `vercel env add SPOTIFY_REFRESH_TOKEN production --sensitive`. Also add `SPOTIFY_CLIENT_ID` + `SPOTIFY_CLIENT_SECRET`.
-4. **Add `/api/spotify-now`** to the proxy repo (`family-dashboard-proxy/api/spotify-now.js`):
-   - Use refresh token to fetch a fresh access token (cache it in module-scope memory for ~50 min)
-   - Call `https://api.spotify.com/v1/me/player/currently-playing` with `Authorization: Bearer <accessToken>`
-   - Return `{ track, artist, isPlaying, albumArt }` JSON; return `{ isPlaying: false }` if 204.
-5. **Dashboard side** — add a small Spotify card that polls `/api/spotify-now` every 30s. Hide card when `!isPlaying`.
+### ~~Spotify "Now Playing" — full setup~~ **SHIPPED 2026-05-10. See "Spotify Integration" section below for the as-built architecture.**
 
 ### Multi-source iCal merge — full setup
 **Goal:** dashboard calendar shows events from multiple Google Calendars (family-shared + your personal + maybe school's published cal).
@@ -226,3 +204,56 @@ Dashboard polls the sheet every few minutes. Family edits on phone → shows on 
 | 1️⃣ | 🚇 TfL Live Departures | Glance on the way out the door |
 | 2️⃣ | 🗓️ Family Countdowns | Kids love it, builds excitement |
 | 3️⃣ | 💬 Sheets message board + shopping list | Whole family contributes from their phones |
+
+---
+
+## 🎵 Spotify Integration (shipped 2026-05-10)
+
+**Architecture (3 surfaces, all working):**
+
+1. **Dashboard now-playing display** — proxy endpoint `/api/spotify-now` in `family-dashboard-proxy` returns currently-playing JSON for the account whose refresh token is in `SPOTIFY_REFRESH_TOKEN`. Dashboard polls every 10s; proxy caches 8s. Returns `{isPlaying:false}` when nothing playing or on token refresh failure.
+2. **Full player card** — lives inside `.primary-panel` as a `body[data-mode="spotify"]` view. **Auto-opens** on the false→true playback transition (music just started) **but ONLY in `todo` mode** — kids' morning/evening checklists win. Auto-closes after 90s back into time-of-day mode. ⏮ ⏸ ⏭ buttons fire `kiosk://spotify/{cmd}` URIs the kiosk WebView turns into Android broadcast intents to Spotify on Terry.
+3. **Green ♫ corner button** — bottom-left mirror of the exit button. Tap when music playing → opens dashboard's full player card (re-entry after auto-close). Tap when nothing playing → fires `kiosk://spotify/launch` → Spotify APK on Terry.
+
+**Vercel env vars (in `family-dashboard-proxy`, all marked sensitive):**
+- `SPOTIFY_CLIENT_ID` — Spotify dev app
+- `SPOTIFY_CLIENT_SECRET` — Spotify dev app
+- `SPOTIFY_REFRESH_TOKEN` — long-lived; refreshed via authorization_code grant (one-time)
+
+**Hard pin: Spotify-on-Terry must be 8.6.x (specifically 8.6.98.900 universal nodpi from APKMirror).** Spotify 9.x forces browser-based auth via Custom Tabs; Terry is a degoogled Portal with no Google Play Services and only bare `org.chromium.chrome`, so the post-captcha `spotify://` deep-link back to the app never fires → infinite login loop. **Don't "upgrade" Spotify on Terry.** Tolerate the "outdated app" nags.
+
+**Spotify Connect cross-account:** by design Spotify Connect only lets devices on the same account target each other. Wife (separate account) can't see Terry. Workarounds (in order of friction):
+- (a) Share login: she logs into Terry's Spotify account on her phone too — Connect just works.
+- (b) Spotify Jam (Group Session): Premium-host starts Jam targeting Terry, sends QR/link, guest joins. Link is ephemeral — re-issued each session.
+- (c) Bluetooth-pair her phone to Terry — bypasses Spotify on Terry entirely. Strip won't show her music.
+
+**Files touched (all in `index.html` + the kiosk + proxy):**
+- `family-dashboard/index.html` — full player CSS/HTML, green button, JS render + auto-open logic
+- `family-dashboard-proxy/api/spotify-now.js` — refresh-token-backed currently-playing endpoint
+- `kiosk-webview/app/src/main/java/xyz/erapps/kiosk/MainActivity.kt` — `kiosk://spotify/{launch,play,pause,prev,next}` URI handler + OverlayService start/stop hooks + `AUTO_RETURN_MS=2min`
+- `kiosk-webview/.../AutoReturnReceiver.kt` — `RESCHEDULE_MS=2min`, call-aware deferral
+- `kiosk-webview/.../OverlayService.kt` — floating "← Dashboard" pill (top-right, y=68dp clears Portal status bar)
+- `kiosk-webview/AndroidManifest.xml` — `<service>` registration for OverlayService
+
+**Refresh-token recovery if the env var is ever lost:** redo the OAuth dance once. Steps:
+1. Open `https://accounts.spotify.com/authorize?client_id=<CLIENT_ID>&response_type=code&redirect_uri=https%3A%2F%2Ffamily-dashboard-proxy.vercel.app%2Fapi%2Fspotify-callback&scope=user-read-currently-playing+user-read-playback-state`. Approve.
+2. Spotify redirects to a 404 (callback endpoint doesn't exist — that's fine). Copy the `code=` value from the URL.
+3. `curl -X POST https://accounts.spotify.com/api/token -u "$ID:$SECRET" -d grant_type=authorization_code --data-urlencode "code=$CODE" --data-urlencode "redirect_uri=https://family-dashboard-proxy.vercel.app/api/spotify-callback"` → grab `refresh_token`.
+4. `printf '%s' "$REFRESH" | vercel env rm SPOTIFY_REFRESH_TOKEN production --yes; printf '%s' "$REFRESH" | vercel env add SPOTIFY_REFRESH_TOKEN production --sensitive` then `vercel --prod`.
+
+**Kiosk APK install for Terry trust:** first adb command after a long gap may show `unauthorized` — Terry's screen has a "Allow USB debugging from this computer?" prompt, tap "Always allow from this computer".
+
+---
+
+## ✅ Open Tests / Follow-ups (post 2026-05-10 Spotify session)
+
+These shipped but weren't end-to-end verified before session close:
+
+1. **Dashboard ⏮ ⏸ ⏭ buttons.** Should now control Spotify on Terry via broadcast intents (Spotify-on-Terry is logged in to user's account). Test: start music on Terry → tap dashboard strip's full card → hit pause/skip. **Was broken pre-2026-05-10 because Spotify wasn't logged in; should work now with 8.6.x.**
+2. **2-min auto-return timer.** Verify by tapping green ♫, opening Spotify, leaving Terry alone for 2 min — dashboard should return.
+3. **Routine-window auto-open suppression.** Music starting at 07:30 (weekday morning routine) or 18:00 (evening routine) should NOT auto-pop the player card. Only triggers in `todo` mode (default daytime).
+4. **Overlay button position post-2026-05-10 size bump** (`y=68dp`, text 15sp, padding 18×11dp). Re-confirm clear of Portal status bar AND tappable.
+
+## 🎨 Design Refinement Pass (queued 2026-05-10)
+
+User feedback at session close: *"the screens are a bit small and hard to look at a glance (except the checklists for the kids which are generally fine size). I think we need an overall refinement."* Kitchen viewing distance ~1.5–2m. Likely scope: masthead clock, context-strip labels (weather desc, transit names, stars X/10), calendar event titles, eyebrow labels. Spotify full player card may also need tonal alignment with the editorial palette (currently a bit Spotify-branded green). **Handled in a separate session via a dedicated brief — see chat history of 2026-05-10 for the prompt.**
