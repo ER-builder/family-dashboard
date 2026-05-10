@@ -686,67 +686,6 @@
     }
 
 
-    /* ── Spotify context-strip slot ── */
-    .cs-spotify {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      min-width: 0;
-      cursor: pointer;
-      -webkit-tap-highlight-color: transparent;
-      user-select: none;
-    }
-    .cs-spotify[hidden] { display: none !important; }
-    .cs-spotify .sp-art {
-      width: 38px;
-      height: 38px;
-      border-radius: 5px;
-      object-fit: cover;
-      flex-shrink: 0;
-      background: var(--paper-3);
-    }
-    .cs-spotify .sp-art-placeholder {
-      width: 38px;
-      height: 38px;
-      border-radius: 5px;
-      flex-shrink: 0;
-      background: var(--paper-3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 20px;
-    }
-    .cs-spotify .sp-text {
-      display: flex;
-      flex-direction: column;
-      min-width: 0;
-    }
-    .cs-spotify .sp-track {
-      font-family: var(--sans);
-      font-weight: 700;
-      font-size: 12px;
-      color: var(--ink);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-    .cs-spotify .sp-artist {
-      font-family: var(--sans);
-      font-size: 10px;
-      color: var(--ink-soft);
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      margin-top: 2px;
-    }
-    .cs-spotify .sp-open-hint {
-      font-family: var(--mono);
-      font-size: 8px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--ink-faint);
-      margin-top: 3px;
-    }
     /* Spotify now-playing card in primary panel (spotify mode) */
     .spotify-card {
       display: none;
@@ -1888,17 +1827,6 @@
         <div class="cs-stars" id="stars-body">
           <!-- Populated by loadStars() -- keeps the same #stars-body container ID -->
         </div>
-        <div class="cs-divider" id="cs-divider-spotify" style="display:none"></div>
-        <!-- Spotify now-playing ambient slot. Hidden when nothing is playing.
-             Tap to open the full Spotify player card. -->
-        <div class="cs-spotify" id="cs-spotify" hidden>
-          <img class="sp-art" id="sp-art" src="" alt="" />
-          <div class="sp-text">
-            <div class="sp-track" id="sp-track"></div>
-            <div class="sp-artist" id="sp-artist"></div>
-            <div class="sp-open-hint">Tap to open</div>
-          </div>
-        </div>
       </section>
 
       <!-- ── PRIMARY PANEL: the dominant task of the moment.
@@ -3015,13 +2943,9 @@
     const SPOTIFY_PROXY_URL = "https://family-dashboard-proxy.vercel.app/api/spotify-now";
 
     let _spIsPlaying = false;
+    let _spPrevPlaying = false; // for false\u2192true transition detection (auto-open)
     let _spAutoCloseTimer = null;
 
-    const spSlot       = document.getElementById("cs-spotify");
-    const spArt        = document.getElementById("sp-art");
-    const spTrack      = document.getElementById("sp-track");
-    const spArtist     = document.getElementById("sp-artist");
-    const spDivider    = document.getElementById("cs-divider-spotify");
     const spBigArtWrap = document.getElementById("sp-big-art-wrap");
     const spBigTrack   = document.getElementById("sp-big-track");
     const spBigArtist  = document.getElementById("sp-big-artist");
@@ -3033,30 +2957,19 @@
     }
 
     function renderSpotify(data) {
-      if (!spSlot) return;
+      const wasPlaying = _spPrevPlaying;
       _spIsPlaying = !!(data && data.isPlaying);
 
       if (!_spIsPlaying) {
-        spSlot.setAttribute("hidden", "");
-        if (spDivider) spDivider.style.display = "none";
+        // Music stopped \u2014 if the full card is open, fall back to time-of-day mode.
         if (document.body.getAttribute("data-mode") === "spotify") {
-          document.body.setAttribute("data-mode", "todo");
+          closeSpotifyCard();
         }
+        _spPrevPlaying = false;
         return;
       }
 
-      spSlot.removeAttribute("hidden");
-      if (spDivider) spDivider.style.display = "";
-
-      // Ambient strip
-      if (spArt) {
-        if (data.albumArt) { spArt.src = data.albumArt; spArt.style.display = ""; }
-        else { spArt.style.display = "none"; }
-      }
-      if (spTrack)  spTrack.textContent  = data.track  || "";
-      if (spArtist) spArtist.textContent = data.artist || "";
-
-      // Full card
+      // Populate the full card data (so it's instant when opened).
       if (spBigArtWrap) {
         if (data.albumArt) {
           spBigArtWrap.innerHTML = '<img class="sp-big-art" src="' + _spEscAttr(data.albumArt) + '" alt="" />';
@@ -3067,6 +2980,14 @@
       if (spBigTrack)  spBigTrack.textContent  = data.track  || "Unknown track";
       if (spBigArtist) spBigArtist.textContent = data.artist || "";
       if (spPlayPause) spPlayPause.textContent = data.isPlaying ? "\u23F8" : "\u25B6";
+
+      // Auto-open the full player card on the false\u2192true transition (music just
+      // started). User can dismiss with \u2715 or wait for the 90s auto-close. We
+      // don't re-open during continuous playback \u2014 only on a fresh start.
+      if (!wasPlaying) {
+        openSpotifyCard();
+      }
+      _spPrevPlaying = true;
     }
 
     async function loadSpotify() {
@@ -3086,13 +3007,11 @@
 
     function closeSpotifyCard() {
       clearTimeout(_spAutoCloseTimer);
-      document.body.setAttribute("data-mode", "todo");
+      // Recompute from time-of-day so a long-running player card returns to
+      // the correct mode (e.g. opened at 14:55 todo, closes at 15:35 evening).
+      try { updateMode(); } catch (_) { document.body.setAttribute("data-mode", "todo"); }
     }
 
-    if (spSlot) {
-      spSlot.addEventListener("click", openSpotifyCard);
-      spSlot.addEventListener("touchend", function(e) { e.preventDefault(); openSpotifyCard(); }, { passive: false });
-    }
     if (spClose) {
       spClose.addEventListener("click", closeSpotifyCard);
       spClose.addEventListener("touchend", function(e) { e.preventDefault(); closeSpotifyCard(); }, { passive: false });
@@ -3102,6 +3021,10 @@
       clearTimeout(_spAutoCloseTimer);
       _spAutoCloseTimer = setTimeout(closeSpotifyCard, 90 * 1000);
       window.location.href = "kiosk://spotify/" + cmd;
+      // Spotify needs ~1s to reflect a state change; re-poll twice for snappier
+      // toggle/track updates.
+      setTimeout(loadSpotify, 800);
+      setTimeout(loadSpotify, 2200);
     }
 
     const spPrevBtn = document.getElementById("sp-prev");
@@ -3119,17 +3042,26 @@
       spPlayPause.addEventListener("touchend", function(e) { e.preventDefault(); spCommand(_spIsPlaying ? "pause" : "play"); }, { passive: false });
     }
 
-    // Spotify corner button -- launches Spotify APK via kiosk:// URI
+    // Spotify corner button \u2014 smart: if music is playing, open the dashboard's
+    // full player card (re-entry after auto-close); otherwise launch the
+    // Spotify APK on Terry so the user can pick something to play.
     (function() {
       const btn = document.getElementById("spotify-corner");
       if (!btn) return;
-      function launch() { window.location.href = "kiosk://spotify/launch"; }
-      btn.addEventListener("click", launch);
-      btn.addEventListener("touchend", function(e) { e.preventDefault(); launch(); }, { passive: false });
+      function tap() {
+        if (_spIsPlaying && document.body.getAttribute("data-mode") !== "spotify") {
+          openSpotifyCard();
+        } else {
+          window.location.href = "kiosk://spotify/launch";
+        }
+      }
+      btn.addEventListener("click", tap);
+      btn.addEventListener("touchend", function(e) { e.preventDefault(); tap(); }, { passive: false });
     })();
 
     loadSpotify();
-    setInterval(loadSpotify, 30 * 1000);
+    // 10s polling \u2014 Vercel proxy caches 8s, so worst-case lag is ~10\u201318s. Was 30s.
+    setInterval(loadSpotify, 10 * 1000);
 
     // ---------- Exit-to-Portal long-press (visible bottom-right button) ----------
     // 2-second hold fires kiosk://exit. MainActivity exits to Portal launcher.
