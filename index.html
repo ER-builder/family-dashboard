@@ -571,7 +571,7 @@
       display: flex;
       flex-direction: column;
       gap: 3px;
-      padding: 5px 0 0 48px;   /* indent past the 102 badge column */
+      padding: 6px 0 0 0;   /* flush-left: arrivals sit under the badge column */
     }
     .cs-arrivals:empty { display: none; }
     .cs-arrivals .arr-row {
@@ -635,13 +635,13 @@
       justify-content: center;
       gap: 6px;
       min-width: 0;
-      text-align: right;
+      text-align: center;
     }
     .cs-stars .kid {
       display: flex;
       align-items: baseline;
-      justify-content: flex-end;
-      gap: 10px;
+      justify-content: center;
+      gap: 12px;
       font-family: var(--sans);
       font-size: 16px;
     }
@@ -649,6 +649,8 @@
       font-weight: 600;
       color: var(--ink);
       letter-spacing: 0.005em;
+      min-width: 52px;     /* keep prize counts column-aligned across kids */
+      text-align: right;
     }
     .cs-stars .kid .count {
       font-family: var(--display);
@@ -656,6 +658,13 @@
       line-height: 0.9;
       color: var(--ochre);
       font-feature-settings: "tnum" 1;
+    }
+    .cs-stars .kid .count .gift {
+      font-family: var(--sans);
+      font-size: 18px;
+      vertical-align: 3px;
+      margin-right: 5px;
+      filter: drop-shadow(0 2px 6px rgba(240, 188, 85, 0.30));
     }
     .cs-stars .kid[data-kid="eitan"] .count { color: var(--cobalt); }
     .cs-stars .kid[data-kid="tamar"] .count { color: var(--terracotta); }
@@ -845,8 +854,28 @@
       border-left: 1px dashed var(--rule);
       margin-left: 6px;
     }
-    /* Hidden by default — only shown in morning mode (rule above). */
+    /* Hidden by default; shown in morning mode (full size, rule above) and
+       in todo mode (compact). Evening mode keeps it hidden — that screen
+       is dominated by routine items so we don't need extra context. */
     .w-outlook { display: none; }
+    body[data-mode="todo"] .context-strip {
+      grid-template-columns: minmax(0, 2.0fr) 1px minmax(0, 1.5fr) 1px minmax(0, 0.95fr);
+    }
+    body[data-mode="todo"] .cs-weather .w-outlook {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 6px;
+      flex: 1;
+      padding-left: 12px;
+      border-left: 1px dashed var(--rule);
+      margin-left: 2px;
+    }
+    /* Todo-mode hourly cells are tighter — slim down icon + label so 6 cells
+       fit comfortably in the smaller weather column. Morning mode keeps the
+       larger override defined above. */
+    body[data-mode="todo"] .w-outlook .h .when { font-size: 9px; }
+    body[data-mode="todo"] .w-outlook .h .icon { font-size: 18px; }
+    body[data-mode="todo"] .w-outlook .h .t { font-size: 13px; }
     .w-outlook .h {
       display: flex;
       flex-direction: column;
@@ -1781,10 +1810,9 @@
 
     <section class="card calendar">
       <div class="eyebrow">
-        <span class="glyph">¶</span>
-        <span class="name">Almanac</span>
+        <span class="name">Today</span>
         <span class="rule"></span>
-        <span class="meta">TODAY</span>
+        <span class="meta" id="cal-date"></span>
       </div>
       <div class="body" id="cal-body">
         <div class="cal-allday" id="cal-allday"></div>
@@ -1962,6 +1990,13 @@
         timeZone: TZ, weekday: "long", day: "numeric", month: "long", year: "numeric"
       }).format(now);
       document.getElementById("date").textContent = date;
+
+      // Compact short-form date for the calendar eyebrow (replaces "ALMANAC TODAY").
+      const calDate = new Intl.DateTimeFormat("en-GB", {
+        timeZone: TZ, weekday: "short", day: "numeric", month: "short"
+      }).format(now);
+      const calDateEl = document.getElementById("cal-date");
+      if (calDateEl) calDateEl.textContent = calDate.toUpperCase();
 
       const hour = parseInt(new Intl.DateTimeFormat("en-GB", {
         timeZone: TZ, hour: "2-digit", hour12: false
@@ -2891,8 +2926,8 @@
         const idAttr = escapeHtml(k.id);
         return (
           '<div class="kid" data-kid="' + escapeHtml(slug) + '" data-id="' + idAttr + '">' +
-            '<span class="label">' + escapeHtml(k.emoji || "🎁") + ' ' + escapeHtml(k.name || "") + '</span>' +
-            '<span class="count">' + pc + '</span>' +
+            '<span class="label">' + escapeHtml(k.name || "") + '</span>' +
+            '<span class="count"><span class="gift">🎁</span>' + pc + '</span>' +
             '<span class="' + cycleClass + '"><span class="star">⭐</span>' + cycle + '/10</span>' +
           '</div>'
         );
