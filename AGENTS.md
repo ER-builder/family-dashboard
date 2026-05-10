@@ -14,21 +14,23 @@ URL: https://er-builder.github.io/family-dashboard/ (GitHub Pages, public). Auto
 
 ## Architecture
 
-`index.html` is the entire dashboard: Tailwind-free vanilla CSS, vanilla JS. Auto-refresh every 5 min via `<meta http-equiv="refresh">`. All state in `localStorage` (routine checks, celebration flags) except shared to-dos which live in a Google Sheet via Apps Script endpoint.
+`index.html` is the entire dashboard: Tailwind-free vanilla CSS, vanilla JS. Auto-refresh every 5 min via `<meta http-equiv="refresh">`. State in `localStorage` (routine checks, celebration flags). No writeable lists — family uses Google Keep on phones for shared notes.
 
-**Layout (UX redesign D + E.1, 2026-04-26):**
+**Layout (B′ redesign, 2026-05-10):**
 - Two-column grid: calendar 27.5% / right 72.5% (`0.55fr / 1.45fr`).
 - Right column has TWO regions only:
-  1. `.context-strip` (top, ~120px, always visible, horizontal): `cs-weather` + `cs-divider` + `cs-transit` + `cs-divider` + `cs-stars`. Compact form of three former cards.
-  2. `.primary-panel` (bottom, fills remaining ~500px, content swaps via `body[data-mode]`): one of `#morning-card` / `#evening-card` / `.todos`.
-- Mode picker: `pickMode()` returns `"morning" | "evening" | "todo"` based on time + weekday. Updates every 60s.
-- **Result:** To-Do is the DEFAULT primary panel content (visible most of the day) — routines take it over only during their windows. To-Do reachable in every state — fixed the v0 bug where it was crushed to invisibility.
+  1. `.context-strip` (top, ~120px, always visible, horizontal): `cs-weather` (incl. 5-cell hourly forecast) + `cs-divider` + `cs-transit` + `cs-divider` + `cs-stars` (3-column grid per kid: name | 🎁 prizes | ⭐ cycle, with subtle vertical hairlines).
+  2. `.primary-panel` (bottom, fills remaining ~500px, content swaps via `body[data-mode]`): one of `#morning-card` / `#evening-card` / `.spotify-card`.
+- Mode picker: `pickMode()` returns `"morning" | "evening" | "spotify"` based on time + weekday. Updates every 60s.
+- **Result:** Spotify card is the DEFAULT primary panel content — routine cards take over only during their windows. The Spotify card has two states via `data-state="idle"|"playing"`: idle shows a "no music playing — tap to launch" placeholder; playing shows full art + controls. The corner `#spotify-corner` launch button only appears during routine windows (CSS-gated by `body[data-mode]`).
 
-**Calendar:** Google-Cal-style day view — 06:00–21:00 timeline (16 hours × 22px = 352px), all-day chips strip on top, terracotta "now" line, tomorrow as a compact list below.
+**Calendar:** block-agenda view (B′ redesign) — vertical stack of chunky event cards. Today's events split into "Now" (currently happening, terracotta accent + bigger title) and "Up Next" sections. Tomorrow has its own dashed-rule day-head and recessed blocks (dimmer text, smaller title, indented). All-day chips strip stays on top. The prior 06–21 timeline view is gone.
+
+**Previous designs (archived):** D+E.1 (2026-04-26): To-Do was the default primary panel + Google-Cal-style 06–21 timeline calendar. To-Do dropped 2026-05-10; the timeline lost out to the agenda blocks for kitchen-distance glanceability.
 
 **Routines:** time-windowed (morning 06–09 weekdays only; evening 15:30–20:30 every day, London tz). **8 morning + 8 evening items per kid** (TV / Dessert / Reading dropped — celebration overlay handles the "all done" moment). MUST fit without scrolling. Items at 40px min-height; checkbox 28px. Celebration triggers once per kid per day per slot when all 8 are checked.
 
-**Testing:** append `?mode=morning|evening|todo` to the dashboard URL to force a mode for that page load (laptop/phone preview without waiting for the time window). Normal reload reverts to time-based logic.
+**Testing:** append `?mode=morning|evening|spotify` to the dashboard URL to force a mode for that page load (laptop/phone preview without waiting for the time window). Normal reload reverts to time-based logic. (`?mode=todo` is also accepted as a back-compat alias for `spotify`.)
 
 ## Hard constraints
 
@@ -37,7 +39,7 @@ URL: https://er-builder.github.io/family-dashboard/ (GitHub Pages, public). Auto
 - **Width 1280, height 800** (Portal screen). Test against this — narrower dev browsers will lie about routine fit.
 - **Hebrew + RTL must keep working** in calendar event titles. Heebo loaded as Hebrew fallback; Fraunces has no Hebrew so the cascade falls through automatically.
 - **Never push secrets** — push protection blocks. The OpenWeather API key is a public key (intentional exception).
-- **Apps Script TODO endpoint** is hard-coded in `index.html`. Don't change.
+- **Apps Script TODO endpoint:** previously hard-coded; B′ redesign removed all reads/writes. The Sheet still exists if we ever want a read-only callout; nothing in the dashboard touches it now.
 
 ## Kiosk app (kiosk-webview) — Android-side facts
 

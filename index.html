@@ -214,9 +214,13 @@
     }
 
     /* ─────────────────────────────────────────
-       CALENDAR — Google-Cal-style day view
+       CALENDAR — block agenda (B′ redesign 2026-05-10)
+       Vertical stack of chunky event cards. Today section split into
+       Now / Up Next; Tomorrow section visually recessed (dimmer text +
+       indented + dashed separator) so a glance can't confuse the day.
+       Replaced the prior 06–21 vertical timeline.
        ───────────────────────────────────────── */
-    .calendar { grid-row: 3; grid-column: 1; --hour-h: 26px; }
+    .calendar { grid-row: 3; grid-column: 1; }
     .calendar .body {
       gap: 0;
       overflow-y: auto;
@@ -230,7 +234,8 @@
       display: flex;
       flex-wrap: wrap;
       gap: 6px;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
+      padding: 0 0 4px;
     }
     .cal-allday:empty { display: none; }
     .cal-allday .chip {
@@ -243,161 +248,120 @@
       border-radius: 999px;
       letter-spacing: 0.04em;
     }
-
-    /* Today timeline (06:00–21:00 = 16 hour rules) */
-    .cal-today {
-      position: relative;
-      height: calc(var(--hour-h) * 16);
-      margin: 4px 0 12px;
-    }
-    .cal-today .hour-mark {
-      position: absolute;
-      left: 0;
-      right: 0;
-      height: 1px;
-      background: var(--rule);
-    }
-    .cal-today .hour-mark .h-label {
-      position: absolute;
-      left: 0;
-      top: -8px;
-      font-family: var(--mono);
-      font-size: 12px;
-      color: var(--ink-dim);
-      background: var(--paper-2);
-      padding-right: 8px;
-      letter-spacing: 0.06em;
-    }
-    .cal-block {
-      /* Overlap-aware positioning. JS sets --col (column index, 0-based) and
-         --total (number of tracks in this event's overlap cluster) on each
-         block. Within the timeline track area (left of 38px reserved for hour
-         labels, right of 6px gutter), divide horizontal space into N equal
-         tracks with a 4px gap between them. Single-event clusters use 1 track
-         and look identical to the old full-width layout. */
-      position: absolute;
-      --col: 0;
-      --total: 1;
-      --track-gap: 4px;
-      --inset-left: 38px;
-      --inset-right: 6px;
-      left: calc(
-        var(--inset-left)
-        + var(--col) * (
-          (100% - var(--inset-left) - var(--inset-right) - (var(--total) - 1) * var(--track-gap))
-          / var(--total)
-          + var(--track-gap)
-        )
-      );
-      width: calc(
-        (100% - var(--inset-left) - var(--inset-right) - (var(--total) - 1) * var(--track-gap))
-        / var(--total)
-      );
-      background: var(--cobalt-soft);
-      border-left: 3px solid var(--cobalt);
-      border-radius: 6px;
-      padding: 3px 10px;
-      overflow: hidden;
-      box-shadow: 0 4px 12px -8px rgba(0, 0, 0, 0.4);
-    }
-    .cal-block.past { opacity: 0.42; }
-
-    /* Per-source color coding (events tagged by the proxy via ICAL_LABELS).
-       Defaults to cobalt above; sources override with their own accent. */
-    .cal-block.source-family { background: var(--ochre-soft);      border-left-color: var(--ochre); }
-    .cal-block.source-elul   { background: var(--cobalt-soft);     border-left-color: var(--cobalt); }
-    .cal-block.source-school { background: var(--sage-soft);       border-left-color: var(--sage); }
-    .cal-block.source-lior   { background: var(--terracotta-soft); border-left-color: var(--terracotta); }
-
     .cal-allday .chip.source-family { background: var(--ochre-soft);      color: var(--ochre); }
     .cal-allday .chip.source-elul   { background: var(--cobalt-soft);     color: var(--cobalt); }
     .cal-allday .chip.source-school { background: var(--sage-soft);       color: var(--sage); }
     .cal-allday .chip.source-lior   { background: var(--terracotta-soft); color: var(--terracotta); }
 
-    .cal-future .row.source-family .t { color: var(--ochre); }
-    .cal-future .row.source-elul   .t { color: var(--cobalt); }
-    .cal-future .row.source-school .t { color: var(--sage); }
-    .cal-future .row.source-lior   .t { color: var(--terracotta); }
-    .cal-block .title {
-      font-family: var(--serif);
-      font-variation-settings: "opsz" 96;
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--ink);
-      line-height: 1.18;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-      overflow: hidden;
-      letter-spacing: -0.005em;
+    /* Agenda — block list */
+    .agenda {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 0;
     }
-    .cal-block .when {
-      font-family: var(--mono);
-      font-size: 12px;
-      color: var(--ink-soft);
-      font-feature-settings: "tnum" 1;
-      letter-spacing: 0.02em;
-      margin-top: 1px;
+    .agenda .section-head {
+      font-family: var(--sans);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      padding: 8px 0 0;
     }
-    .cal-now {
-      position: absolute;
-      left: 30px;
-      right: 0;
-      height: 2px;
-      background: var(--terracotta);
-      z-index: 5;
-      box-shadow: 0 0 12px rgba(200, 85, 61, 0.45);
-      pointer-events: none;
-    }
-    .cal-now::before {
-      content: "";
-      position: absolute;
-      left: -6px;
-      top: -4px;
-      width: 10px;
-      height: 10px;
-      border-radius: 50%;
-      background: var(--terracotta);
-      box-shadow: 0 0 8px rgba(200, 85, 61, 0.7);
-    }
-
-    /* Future days — compact list below today's timeline */
-    .cal-future {
-      border-top: 1px dashed var(--rule);
-      padding-top: 12px;
-    }
-    .cal-future:empty { border-top: 0; padding-top: 0; }
-    .cal-future .day-head {
+    .agenda .section-head.now { color: var(--terracotta); }
+    .agenda .day-head {
       font-family: var(--serif);
       font-style: italic;
       font-weight: 500;
       font-size: 17px;
       color: var(--ochre);
-      margin-top: 12px;
+      margin: 14px 0 4px;
+      padding-top: 14px;
+      border-top: 1px dashed var(--rule-strong);
       letter-spacing: 0.005em;
-    }
-    .cal-future .day-head:first-child { margin-top: 0; }
-    .cal-future .row {
-      display: grid;
-      grid-template-columns: 72px 1fr;
-      gap: 10px;
-      padding: 6px 0 6px 4px;
+      display: flex;
       align-items: baseline;
+      gap: 10px;
     }
-    .cal-future .row .t {
+    .agenda .day-head .dot {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink-dim);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      font-weight: 700;
+      font-style: normal;
+    }
+    .agenda .block {
+      display: grid;
+      grid-template-columns: 4px 60px 1fr auto;
+      gap: 12px;
+      padding: 10px 12px 10px 0;
+      background: var(--paper-3);
+      border-radius: 10px;
+      border: 1px solid var(--rule);
+      align-items: center;
+      overflow: hidden;
+      box-shadow: 0 4px 12px -8px rgba(0, 0, 0, 0.4);
+    }
+    .agenda .block .bar {
+      width: 4px;
+      align-self: stretch;
+      min-height: 36px;
+      background: var(--cobalt);
+      border-radius: 0 2px 2px 0;
+    }
+    .agenda .block.source-family .bar { background: var(--ochre); }
+    .agenda .block.source-elul   .bar { background: var(--cobalt); }
+    .agenda .block.source-school .bar { background: var(--sage); }
+    .agenda .block.source-lior   .bar { background: var(--terracotta); }
+    .agenda .block.past { opacity: 0.40; }
+    .agenda .block.now {
+      background: linear-gradient(135deg, rgba(208, 95, 72, 0.18) 0%, var(--paper-3) 70%);
+      border-color: var(--terracotta);
+    }
+    .agenda .block .when {
       font-family: var(--mono);
       font-size: 13px;
       color: var(--ink-soft);
-      font-feature-settings: "tnum" 1;
+      font-weight: 700;
       letter-spacing: 0.02em;
+      font-feature-settings: "tnum" 1;
     }
-    .cal-future .row .ti {
+    .agenda .block.now .when { color: var(--terracotta); }
+    .agenda .block .ti {
       font-family: var(--serif);
-      font-size: 17px;
+      font-size: 16px;
       font-weight: 500;
       color: var(--ink);
+      line-height: 1.2;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
       letter-spacing: -0.003em;
-      line-height: 1.22;
     }
+    .agenda .block.now .ti { font-size: 18px; font-weight: 600; }
+    .agenda .block .dur {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink-dim);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+    /* Tomorrow blocks: recessed (dimmer text, smaller title, indented, paler bg) */
+    .agenda .block.tomorrow {
+      background: rgba(40, 31, 48, 0.55);
+      border-color: var(--rule);
+      margin-left: 14px;
+    }
+    .agenda .block.tomorrow .when { color: var(--ink-dim); }
+    .agenda .block.tomorrow .ti {
+      color: var(--ink-soft);
+      font-size: 14px;
+      font-weight: 400;
+    }
+    .agenda .block.tomorrow .bar { opacity: 0.5; }
 
     .cal-empty, .cal-error {
       display: flex;
@@ -628,20 +592,32 @@
       font-weight: 700;
     }
 
-    /* Stars slot */
+    /* Stars slot — 3-column grid per kid (NAME left | PRIZES center | CYCLE right)
+       with two ultra-light vertical hairlines spanning both rows so the alignment
+       reads as columnar. Internal padding keeps content off the strip dividers. */
     .cs-stars {
       display: flex;
       flex-direction: column;
       justify-content: center;
-      gap: 6px;
+      gap: 8px;
       min-width: 0;
-      text-align: center;
+      position: relative;
+      padding: 4px 10px;
     }
+    .cs-stars::before, .cs-stars::after {
+      content: "";
+      position: absolute;
+      top: 8px; bottom: 8px;
+      width: 1px;
+      background: linear-gradient(to bottom, transparent, rgba(251, 240, 214, 0.10) 25%, rgba(251, 240, 214, 0.10) 75%, transparent);
+      pointer-events: none;
+    }
+    .cs-stars::before { left: 33.33%; }
+    .cs-stars::after  { left: 66.67%; }
     .cs-stars .kid {
-      display: flex;
-      align-items: baseline;
-      justify-content: center;
-      gap: 12px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      align-items: center;
       font-family: var(--sans);
       font-size: 16px;
     }
@@ -649,8 +625,8 @@
       font-weight: 600;
       color: var(--ink);
       letter-spacing: 0.005em;
-      min-width: 52px;     /* keep prize counts column-aligned across kids */
-      text-align: right;
+      text-align: left;
+      padding-left: 4px;
     }
     .cs-stars .kid .count {
       font-family: var(--display);
@@ -658,21 +634,20 @@
       line-height: 0.9;
       color: var(--ochre);
       font-feature-settings: "tnum" 1;
-    }
-    .cs-stars .kid .count .gift {
-      font-family: var(--sans);
-      font-size: 18px;
-      vertical-align: 3px;
-      margin-right: 5px;
-      filter: drop-shadow(0 2px 6px rgba(240, 188, 85, 0.30));
-    }
-    .cs-stars .kid[data-kid="eitan"] .count { color: var(--cobalt); }
-    .cs-stars .kid[data-kid="tamar"] .count { color: var(--terracotta); }
-    .cs-stars .kid .count {
+      text-align: center;
       transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
       display: inline-block;
     }
+    .cs-stars .kid[data-kid="eitan"] .count { color: var(--cobalt); }
+    .cs-stars .kid[data-kid="tamar"] .count { color: var(--terracotta); }
     .cs-stars .kid .count.pulse { transform: scale(1.22); }
+    .cs-stars .kid .count .gift {
+      font-family: var(--sans);
+      font-size: 16px;
+      vertical-align: 4px;
+      margin-right: 4px;
+      color: var(--ink-soft);
+    }
     /* Cycle progress (X/10) — fast-moving feedback for daily stars earned.
        Mono so it reads as a counter, not a milestone. Pulses on increment. */
     .cs-stars .kid .cycle {
@@ -682,6 +657,8 @@
       color: var(--ink-soft);
       letter-spacing: 0.02em;
       font-feature-settings: "tnum" 1;
+      text-align: right;
+      padding-right: 4px;
       transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1), color 200ms ease;
       display: inline-block;
     }
@@ -706,11 +683,64 @@
       text-align: center;
       position: relative;
     }
-    body[data-mode="spotify"] .primary-panel > .spotify-card {
+    /* Spotify idle placeholder — shown inside .spotify-card when nothing's
+       playing. Same shape as the live player so the layout doesn't shift. */
+    .spotify-card .sp-idle-art {
+      width: clamp(140px, 22vw, 200px);
+      height: clamp(140px, 22vw, 200px);
+      border-radius: 10px;
+      background:
+        repeating-linear-gradient(45deg, var(--paper-3) 0 8px, var(--paper-2) 8px 16px);
       display: flex;
-      flex: 1;
-      min-height: 0;
+      align-items: center;
+      justify-content: center;
+      font-size: 72px;
+      color: var(--ink-faint);
+      box-shadow: 0 8px 24px -10px rgba(0,0,0,0.5);
     }
+    .spotify-card .sp-idle-prompt {
+      font-family: var(--serif);
+      font-style: italic;
+      font-size: clamp(18px, 2vw, 22px);
+      color: var(--ink-soft);
+    }
+    .spotify-card .sp-idle-sub {
+      font-family: var(--sans);
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      font-weight: 700;
+      margin-top: 6px;
+    }
+    .spotify-card .sp-launch-btn {
+      margin-top: 8px;
+      background: linear-gradient(135deg, var(--paper-3) 0%, var(--paper-2) 100%);
+      border: 1px solid var(--rule-strong);
+      border-radius: 999px;
+      padding: 10px 22px;
+      font-family: var(--sans);
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--sage);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    .spotify-card .sp-launch-btn .icon { font-size: 16px; color: var(--sage); }
+    .spotify-card[data-state="idle"] .sp-big-art,
+    .spotify-card[data-state="idle"] .sp-big-art-placeholder,
+    .spotify-card[data-state="idle"] .sp-controls,
+    .spotify-card[data-state="idle"] .sp-close { display: none !important; }
+    .spotify-card[data-state="playing"] .sp-idle-art,
+    .spotify-card[data-state="playing"] .sp-idle-prompt,
+    .spotify-card[data-state="playing"] .sp-idle-sub,
+    .spotify-card[data-state="playing"] .sp-launch-btn { display: none !important; }
     .spotify-card .sp-big-art {
       width: clamp(140px, 22vw, 200px);
       height: clamp(140px, 22vw, 200px);
@@ -780,12 +810,18 @@
        brand green — matches the rest of the dashboard's print aesthetic.
        Sage is the calm/ambient accent and doesn't conflict with the kid colors
        (cobalt = Eitan, terracotta = Tamar). */
+    /* B′: Spotify card is the default primary panel — corner button only
+       useful when something else (a routine card) is taking that slot. */
+    #spotify-corner { display: none; }
+    body[data-mode="morning"] #spotify-corner,
+    body[data-mode="evening"] #spotify-corner {
+      display: inline-flex;
+    }
     #spotify-corner {
       position: fixed;
       bottom: 16px;
       left: 16px;
       z-index: 9999;
-      display: inline-flex;
       align-items: center;
       gap: 10px;
       padding: 10px 16px 10px 12px;
@@ -847,35 +883,38 @@
     body[data-mode="morning"] .cs-weather .desc { font-size: 18px; }
     body[data-mode="morning"] .cs-weather .w-outlook {
       display: grid !important;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
       flex: 1;
-      padding-left: 16px;
-      border-left: 1px dashed var(--rule);
-      margin-left: 6px;
+      padding-left: 22px;
+      border-left: 1px solid var(--rule-strong);
+      margin-left: 14px;
     }
     /* Hidden by default; shown in morning mode (full size, rule above) and
        in todo mode (compact). Evening mode keeps it hidden — that screen
        is dominated by routine items so we don't need extra context. */
     .w-outlook { display: none; }
-    body[data-mode="todo"] .context-strip {
+    body[data-mode="spotify"] .context-strip,
+    body[data-mode="todo"]    .context-strip {
       grid-template-columns: minmax(0, 2.0fr) 1px minmax(0, 1.5fr) 1px minmax(0, 0.95fr);
     }
-    body[data-mode="todo"] .cs-weather .w-outlook {
+    body[data-mode="spotify"] .cs-weather .w-outlook,
+    body[data-mode="todo"]    .cs-weather .w-outlook {
       display: grid;
-      grid-template-columns: repeat(6, minmax(0, 1fr));
-      gap: 6px;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
       flex: 1;
-      padding-left: 12px;
-      border-left: 1px dashed var(--rule);
-      margin-left: 2px;
+      padding-left: 18px;
+      border-left: 1px solid var(--rule-strong);
+      margin-left: 12px;
     }
-    /* Todo-mode hourly cells are tighter — slim down icon + label so 6 cells
-       fit comfortably in the smaller weather column. Morning mode keeps the
-       larger override defined above. */
-    body[data-mode="todo"] .w-outlook .h .when { font-size: 9px; }
-    body[data-mode="todo"] .w-outlook .h .icon { font-size: 18px; }
-    body[data-mode="todo"] .w-outlook .h .t { font-size: 13px; }
+    /* Default-mode hourly cells are tighter than morning mode but readable. */
+    body[data-mode="spotify"] .w-outlook .h .when,
+    body[data-mode="todo"]    .w-outlook .h .when { font-size: 10px; }
+    body[data-mode="spotify"] .w-outlook .h .icon,
+    body[data-mode="todo"]    .w-outlook .h .icon { font-size: 20px; }
+    body[data-mode="spotify"] .w-outlook .h .t,
+    body[data-mode="todo"]    .w-outlook .h .t { font-size: 14px; }
     .w-outlook .h {
       display: flex;
       flex-direction: column;
@@ -920,7 +959,7 @@
     }
     body[data-mode="morning"] .primary-panel > #morning-card,
     body[data-mode="evening"] .primary-panel > #evening-card,
-    body[data-mode="todo"]    .primary-panel > .todos {
+    body[data-mode="spotify"] .primary-panel > .spotify-card {
       display: flex;
       flex: 1;
       min-height: 0;
@@ -1434,164 +1473,6 @@
     }
 
     /* ─────────────────────────────────────────
-       TO-DO — notebook page
-       ───────────────────────────────────────── */
-    .todos {
-      flex: 1;
-      min-height: 0;
-      background: var(--paper-2);
-    }
-    .todos .body { gap: 14px; position: relative; }
-
-    .todo-form {
-      display: flex;
-      gap: 10px;
-      padding-bottom: 14px;
-      border-bottom: 1px solid var(--rule);
-    }
-    .todo-form input {
-      flex: 1;
-      background: transparent;
-      border: 0;
-      color: var(--ink);
-      padding: 10px 4px;
-      font-family: var(--serif);
-      font-style: italic;
-      font-weight: 400;
-      font-size: 19px;
-      outline: none;
-      min-height: 48px;
-      letter-spacing: 0.005em;
-    }
-    .todo-form input::placeholder {
-      color: var(--ink-dim);
-      font-style: italic;
-    }
-    .todo-form button {
-      background: var(--ochre);
-      color: var(--paper);
-      border: 0;
-      border-radius: 10px;
-      padding: 0 22px;
-      font-family: var(--sans);
-      font-weight: 800;
-      cursor: pointer;
-      font-size: 12px;
-      letter-spacing: 0.22em;
-      text-transform: uppercase;
-      min-height: 48px;
-      min-width: 88px;
-      transition: transform 100ms ease, background 160ms ease, box-shadow 200ms ease;
-      box-shadow: 0 8px 20px -8px rgba(233, 180, 76, 0.5);
-    }
-    .todo-form button:hover { background: #f0c060; }
-    .todo-form button:active { transform: scale(0.96) translateY(1px); box-shadow: 0 4px 12px -6px rgba(233, 180, 76, 0.5); }
-
-    .todo-list {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      overflow-y: auto;
-      flex: 1;
-    }
-    .todo-list::-webkit-scrollbar { width: 5px; }
-    .todo-list::-webkit-scrollbar-thumb { background: var(--rule-strong); border-radius: 3px; }
-
-    .todo {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      padding: 8px 6px;
-      transition: opacity 250ms ease, background 140ms ease;
-      min-height: 42px;
-      border-bottom: 1px solid var(--rule);
-    }
-    .todo:last-child { border-bottom: 0; }
-    .todo:hover { background: rgba(243, 231, 207, 0.025); border-radius: 6px; }
-    .todo.fading {
-      opacity: 0;
-      transform: translateX(40px);
-      transition: opacity 350ms ease, transform 350ms ease;
-    }
-    .todo.done { opacity: 0.42; }
-    .todo input[type="checkbox"] {
-      appearance: none;
-      width: 26px;
-      height: 26px;
-      border: 2px solid var(--ink-soft);
-      border-radius: 7px;
-      cursor: pointer;
-      display: grid;
-      place-items: center;
-      flex-shrink: 0;
-      background: transparent;
-      transition:
-        transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1),
-        background 160ms ease,
-        border-color 160ms ease;
-    }
-    .todo input[type="checkbox"]:checked {
-      background: var(--ochre);
-      border-color: transparent;
-      transform: scale(1.08) rotate(-3deg);
-    }
-    .todo input[type="checkbox"]:checked::after {
-      content: "✓";
-      color: var(--paper);
-      font-size: 16px;
-      font-weight: 800;
-    }
-    .todo .text {
-      flex: 1;
-      font-family: var(--serif);
-      font-variation-settings: "opsz" 144;
-      font-size: 22px;
-      font-weight: 400;
-      word-break: break-word;
-      line-height: 1.25;
-      color: var(--ink);
-      letter-spacing: -0.003em;
-    }
-    .todo.done .text {
-      color: var(--ink-soft);
-      text-decoration: line-through;
-      text-decoration-thickness: 1.5px;
-    }
-    .todo .del {
-      background: transparent;
-      border: 0;
-      color: var(--ink-dim);
-      cursor: pointer;
-      font-size: 16px;
-      padding: 6px 10px;
-      border-radius: 6px;
-      opacity: 0;
-      transition: opacity 120ms, color 120ms, background 120ms;
-    }
-    .todo:hover .del { opacity: 0.75; }
-    .todo .del:hover { color: var(--terracotta); background: rgba(200, 85, 61, 0.12); }
-
-    .empty {
-      font-family: var(--serif);
-      font-style: italic;
-      color: var(--ink-soft);
-      text-align: center;
-      padding: 36px 16px;
-      font-size: 17px;
-      letter-spacing: 0.01em;
-    }
-    .empty::before {
-      content: "✎";
-      display: block;
-      font-family: var(--serif);
-      font-style: normal;
-      font-size: 36px;
-      color: var(--ink-faint);
-      margin-bottom: 12px;
-      line-height: 1;
-    }
-
-    /* ─────────────────────────────────────────
        Page entrance
        ───────────────────────────────────────── */
     .masthead { animation: fadeDown 700ms cubic-bezier(0.16, 1, 0.3, 1) both; }
@@ -1599,7 +1480,6 @@
     .calendar { animation-delay: 80ms; }
     .weather  { animation-delay: 140ms; }
     .routine  { animation-delay: 200ms; }
-    .todos    { animation-delay: 260ms; }
     @keyframes rise {
       from { opacity: 0; transform: translateY(10px); }
       to   { opacity: 1; transform: none; }
@@ -1775,7 +1655,7 @@
     }
   </style>
 </head>
-<body data-mode="todo">
+<body data-mode="spotify">
   <!-- Visible exit button: long-press 2s to exit kiosk and return to Portal home.
        Long-press (not tap) so kids don't trigger by accident. The progress ring
        fills as you hold; releasing early cancels. Intercepted in MainActivity. -->
@@ -1816,8 +1696,7 @@
       </div>
       <div class="body" id="cal-body">
         <div class="cal-allday" id="cal-allday"></div>
-        <div class="cal-today" id="cal-today"></div>
-        <div class="cal-future" id="cal-future">
+        <div class="agenda" id="agenda">
           <div class="cal-empty">Loading…</div>
         </div>
       </div>
@@ -1920,28 +1799,15 @@
         </div>
       </section>
 
-        <!-- Old transit + stars cards removed 2026-04-26: their content now
-             lives inside .context-strip above. JS for `loadTfl()` and
-             `loadStars()` writes into the new compact slots. -->
+        <!-- Old transit + stars + To-Do cards removed (To-Do dropped 2026-05-10
+             B′ redesign — family uses Google Keep on phones for shared notes).
+             Spotify card is now the default primary panel content; routine cards
+             take over only during their windows. -->
 
-        <section class="card todos">
-        <div class="eyebrow">
-          <span class="glyph">✎</span>
-          <span class="name">Family To-Do</span>
-          <span class="rule"></span>
-          <span class="meta">SHARED</span>
-        </div>
-        <div class="body">
-          <form class="todo-form" id="todo-form">
-            <input id="todo-input" type="text" placeholder="add a note…" maxlength="120" autocomplete="off" />
-            <button type="submit">Add</button>
-          </form>
-          <ul class="todo-list" id="todo-list"></ul>
-        </div>
-      </section>
-        <!-- Spotify now-playing full card -- shown when body[data-mode="spotify"] -->
-        <section class="card spotify-card" id="spotify-card">
-          <button class="sp-close" id="sp-close" aria-label="Close Spotify">&#x2715;</button>
+        <!-- Spotify card — default visible. Two states:
+             - data-state="idle"    : friendly "no music playing" placeholder + tap-to-launch
+             - data-state="playing" : full now-playing player with art + controls -->
+        <section class="card spotify-card" id="spotify-card" data-state="idle">
           <div class="sp-big-art-placeholder" id="sp-big-art-wrap">
             <span>&#x266B;</span>
           </div>
@@ -1954,6 +1820,15 @@
             <button class="sp-ctrl-btn sp-play-pause" id="sp-play-pause" aria-label="Play/Pause">&#x23F8;</button>
             <button class="sp-ctrl-btn" id="sp-next" aria-label="Next">&#x23ED;</button>
           </div>
+          <!-- Idle-state elements: shown only when data-state="idle" -->
+          <div class="sp-idle-art" id="sp-idle-art">&#x266B;</div>
+          <div>
+            <div class="sp-idle-prompt">No music playing</div>
+            <div class="sp-idle-sub">Spotify on Terry</div>
+          </div>
+          <button class="sp-launch-btn" id="sp-launch-btn" aria-label="Tap to launch Spotify">
+            <span class="icon">&#x266B;</span>Tap to launch
+          </button>
         </section>
       </section><!-- /.primary-panel -->
     </div><!-- /.right -->
@@ -2010,152 +1885,10 @@
     tick();
     setInterval(tick, 1000);
 
-    // ---------- To-Do (Google Sheets via Apps Script) ----------
-    const TODO_API = "https://script.google.com/macros/s/AKfycbzWBQRARP92NhRkfEmSTfaaHkjQ3wh5RW1gD1YHdERwuxTyL83rQemuWPEZ6Im6Rdvt/exec";
-    const TODO_FADE_MS = 15000;
-    const listEl = document.getElementById("todo-list");
-    const formEl = document.getElementById("todo-form");
-    const inputEl = document.getElementById("todo-input");
-    let todos = [];
-    const todoFadeTimers = new Map(); // id → setTimeout handle (pending auto-delete)
-
-    async function api(action, params = {}) {
-      const url = new URL(TODO_API);
-      url.searchParams.set("action", action);
-      for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-      const res = await fetch(url.toString(), { cache: "no-store", redirect: "follow" });
-      if (!res.ok) throw new Error("HTTP " + res.status);
-      const data = await res.json();
-      if (data.error) throw new Error(data.error);
-      return data;
-    }
-
-    // Schedule a checked todo to fade out + delete in 15s.
-    // If the user un-checks within the window, the toggle handler clears this timer.
-    function scheduleAutoDelete(id) {
-      const handle = setTimeout(async () => {
-        todoFadeTimers.delete(id);
-        // Re-check still done (user may have flipped back without us catching it)
-        const item = todos.find(x => x.id === id);
-        if (!item || !item.done) return;
-        const li = listEl.querySelector(`[data-todo-id="${CSS.escape(String(id))}"]`);
-        if (li) {
-          li.classList.add("fading");
-          setTimeout(() => finishDelete(id), 350);
-        } else {
-          finishDelete(id);
-        }
-      }, TODO_FADE_MS);
-      todoFadeTimers.set(id, handle);
-    }
-    async function finishDelete(id) {
-      todos = todos.filter(x => x.id !== id);
-      render();
-      try { await api("delete", { id }); }
-      catch (err) { refresh(); }
-    }
-
-    async function refresh() {
-      try {
-        const data = await api("list");
-        todos = data.todos || [];
-        render();
-      } catch (err) {
-        renderError(err);
-      }
-    }
-
-    function render() {
-      listEl.innerHTML = "";
-      if (!todos.length) {
-        const li = document.createElement("li");
-        li.className = "empty";
-        li.textContent = "Nothing to write down yet.";
-        listEl.appendChild(li);
-        return;
-      }
-      // Sink checked items to the bottom; preserve relative order within each group.
-      const sorted = [...todos].sort((a, b) => Number(!!a.done) - Number(!!b.done));
-      sorted.forEach(t => {
-        const li = document.createElement("li");
-        li.className = "todo" + (t.done ? " done" : "");
-        li.dataset.todoId = t.id;
-        const cb = document.createElement("input");
-        cb.type = "checkbox";
-        cb.checked = !!t.done;
-        cb.addEventListener("change", async () => {
-          // Optimistic flip
-          const item = todos.find(x => x.id === t.id);
-          if (item) item.done = cb.checked;
-          // Cancel any pending auto-delete for this item
-          if (todoFadeTimers.has(t.id)) {
-            clearTimeout(todoFadeTimers.get(t.id));
-            todoFadeTimers.delete(t.id);
-          }
-          // If now checked, schedule auto-delete after 15s
-          if (cb.checked) scheduleAutoDelete(t.id);
-          render();
-          try { await api("toggle", { id: t.id }); }
-          catch (err) { refresh(); }
-        });
-        const span = document.createElement("span");
-        span.className = "text";
-        span.textContent = t.text;
-        const del = document.createElement("button");
-        del.className = "del";
-        del.type = "button";
-        del.title = "Delete";
-        del.textContent = "✕";
-        del.addEventListener("click", async () => {
-          // Optimistic remove
-          todos = todos.filter(x => x.id !== t.id);
-          render();
-          try { await api("delete", { id: t.id }); }
-          catch (err) { refresh(); }
-        });
-        li.append(cb, span, del);
-        listEl.appendChild(li);
-      });
-      // Items that arrived already-done (e.g. ticked from a phone) get the same 15s grace too.
-      todos.forEach(t => {
-        if (t.done && !todoFadeTimers.has(t.id)) scheduleAutoDelete(t.id);
-      });
-    }
-
-    function renderError(err) {
-      listEl.innerHTML = "";
-      const li = document.createElement("li");
-      li.className = "empty";
-      li.textContent = "Can't reach to-do list — retrying…";
-      listEl.appendChild(li);
-    }
-
-    formEl.addEventListener("submit", async e => {
-      e.preventDefault();
-      const text = inputEl.value.trim();
-      if (!text) return;
-      inputEl.value = "";
-      // Optimistic insert with temp id
-      const temp = { id: "tmp:" + Date.now(), text, done: false };
-      todos.unshift(temp);
-      render();
-      try {
-        const data = await api("add", { text });
-        if (data.todo) {
-          // Swap temp for server item
-          const idx = todos.findIndex(x => x.id === temp.id);
-          if (idx >= 0) todos[idx] = data.todo;
-          render();
-        }
-      } catch (err) {
-        // Roll back temp item, refetch
-        todos = todos.filter(x => x.id !== temp.id);
-        refresh();
-      }
-    });
-
-    refresh();
-    setInterval(refresh, 60 * 1000); // poll for changes from phones every 60s
+    // ---------- To-Do removed 2026-05-10 (B′ redesign) ----------
+    // Family uses Google Keep on phones for shared notes — the dashboard no
+    // longer surfaces a writeable list. Apps Script endpoint kept alive in
+    // case we ever want a read-only "today's notes" callout.
 
     // ---------- Weather ----------
     const ICONS = {
@@ -2189,30 +1922,30 @@
     }
     async function loadHourly() {
       if (!OPENWEATHER_API_KEY || OPENWEATHER_API_KEY === "YOUR_API_KEY") return;
-      // Repointed 2026-04-27: was #w-hourly (in the old weather card body),
-      // now #w-outlook (compact strip inside .cs-weather, visible only in
-      // morning mode via CSS but populated regardless so it's ready instantly
-      // when morning mode kicks in).
+      // 5 future cells from OpenWeather's 3-hourly forecast. NOW is dropped —
+      // the big current-temp number already shows it, and the duplicate cell
+      // visually overlapped the temp digits at 1280×800.
       const target = document.getElementById("w-outlook");
       if (!target) return;
       try {
-        const url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(CITY)}&appid=${OPENWEATHER_API_KEY}&units=metric&cnt=6`;
+        const url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(CITY)}&appid=${OPENWEATHER_API_KEY}&units=metric&cnt=5`;
         const res = await fetch(url);
         if (!res.ok) throw new Error("HTTP " + res.status);
         const d = await res.json();
         target.textContent = "";
-        (d.list || []).slice(0, 6).forEach(item => {
+        (d.list || []).slice(0, 5).forEach(item => {
           const cell = document.createElement("div");
           cell.className = "h";
           // Highlight rain (10/09/11) so "will it rain at 3pm?" pops
-          const code = (item.weather?.[0]?.icon || "01d").slice(0, 2);
+          const code = (item.weather && item.weather[0] && item.weather[0].icon) ? item.weather[0].icon.slice(0, 2) : "01";
           if (code === "09" || code === "10" || code === "11") cell.classList.add("rain");
           const when = document.createElement("div");
           when.className = "when";
-          const hr = new Intl.DateTimeFormat("en-GB", {
-            timeZone: TZ, hour: "2-digit", hour12: false
+          // Format as HH:MM in London time — clearer than "Xh" suffix.
+          const hhmm = new Intl.DateTimeFormat("en-GB", {
+            timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false
           }).format(new Date(item.dt * 1000));
-          when.textContent = hr.replace(/^0/, "") + "h";
+          when.textContent = hhmm;
           const ic = document.createElement("div");
           ic.className = "icon";
           ic.textContent = ICONS[code] || "🌡";
@@ -2430,21 +2163,25 @@
         return day === 0 || day === 6;
       }
     }
-    // UX redesign D + E.1 (2026-04-26): primary panel mode picker.
-    // Sets body[data-mode] to "morning" | "evening" | "todo" — CSS rules in
-    // the .primary-panel block show exactly one child for the active mode.
-    // Replaces the old setCardVisible + body.routine-active mechanism.
+    // B′ (2026-05-10): primary panel mode picker.
+    // Sets body[data-mode] to "morning" | "evening" | "spotify" — CSS rules
+    // in the .primary-panel block show exactly one child for the active mode.
+    // To-Do mode dropped (the To-Do card was removed from markup); Spotify is
+    // the always-visible default outside routine windows, with an idle
+    // placeholder when nothing's playing.
     function pickMode() {
-      // Dev / testing override: ?mode=morning|evening|todo forces a mode for
+      // Dev / testing override: ?mode=morning|evening|spotify forces a mode for
       // the current page load. Lets us test routines outside their windows
       // (e.g. preview morning at 11am from a laptop browser). No persistence —
       // a normal reload without the query goes back to time-based logic.
       try {
         const params = new URLSearchParams(window.location.search);
         const override = params.get("mode");
-        if (override === "morning" || override === "evening" || override === "todo") {
+        if (override === "morning" || override === "evening" || override === "spotify") {
           return override;
         }
+        // Backwards-compat: ?mode=todo still works (treated as the new default).
+        if (override === "todo") return "spotify";
       } catch (_) {}
       try {
         const mins = nowMinutesLondon();
@@ -2453,21 +2190,16 @@
         if (!weekend && mins >= 6 * 60 && mins < 9 * 60) return "morning";
         // Evening routine = every day (incl. weekends).
         if (mins >= 15 * 60 + 30 && mins < 20 * 60 + 30) return "evening";
-        return "todo";
+        return "spotify";
       } catch (e) {
-        return "todo";  // safe default — todo always works
+        return "spotify";  // safe default — Spotify card always renders
       }
     }
     function updateMode() {
-      // Don't clobber the spotify card while it's open — its own auto-close
-      // timer (90s) will return us to the time-of-day mode. Without this guard,
-      // the 60s interval below stomps on data-mode mid-play.
-      if (document.body.getAttribute("data-mode") === "spotify") return;
       const mode = pickMode();
       document.body.setAttribute("data-mode", mode);
       // Backwards-compat: keep the routine-active class around in case any
-      // straggler CSS still references it (transit + stars rules — both removed
-      // from markup but the rule itself doesn't hurt).
+      // straggler CSS still references it.
       document.body.classList.toggle("routine-active", mode === "morning" || mode === "evening");
     }
     renderRoutines();
@@ -2478,26 +2210,23 @@
     loadHourly();
     setInterval(() => { loadWeather(); loadHourly(); }, 15 * 60 * 1000); // every 15 min
 
-    // ---------- Calendar (Google-Cal-style day view, via Vercel proxy) ----------
+    // ---------- Calendar (block-agenda view, via Vercel proxy) ----------
+    // B′ redesign 2026-05-10: replaced the prior 06–21 vertical timeline with
+    // a block-list agenda. Today's events are split into Now / Up Next / Later;
+    // tomorrow's events get a dashed-rule day-head and are visually recessed.
     const CAL_PROXY_URL = "https://family-dashboard-proxy.vercel.app/api/cal";
-    const DAY_START_H = 6;       // timeline starts 06:00
-    const DAY_END_H   = 22;      // timeline ends 22:00 (16 hour rules: 06..21)
-    const HOUR_H      = 26;      // px per hour, must match --hour-h CSS var
 
     function dayKey(d) {
       return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year:"numeric", month:"2-digit", day:"2-digit" }).format(d);
     }
-    function dayLabel(d) {
-      const today = dayKey(new Date());
-      const tomorrow = dayKey(new Date(Date.now() + 86400000));
-      const k = dayKey(d);
-      const human = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, weekday: "long", day: "numeric", month: "short" }).format(d);
-      if (k === today) return { label: "Today · " + human, today: true };
-      if (k === tomorrow) return { label: "Tomorrow · " + human, today: false };
-      return { label: human, today: false };
-    }
     function fmtTime(d) {
       return new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+    }
+    function shortDayHead(d) {
+      // "Tomorrow · MON 11 MAY"
+      const wd = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, weekday: "short" }).format(d).toUpperCase();
+      const dm = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, day: "numeric", month: "short" }).format(d).toUpperCase();
+      return wd + " " + dm;
     }
     // London-tz minutes-since-midnight for any Date
     function londonMins(d) {
@@ -2518,51 +2247,97 @@
         const { events } = await res.json();
         renderCalendar(events || []);
       } catch (err) {
-        const future = document.getElementById("cal-future");
-        if (future) {
-          while (future.firstChild) future.removeChild(future.firstChild);
+        const agenda = document.getElementById("agenda");
+        if (agenda) {
+          while (agenda.firstChild) agenda.removeChild(agenda.firstChild);
           const wrap = document.createElement("div");
           wrap.className = "cal-error";
           wrap.appendChild(document.createTextNode("Calendar unavailable"));
           const small = document.createElement("small");
           small.textContent = String(err.message || err);
           wrap.appendChild(small);
-          future.appendChild(wrap);
+          agenda.appendChild(wrap);
         }
       }
     }
 
     // Build a CSS class fragment from event.source (Family/Elul/School/etc).
-    // Sanitized to a slug so we can target ".source-family", ".source-elul" etc.
     function sourceClass(ev) {
       if (!ev || !ev.source) return "";
       const slug = String(ev.source).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       return slug ? " source-" + slug : "";
     }
 
+    function fmtDuration(startMs, endMs) {
+      const mins = Math.max(0, Math.round((endMs - startMs) / 60000));
+      if (mins === 0) return "";
+      if (mins < 60) return mins + "m";
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return m === 0 ? h + "h" : h + "h " + m + "m";
+    }
+
+    function makeBlock(ev, opts) {
+      opts = opts || {};
+      const block = document.createElement("div");
+      let cls = "block" + sourceClass(ev);
+      if (opts.now) cls += " now";
+      if (opts.past) cls += " past";
+      if (opts.tomorrow) cls += " tomorrow";
+      block.className = cls;
+
+      const bar = document.createElement("div");
+      bar.className = "bar";
+      block.appendChild(bar);
+
+      const when = document.createElement("div");
+      when.className = "when";
+      when.textContent = ev.allDay ? "all day" : fmtTime(new Date(ev.start));
+      block.appendChild(when);
+
+      const ti = document.createElement("div");
+      ti.className = "ti";
+      ti.textContent = ev.title;
+      block.appendChild(ti);
+
+      const dur = document.createElement("div");
+      dur.className = "dur";
+      if (ev.allDay) {
+        dur.textContent = "";
+      } else {
+        dur.textContent = fmtDuration(new Date(ev.start).getTime(), new Date(ev.end).getTime());
+      }
+      block.appendChild(dur);
+
+      if (ev.location) block.title = ev.location;
+      return block;
+    }
+
     function renderCalendar(events) {
       const allDayEl = document.getElementById("cal-allday");
-      const todayEl  = document.getElementById("cal-today");
-      const futureEl = document.getElementById("cal-future");
-      if (!allDayEl || !todayEl || !futureEl) return;
-      [allDayEl, todayEl, futureEl].forEach(el => {
-        while (el.firstChild) el.removeChild(el.firstChild);
-      });
+      const agendaEl = document.getElementById("agenda");
+      if (!allDayEl || !agendaEl) return;
+      while (allDayEl.firstChild) allDayEl.removeChild(allDayEl.firstChild);
+      while (agendaEl.firstChild) agendaEl.removeChild(agendaEl.firstChild);
 
       const today = dayKey(new Date());
+      const tomorrowDate = new Date(Date.now() + 86400000);
+      const tomorrow = dayKey(tomorrowDate);
       const todayAllDay = [];
       const todayTimed = [];
-      const futureByDay = new Map();
+      const tomorrowItems = [];
       for (const ev of events) {
         const start = new Date(ev.start);
         const k = dayKey(start);
         if (k === today) {
           (ev.allDay ? todayAllDay : todayTimed).push(ev);
-        } else if (k > today) { // future only
-          if (!futureByDay.has(k)) futureByDay.set(k, { date: start, items: [] });
-          futureByDay.get(k).items.push(ev);
+        } else if (k === tomorrow) {
+          tomorrowItems.push(ev);
         }
       }
+      // Sort by start asc
+      todayTimed.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+      tomorrowItems.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
       // ─── All-day chips
       todayAllDay.forEach(ev => {
@@ -2572,147 +2347,60 @@
         allDayEl.appendChild(c);
       });
 
-      // ─── Today timeline: hour markers
-      for (let h = DAY_START_H; h <= DAY_END_H - 1; h++) {
-        const m = document.createElement("div");
-        m.className = "hour-mark";
-        m.style.top = ((h - DAY_START_H) * HOUR_H) + "px";
-        const lbl = document.createElement("span");
-        lbl.className = "h-label";
-        lbl.textContent = String(h).padStart(2, "0");
-        m.appendChild(lbl);
-        todayEl.appendChild(m);
-      }
-
-      // ─── Now-line (positioned each tick)
-      const nowLine = document.createElement("div");
-      nowLine.className = "cal-now";
-      nowLine.id = "cal-now";
-      todayEl.appendChild(nowLine);
-
-      // ─── Event blocks (overlap-aware layout)
+      // ─── Today: split into Now / Up Next / Later
       const nowMins = nowMinutesLondon();
-      const visibleMins = (DAY_END_H - DAY_START_H) * 60;
-
-      // Lay out overlapping events into horizontal tracks (Google-Cal style).
-      // Sort by start asc (then by longer-first as a tiebreaker so big events
-      // get column 0). Greedy column assignment: each event takes the
-      // lowest-numbered track whose previous occupant has ended. Then group
-      // events into clusters of mutually-overlapping events; every event in a
-      // cluster uses the same column count = max columns in that cluster, so
-      // tracks within a cluster line up evenly.
-      function layoutOverlaps(items) {
-        const sorted = items
-          .map(ev => ({
-            ev,
-            startMs: new Date(ev.start).getTime(),
-            endMs: Math.max(new Date(ev.start).getTime() + 1, new Date(ev.end).getTime())
-          }))
-          .sort((a, b) => a.startMs - b.startMs || b.endMs - a.endMs);
-        // Step 1: assign each event to the lowest available column.
-        const tracks = []; // tracks[c] = endMs of last event placed in column c
-        sorted.forEach(item => {
-          let col = tracks.findIndex(end => end <= item.startMs);
-          if (col === -1) { col = tracks.length; tracks.push(0); }
-          tracks[col] = item.endMs;
-          item.col = col;
-        });
-        // Step 2: group into clusters of mutually-overlapping events.
-        let clusterStart = 0;
-        let clusterMaxEnd = sorted.length ? sorted[0].endMs : 0;
-        const clusters = [];
-        for (let i = 1; i < sorted.length; i++) {
-          if (sorted[i].startMs >= clusterMaxEnd) {
-            clusters.push({ start: clusterStart, end: i - 1 });
-            clusterStart = i;
-            clusterMaxEnd = sorted[i].endMs;
-          } else {
-            clusterMaxEnd = Math.max(clusterMaxEnd, sorted[i].endMs);
-          }
-        }
-        if (sorted.length) clusters.push({ start: clusterStart, end: sorted.length - 1 });
-        // Step 3: each cluster's totalCols = max(col+1) in that cluster.
-        clusters.forEach(c => {
-          let maxCol = 0;
-          for (let i = c.start; i <= c.end; i++) maxCol = Math.max(maxCol, sorted[i].col);
-          for (let i = c.start; i <= c.end; i++) sorted[i].totalCols = maxCol + 1;
-        });
-        return sorted;
-      }
-
-      const laidOut = layoutOverlaps(todayTimed);
-      laidOut.forEach(({ ev, col, totalCols }) => {
+      const happeningNow = [];
+      const upcoming = [];
+      todayTimed.forEach(ev => {
         const sM = londonMins(new Date(ev.start));
         const eM = londonMins(new Date(ev.end));
-        const startOff = sM - DAY_START_H * 60;
-        const endOff   = eM - DAY_START_H * 60;
-        if (endOff <= 0 || startOff >= visibleMins) return;   // outside visible window
-        const clampedStart = Math.max(0, startOff);
-        const clampedEnd   = Math.min(visibleMins, endOff);
-        const top = (clampedStart / 60) * HOUR_H;
-        const height = Math.max(26, ((clampedEnd - clampedStart) / 60) * HOUR_H);
-
-        const block = document.createElement("div");
-        block.className = "cal-block" + (eM <= nowMins ? " past" : "") + sourceClass(ev);
-        block.style.top = top + "px";
-        block.style.height = height + "px";
-        block.style.setProperty("--col", String(col));
-        block.style.setProperty("--total", String(totalCols));
-        const title = document.createElement("div");
-        title.className = "title";
-        title.textContent = ev.title;
-        const when = document.createElement("div");
-        when.className = "when";
-        when.textContent = `${fmtTime(new Date(ev.start))}–${fmtTime(new Date(ev.end))}`;
-        block.append(title, when);
-        if (ev.location) block.title = ev.location;
-        todayEl.appendChild(block);
+        if (sM <= nowMins && nowMins < eM) {
+          happeningNow.push(ev);
+        } else if (sM > nowMins) {
+          upcoming.push(ev);
+        }
+        // events fully in the past are dropped from the agenda — agenda is forward-looking
       });
-      positionNowLine();
 
-      // ─── Future days — only tomorrow, to keep the card compact
-      let dayCount = 0;
-      for (const [, g] of futureByDay) {
-        if (++dayCount > 1) break;
+      function addSection(label, opts, items) {
+        if (!items.length) return;
         const head = document.createElement("div");
-        head.className = "day-head";
-        head.textContent = dayLabel(g.date).label;
-        futureEl.appendChild(head);
-        g.items.slice(0, 5).forEach(ev => {
-          const row = document.createElement("div");
-          row.className = "row" + sourceClass(ev);
-          const t = document.createElement("div");
-          t.className = "t";
-          t.textContent = ev.allDay ? "all day" : fmtTime(new Date(ev.start));
-          const ti = document.createElement("div");
-          ti.className = "ti";
-          ti.textContent = ev.title;
-          row.append(t, ti);
-          futureEl.appendChild(row);
+        head.className = "section-head" + (opts && opts.now ? " now" : "");
+        head.textContent = (opts && opts.now ? "▌ " : "") + label;
+        agendaEl.appendChild(head);
+        items.forEach(ev => {
+          agendaEl.appendChild(makeBlock(ev, opts || {}));
         });
       }
 
-      if (!todayAllDay.length && !todayTimed.length && !futureByDay.size) {
+      addSection("Now", { now: true }, happeningNow);
+      addSection("Up Next", {}, upcoming.slice(0, 6));
+
+      // ─── Tomorrow section (visually recessed)
+      if (tomorrowItems.length) {
+        const head = document.createElement("div");
+        head.className = "day-head";
+        head.appendChild(document.createTextNode("Tomorrow"));
+        const dot = document.createElement("span");
+        dot.className = "dot";
+        dot.textContent = "· " + shortDayHead(tomorrowDate);
+        head.appendChild(dot);
+        agendaEl.appendChild(head);
+        tomorrowItems.slice(0, 6).forEach(ev => {
+          agendaEl.appendChild(makeBlock(ev, { tomorrow: true }));
+        });
+      }
+
+      if (!todayAllDay.length && !todayTimed.length && !tomorrowItems.length) {
         const empty = document.createElement("div");
         empty.className = "cal-empty";
         empty.textContent = "A quiet stretch ahead.";
-        futureEl.appendChild(empty);
+        agendaEl.appendChild(empty);
       }
     }
 
-    function positionNowLine() {
-      const el = document.getElementById("cal-now");
-      if (!el) return;
-      const m = nowMinutesLondon();
-      const startM = DAY_START_H * 60;
-      const endM = DAY_END_H * 60;
-      if (m < startM || m > endM) {
-        el.style.display = "none";
-        return;
-      }
-      el.style.display = "block";
-      el.style.top = (((m - startM) / 60) * HOUR_H) + "px";
-    }
+    // No-op kept for any external callers; the now-line lived inside the timeline view.
+    function positionNowLine() {}
 
     loadCalendar();
     setInterval(loadCalendar, 5 * 60 * 1000); // refetch every 5 min
@@ -3000,19 +2688,20 @@
     }
 
     function renderSpotify(data) {
-      const wasPlaying = _spPrevPlaying;
       _spIsPlaying = !!(data && data.isPlaying);
+      const cardEl = document.getElementById("spotify-card");
 
       if (!_spIsPlaying) {
-        // Music stopped \u2014 if the full card is open, fall back to time-of-day mode.
-        if (document.body.getAttribute("data-mode") === "spotify") {
-          closeSpotifyCard();
-        }
+        // B\u2032: card stays visible in idle state \u2014 no closing, no mode switch.
+        if (cardEl) cardEl.setAttribute("data-state", "idle");
+        if (spBigTrack)  spBigTrack.textContent  = "";
+        if (spBigArtist) spBigArtist.textContent = "";
         _spPrevPlaying = false;
         return;
       }
 
-      // Populate the full card data (so it's instant when opened).
+      // Music is playing \u2014 populate live player data.
+      if (cardEl) cardEl.setAttribute("data-state", "playing");
       if (spBigArtWrap) {
         if (data.albumArt) {
           spBigArtWrap.innerHTML = '<img class="sp-big-art" src="' + _spEscAttr(data.albumArt) + '" alt="" />';
@@ -3023,18 +2712,6 @@
       if (spBigTrack)  spBigTrack.textContent  = data.track  || "Unknown track";
       if (spBigArtist) spBigArtist.textContent = data.artist || "";
       if (spPlayPause) spPlayPause.textContent = data.isPlaying ? "\u23F8" : "\u25B6";
-
-      // Auto-open the full player card on the false\u2192true transition (music just
-      // started) \u2014 but only when the primary panel is in "todo" mode. Kids'
-      // morning/evening routine checklists are load-bearing; music shouldn't
-      // yank them. The user can still tap the green \u266b button to bring the
-      // player up manually during routines.
-      if (!wasPlaying) {
-        const mode = document.body.getAttribute("data-mode");
-        if (mode === "todo" || mode === null) {
-          openSpotifyCard();
-        }
-      }
       _spPrevPlaying = true;
     }
 
@@ -3047,33 +2724,25 @@
       } catch (e) { /* silent fail */ }
     }
 
-    function openSpotifyCard() {
-      document.body.setAttribute("data-mode", "spotify");
-      clearTimeout(_spAutoCloseTimer);
-      _spAutoCloseTimer = setTimeout(closeSpotifyCard, 90 * 1000);
-    }
-
-    function closeSpotifyCard() {
-      clearTimeout(_spAutoCloseTimer);
-      // Recompute from time-of-day so a long-running player card returns to
-      // the correct mode (e.g. opened at 14:55 todo, closes at 15:35 evening).
-      try { updateMode(); } catch (_) { document.body.setAttribute("data-mode", "todo"); }
-    }
-
-    if (spClose) {
-      spClose.addEventListener("click", closeSpotifyCard);
-      spClose.addEventListener("touchend", function(e) { e.preventDefault(); closeSpotifyCard(); }, { passive: false });
-    }
-
+    // B′: Spotify is the always-visible default panel — no open/close lifecycle.
+    // Routine windows take over via updateMode(); when they end, we fall back
+    // to "spotify" automatically.
     function spCommand(cmd) {
-      clearTimeout(_spAutoCloseTimer);
-      _spAutoCloseTimer = setTimeout(closeSpotifyCard, 90 * 1000);
       window.location.href = "kiosk://spotify/" + cmd;
       // Spotify needs ~1s to reflect a state change; re-poll twice for snappier
       // toggle/track updates.
       setTimeout(loadSpotify, 800);
       setTimeout(loadSpotify, 2200);
     }
+
+    // Tap-to-launch button on the idle card — opens the Spotify APK on Terry.
+    (function() {
+      const launchBtn = document.getElementById("sp-launch-btn");
+      if (!launchBtn) return;
+      function tap() { window.location.href = "kiosk://spotify/launch"; }
+      launchBtn.addEventListener("click", tap);
+      launchBtn.addEventListener("touchend", function(e) { e.preventDefault(); tap(); }, { passive: false });
+    })();
 
     const spPrevBtn = document.getElementById("sp-prev");
     const spNextBtn = document.getElementById("sp-next");
@@ -3090,19 +2759,13 @@
       spPlayPause.addEventListener("touchend", function(e) { e.preventDefault(); spCommand(_spIsPlaying ? "pause" : "play"); }, { passive: false });
     }
 
-    // Spotify corner button \u2014 smart: if music is playing, open the dashboard's
-    // full player card (re-entry after auto-close); otherwise launch the
-    // Spotify APK on Terry so the user can pick something to play.
+    // Spotify corner button \u2014 only visible during routine windows (CSS rule
+    // hides it otherwise, since the in-panel card is the launcher then). Tap
+    // launches the Spotify APK on Terry so the user can pick something to play.
     (function() {
       const btn = document.getElementById("spotify-corner");
       if (!btn) return;
-      function tap() {
-        if (_spIsPlaying && document.body.getAttribute("data-mode") !== "spotify") {
-          openSpotifyCard();
-        } else {
-          window.location.href = "kiosk://spotify/launch";
-        }
-      }
+      function tap() { window.location.href = "kiosk://spotify/launch"; }
       btn.addEventListener("click", tap);
       btn.addEventListener("touchend", function(e) { e.preventDefault(); tap(); }, { passive: false });
     })();
