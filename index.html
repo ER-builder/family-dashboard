@@ -2982,10 +2982,15 @@
       if (spPlayPause) spPlayPause.textContent = data.isPlaying ? "\u23F8" : "\u25B6";
 
       // Auto-open the full player card on the false\u2192true transition (music just
-      // started). User can dismiss with \u2715 or wait for the 90s auto-close. We
-      // don't re-open during continuous playback \u2014 only on a fresh start.
+      // started) \u2014 but only when the primary panel is in "todo" mode. Kids'
+      // morning/evening routine checklists are load-bearing; music shouldn't
+      // yank them. The user can still tap the green \u266b button to bring the
+      // player up manually during routines.
       if (!wasPlaying) {
-        openSpotifyCard();
+        const mode = document.body.getAttribute("data-mode");
+        if (mode === "todo" || mode === null) {
+          openSpotifyCard();
+        }
       }
       _spPrevPlaying = true;
     }
