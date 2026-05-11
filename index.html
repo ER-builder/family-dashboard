@@ -228,6 +228,13 @@
     }
     .calendar .body::-webkit-scrollbar { width: 5px; }
     .calendar .body::-webkit-scrollbar-thumb { background: var(--rule-strong); border-radius: 3px; }
+    /* Reserve clearance at the bottom of the agenda so the fixed Spotify
+       corner button (left edge, only in routine modes) doesn't overlap the
+       last event row. Without this, "Push the bins out 30m" loses its time. */
+    body[data-mode="morning"] .calendar .body,
+    body[data-mode="evening"] .calendar .body {
+      padding-bottom: 64px;
+    }
 
     /* All-day chips strip (today only) */
     .cal-allday {
