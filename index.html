@@ -931,6 +931,42 @@
       font-weight: 500;
       margin-top: 4px;
     }
+
+    /* Back-to-Routine pill — shown only when music override is on AND the
+       active mode is morning/evening (so we have a routine to return to).
+       Mirrors the Spotify-corner geometry. */
+    #routine-back { display: none; }
+    body[data-music-override="true"][data-mode="morning"] #routine-back,
+    body[data-music-override="true"][data-mode="evening"] #routine-back {
+      display: inline-flex;
+    }
+    #routine-back {
+      position: fixed;
+      bottom: 16px;
+      left: 16px;
+      z-index: 9999;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 18px 10px 14px;
+      background: linear-gradient(135deg, var(--paper-3) 0%, var(--paper-2) 100%);
+      color: var(--ink);
+      border: 1px solid var(--rule-strong);
+      border-radius: 999px;
+      font-family: var(--sans);
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      user-select: none;
+      box-shadow:
+        0 8px 20px -6px rgba(0, 0, 0, 0.55),
+        inset 0 1px 0 rgba(243, 231, 207, 0.05);
+    }
+    #routine-back:active { transform: scale(0.97); }
+    #routine-back .arrow { font-size: 16px; line-height: 1; color: var(--ochre); }
     /* Morning mode: weather forecast is critical — give weather most of the
        row, hide the Stars slot (kids' stars matter more in the afternoon /
        evening). Weather expands to ~65% of the row and shows a 6-cell hourly
@@ -1024,6 +1060,14 @@
     .primary-panel > section {
       display: none;
     }
+    /* Music override: when music starts during a routine window, the spotify
+       card takes over the primary panel until the user dismisses it (Back to
+       Routine pill) or the music has been stopped for the grace period. */
+    body[data-music-override="true"] .primary-panel > #morning-card,
+    body[data-music-override="true"] .primary-panel > #evening-card { display: none !important; }
+    body[data-music-override="true"] .primary-panel > .spotify-card { display: flex !important; }
+    body[data-music-override="true"] #spotify-corner { display: none !important; }
+
     body[data-mode="morning"] .primary-panel > #morning-card,
     body[data-mode="evening"] .primary-panel > #evening-card,
     body[data-mode="spotify"] .primary-panel > .spotify-card {
@@ -1735,6 +1779,12 @@
       <span class="sp-corner-sub">tap to open</span>
     </span>
   </button>
+  <!-- Back-to-Routine pill — replaces the Spotify-corner pill when music
+       takes over the panel during a routine. Tap returns to the checklist. -->
+  <button id="routine-back" aria-label="Back to routine">
+    <span class="arrow">&#x2190;</span>
+    Back to Routine
+  </button>
   <button id="exit-corner" aria-label="Hold to exit to Portal — dashboard auto-returns in 5 minutes (paused if a call is active)">
     <span class="exit-ring">
       <span class="exit-fill"></span>
@@ -2277,6 +2327,12 @@
       // Backwards-compat: keep the routine-active class around in case any
       // straggler CSS still references it.
       document.body.classList.toggle("routine-active", mode === "morning" || mode === "evening");
+      // Routine window ended: clear any music override (it was only meaningful
+      // while a routine card was hiding behind it). Outside routines, the
+      // spotify card is the natural default.
+      if (mode === "spotify" && document.body.getAttribute("data-music-override") === "true") {
+        setMusicOverride(false);
+      }
     }
     renderRoutines();
     updateMode();
@@ -2752,6 +2808,19 @@
     let _spIsPlaying = false;
     let _spPrevPlaying = false; // for false\u2192true transition detection (auto-open)
     let _spAutoCloseTimer = null;
+    let _spStopGraceTimer = null; // when music stops while override is on, wait
+                                  // GRACE_MS before clearing \u2014 avoids snapping
+                                  // back to the routine on a brief pause.
+    const SP_OVERRIDE_GRACE_MS = 30 * 1000;
+
+    function setMusicOverride(on) {
+      if (on) {
+        document.body.setAttribute("data-music-override", "true");
+      } else {
+        document.body.removeAttribute("data-music-override");
+        if (_spStopGraceTimer) { clearTimeout(_spStopGraceTimer); _spStopGraceTimer = null; }
+      }
+    }
 
     const spBigArtWrap = document.getElementById("sp-big-art-wrap");
     const spBigTrack   = document.getElementById("sp-big-track");
@@ -2766,6 +2835,22 @@
     function renderSpotify(data) {
       _spIsPlaying = !!(data && data.isPlaying);
       const cardEl = document.getElementById("spotify-card");
+
+      // Music override: false\u2192true transition during a routine should swap
+      // the routine card out for the playing card. true\u2192false starts a grace
+      // timer (don't snap back on a quick pause / track gap).
+      if (_spIsPlaying && !_spPrevPlaying) {
+        const mode = document.body.getAttribute("data-mode");
+        if (mode === "morning" || mode === "evening") {
+          setMusicOverride(true);
+        }
+        if (_spStopGraceTimer) { clearTimeout(_spStopGraceTimer); _spStopGraceTimer = null; }
+      } else if (!_spIsPlaying && _spPrevPlaying) {
+        if (document.body.getAttribute("data-music-override") === "true") {
+          if (_spStopGraceTimer) clearTimeout(_spStopGraceTimer);
+          _spStopGraceTimer = setTimeout(() => setMusicOverride(false), SP_OVERRIDE_GRACE_MS);
+        }
+      }
 
       if (!_spIsPlaying) {
         // B\u2032: card stays visible in idle state \u2014 no closing, no mode switch.
@@ -2874,13 +2959,31 @@
       spPlayPause.addEventListener("touchend", function(e) { e.preventDefault(); spCommand(_spIsPlaying ? "pause" : "play"); }, { passive: false });
     }
 
+    // Back-to-Routine pill \u2014 clears the music override so the routine card
+    // re-appears in the primary panel. Visible only while override is active.
+    (function() {
+      const btn = document.getElementById("routine-back");
+      if (!btn) return;
+      function tap() { setMusicOverride(false); }
+      btn.addEventListener("click", tap);
+      btn.addEventListener("touchend", function(e) { e.preventDefault(); tap(); }, { passive: false });
+    })();
+
     // Spotify corner button \u2014 only visible during routine windows (CSS rule
-    // hides it otherwise, since the in-panel card is the launcher then). Tap
-    // launches the Spotify APK on Terry so the user can pick something to play.
+    // hides it otherwise, since the in-panel card is the launcher then).
+    // Smart click: music already playing \u2192 swap routine card for the player
+    // (set music override). Nothing playing \u2192 launch the Spotify APK so the
+    // user can pick something.
     (function() {
       const btn = document.getElementById("spotify-corner");
       if (!btn) return;
-      function tap() { window.location.href = "kiosk://spotify/launch"; }
+      function tap() {
+        if (_spIsPlaying) {
+          setMusicOverride(true);
+        } else {
+          window.location.href = "kiosk://spotify/launch";
+        }
+      }
       btn.addEventListener("click", tap);
       btn.addEventListener("touchend", function(e) { e.preventDefault(); tap(); }, { passive: false });
     })();
