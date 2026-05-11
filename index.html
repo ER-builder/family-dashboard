@@ -303,7 +303,8 @@
     .agenda .block {
       display: grid;
       grid-template-columns: 56px 1fr auto;
-      gap: 14px;
+      gap: 20px;   /* was 14 — more breathing room around the title cell, esp.
+                      for RTL Hebrew titles whose right edge butts against dur */
       padding: 14px 16px 14px 20px;   /* extra left padding clears the ::before bar */
       background: var(--paper-3);
       border-radius: 10px;
@@ -348,7 +349,9 @@
       font-size: 16px;
       font-weight: 500;
       color: var(--ink);
-      line-height: 1.25;
+      line-height: 1.15;   /* was 1.25 — DM Serif Display has tall ascenders;
+                              tighter leading puts the optical center closer
+                              to the geometric center of the row */
       letter-spacing: -0.003em;
       /* 2-line clamp instead of single-line ellipsis — stops long Hebrew/English
          titles from getting cut. -webkit-line-clamp is fine on Portal Chromium. */
@@ -381,7 +384,7 @@
     .agenda .block.tomorrow .when { color: var(--ink-dim); }
     .agenda .block.tomorrow .ti {
       color: var(--ink-soft);
-      font-size: 14px;
+      font-size: 13px;       /* was 14 — fits more chars before truncation */
       font-weight: 400;
     }
     .agenda .block.tomorrow::before { opacity: 0.5; }
