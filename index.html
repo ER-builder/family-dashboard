@@ -297,7 +297,7 @@
       display: grid;
       grid-template-columns: 56px 1fr auto;
       gap: 14px;
-      padding: 14px 16px 14px 20px;   /* extra left padding clears the absolute bar */
+      padding: 14px 16px 14px 20px;   /* extra left padding clears the ::before bar */
       background: var(--paper-3);
       border-radius: 10px;
       border: 1px solid var(--rule);
@@ -305,17 +305,23 @@
       overflow: hidden;
       box-shadow: 0 4px 12px -8px rgba(0, 0, 0, 0.4);
       position: relative;
+      --block-bar: var(--cobalt);
     }
-    .agenda .block .bar {
+    /* Source bar is a ::before pseudo, NOT a child div — old Portal Chromium
+       auto-places abs-positioned grid children into the first track, which
+       pushes time/title/dur one column right and clips them off-card. */
+    .agenda .block::before {
+      content: "";
       position: absolute;
       left: 0; top: 0; bottom: 0;
       width: 4px;
-      background: var(--cobalt);
+      background: var(--block-bar);
+      border-radius: 10px 0 0 10px;
     }
-    .agenda .block.source-family .bar { background: var(--ochre); }
-    .agenda .block.source-elul   .bar { background: var(--cobalt); }
-    .agenda .block.source-school .bar { background: var(--sage); }
-    .agenda .block.source-lior   .bar { background: var(--terracotta); }
+    .agenda .block.source-family { --block-bar: var(--ochre); }
+    .agenda .block.source-elul   { --block-bar: var(--cobalt); }
+    .agenda .block.source-school { --block-bar: var(--sage); }
+    .agenda .block.source-lior   { --block-bar: var(--terracotta); }
     .agenda .block.past { opacity: 0.40; }
     .agenda .block.now {
       background: linear-gradient(135deg, rgba(208, 95, 72, 0.18) 0%, var(--paper-3) 70%);
@@ -371,7 +377,7 @@
       font-size: 14px;
       font-weight: 400;
     }
-    .agenda .block.tomorrow .bar { opacity: 0.5; }
+    .agenda .block.tomorrow::before { opacity: 0.5; }
 
     .cal-empty, .cal-error {
       display: flex;
@@ -693,56 +699,97 @@
       text-align: center;
       position: relative;
     }
-    /* Spotify idle placeholder — shown inside .spotify-card when nothing's
-       playing. Same shape as the live player so the layout doesn't shift. */
+    /* Spotify idle placeholder — shown when nothing's playing. Surfaces the
+       last-played track (album art + title + artist) so a single tap restarts
+       it. Same dimensions as the live player so the layout doesn't shift. */
     .spotify-card .sp-idle-art {
       width: clamp(140px, 22vw, 200px);
       height: clamp(140px, 22vw, 200px);
       border-radius: 10px;
       background:
         repeating-linear-gradient(45deg, var(--paper-3) 0 8px, var(--paper-2) 8px 16px);
+      background-size: cover;
+      background-position: center;
       display: flex;
       align-items: center;
       justify-content: center;
+      box-shadow: 0 12px 40px -10px rgba(0,0,0,0.7);
+      position: relative;
+      overflow: hidden;
+    }
+    .spotify-card .sp-idle-art .sp-idle-art-fallback {
       font-size: 72px;
       color: var(--ink-faint);
-      box-shadow: 0 8px 24px -10px rgba(0,0,0,0.5);
     }
+    .spotify-card .sp-idle-art.has-art .sp-idle-art-fallback { display: none; }
+    /* Play-affordance overlay on the album art when there's a last-played track. */
+    .spotify-card .sp-idle-art.has-art::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at center, rgba(0,0,0,0.55) 0 38%, rgba(0,0,0,0.15) 38% 70%, transparent 70%);
+      pointer-events: none;
+    }
+    .spotify-card .sp-idle-art.has-art .sp-idle-play-glyph {
+      position: absolute;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #111;
+      font-size: 28px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    }
+    .spotify-card .sp-idle-art:not(.has-art) .sp-idle-play-glyph { display: none; }
     .spotify-card .sp-idle-prompt {
       font-family: var(--serif);
-      font-style: italic;
       font-size: clamp(18px, 2vw, 22px);
+      font-weight: 600;
+      color: var(--ink);
+      line-height: 1.2;
+    }
+    .spotify-card .sp-idle-prompt.empty {
+      font-style: italic;
+      font-weight: 500;
       color: var(--ink-soft);
     }
     .spotify-card .sp-idle-sub {
       font-family: var(--sans);
-      font-size: 11px;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      color: var(--ink-dim);
-      font-weight: 700;
-      margin-top: 6px;
+      font-size: clamp(13px, 1.5vw, 16px);
+      color: var(--ink-soft);
+      margin-top: 4px;
     }
+    .spotify-card .sp-idle-sub:empty { display: none; }
     .spotify-card .sp-launch-btn {
       margin-top: 8px;
-      background: linear-gradient(135deg, var(--paper-3) 0%, var(--paper-2) 100%);
-      border: 1px solid var(--rule-strong);
+      background: #1DB954;
+      border: none;
       border-radius: 999px;
-      padding: 10px 22px;
+      padding: 12px 24px;
       font-family: var(--sans);
       font-weight: 800;
-      font-size: 12px;
-      letter-spacing: 0.18em;
+      font-size: 13px;
+      letter-spacing: 0.14em;
       text-transform: uppercase;
-      color: var(--sage);
+      color: #fff;
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
+      box-shadow: 0 4px 14px -4px rgba(29, 185, 84, 0.45);
     }
-    .spotify-card .sp-launch-btn .icon { font-size: 16px; color: var(--sage); }
+    .spotify-card .sp-launch-btn:active { transform: scale(0.97); }
+    .spotify-card .sp-launch-btn svg {
+      width: 20px;
+      height: 20px;
+      display: block;
+    }
     .spotify-card[data-state="idle"] .sp-big-art,
     .spotify-card[data-state="idle"] .sp-big-art-placeholder,
     .spotify-card[data-state="idle"] .sp-controls,
@@ -1822,7 +1869,7 @@
             <span>&#x266B;</span>
           </div>
           <div>
-            <div class="sp-big-track" id="sp-big-track">Nothing playing</div>
+            <div class="sp-big-track" id="sp-big-track"></div>
             <div class="sp-big-artist" id="sp-big-artist"></div>
           </div>
           <div class="sp-controls">
@@ -1830,14 +1877,23 @@
             <button class="sp-ctrl-btn sp-play-pause" id="sp-play-pause" aria-label="Play/Pause">&#x23F8;</button>
             <button class="sp-ctrl-btn" id="sp-next" aria-label="Next">&#x23ED;</button>
           </div>
-          <!-- Idle-state elements: shown only when data-state="idle" -->
-          <div class="sp-idle-art" id="sp-idle-art">&#x266B;</div>
-          <div>
-            <div class="sp-idle-prompt">No music playing</div>
-            <div class="sp-idle-sub">Spotify on Terry</div>
+          <!-- Idle-state elements: shown only when data-state="idle".
+               sp-idle-art renders the last-played album cover when available,
+               with a play-overlay glyph; otherwise falls back to the music
+               note. Title/artist below mirror the live-player layout. -->
+          <div class="sp-idle-art" id="sp-idle-art">
+            <span class="sp-idle-art-fallback">&#x266B;</span>
+            <span class="sp-idle-play-glyph" aria-hidden="true">&#x25B6;</span>
           </div>
-          <button class="sp-launch-btn" id="sp-launch-btn" aria-label="Tap to launch Spotify">
-            <span class="icon">&#x266B;</span>Tap to launch
+          <div>
+            <div class="sp-idle-prompt empty" id="sp-idle-track">Tap to play</div>
+            <div class="sp-idle-sub" id="sp-idle-artist"></div>
+          </div>
+          <button class="sp-launch-btn" id="sp-launch-btn" aria-label="Launch Spotify">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.59 14.42a.62.62 0 0 1-.86.21c-2.36-1.44-5.34-1.77-8.84-.97a.625.625 0 1 1-.28-1.22c3.83-.88 7.13-.51 9.78 1.12.3.18.39.57.2.86zm1.23-2.74a.78.78 0 0 1-1.07.26c-2.7-1.66-6.82-2.14-10.02-1.17a.78.78 0 1 1-.46-1.5c3.66-1.11 8.21-.58 11.31 1.32.37.23.49.71.24 1.09zm.11-2.85C14.7 8.99 9.5 8.83 6.43 9.76a.93.93 0 1 1-.55-1.78c3.53-1.07 9.27-.86 12.93 1.31a.93.93 0 0 1-.95 1.6z"/>
+            </svg>
+            <span>Tap to play</span>
           </button>
         </section>
       </section><!-- /.primary-panel -->
@@ -2296,9 +2352,9 @@
       if (opts.tomorrow) cls += " tomorrow";
       block.className = cls;
 
-      const bar = document.createElement("div");
-      bar.className = "bar";
-      block.appendChild(bar);
+      // Source-color bar is rendered via .block::before (CSS pseudo) — see CSS.
+      // Don't append a real .bar div: old Portal Chromium auto-places abs-
+      // positioned grid children into a track, shifting all real cells right.
 
       const when = document.createElement("div");
       when.className = "when";
@@ -2703,9 +2759,35 @@
 
       if (!_spIsPlaying) {
         // B\u2032: card stays visible in idle state \u2014 no closing, no mode switch.
+        // Surface last-played track so a single tap restarts it.
         if (cardEl) cardEl.setAttribute("data-state", "idle");
         if (spBigTrack)  spBigTrack.textContent  = "";
         if (spBigArtist) spBigArtist.textContent = "";
+
+        const idleArt    = document.getElementById("sp-idle-art");
+        const idleTrack  = document.getElementById("sp-idle-track");
+        const idleArtist = document.getElementById("sp-idle-artist");
+        const lp = data && data.lastPlayed;
+        if (idleArt) {
+          if (lp && lp.albumArt) {
+            idleArt.style.backgroundImage = "url('" + _spEscAttr(lp.albumArt) + "')";
+            idleArt.classList.add("has-art");
+          } else {
+            idleArt.style.backgroundImage = "";
+            idleArt.classList.remove("has-art");
+          }
+        }
+        if (idleTrack) {
+          if (lp && lp.track) {
+            idleTrack.textContent = lp.track;
+            idleTrack.classList.remove("empty");
+          } else {
+            idleTrack.textContent = "Tap to play";
+            idleTrack.classList.add("empty");
+          }
+        }
+        if (idleArtist) idleArtist.textContent = (lp && lp.artist) ? lp.artist : "";
+
         _spPrevPlaying = false;
         return;
       }
@@ -2745,13 +2827,26 @@
       setTimeout(loadSpotify, 2200);
     }
 
-    // Tap-to-launch button on the idle card — opens the Spotify APK on Terry.
+    // Tap-to-launch on the idle card. Both the launch button AND the album-art
+    // region open the Spotify APK — the play-overlay glyph on top of the cover
+    // makes the whole tile look tappable, so it should actually be tappable.
     (function() {
-      const launchBtn = document.getElementById("sp-launch-btn");
-      if (!launchBtn) return;
       function tap() { window.location.href = "kiosk://spotify/launch"; }
-      launchBtn.addEventListener("click", tap);
-      launchBtn.addEventListener("touchend", function(e) { e.preventDefault(); tap(); }, { passive: false });
+      const launchBtn = document.getElementById("sp-launch-btn");
+      if (launchBtn) {
+        launchBtn.addEventListener("click", tap);
+        launchBtn.addEventListener("touchend", function(e) { e.preventDefault(); tap(); }, { passive: false });
+      }
+      const idleArt = document.getElementById("sp-idle-art");
+      if (idleArt) {
+        idleArt.addEventListener("click", function() {
+          // Only act as launcher when actually in idle state — playing-state
+          // hides the idle art, but guard anyway in case CSS changes.
+          const card = document.getElementById("spotify-card");
+          if (card && card.getAttribute("data-state") === "idle") tap();
+        });
+        idleArt.style.cursor = "pointer";
+      }
     })();
 
     const spPrevBtn = document.getElementById("sp-prev");
