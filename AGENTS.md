@@ -14,7 +14,7 @@ URL: https://er-builder.github.io/family-dashboard/ (GitHub Pages, public). Auto
 
 ## Architecture
 
-`index.html` is the entire dashboard: Tailwind-free vanilla CSS, vanilla JS. Auto-refresh every 5 min via `<meta http-equiv="refresh">`. State in `localStorage` (routine checks, celebration flags). No writeable lists — family uses Google Keep on phones for shared notes.
+`index.html` is the entire dashboard: Tailwind-free vanilla CSS, vanilla JS. Per-section JS polls keep data fresh (calendar 5 min, Spotify 15 s, TfL bus 30 s, weather 15 min, stars 30 min); the `<meta http-equiv="refresh">` is set to 6 h purely as a memory-hygiene reset (was 5 min — dropped 2026-05-12 because the synchronized fetch burst dominated Vercel CPU and JS polls already cover freshness). State in `localStorage` (routine checks, celebration flags). No writeable lists — family uses Google Keep on phones for shared notes.
 
 **Layout (B′ redesign, 2026-05-10):**
 - Two-column grid: calendar 27.5% / right 72.5% (`0.55fr / 1.45fr`).
@@ -76,7 +76,7 @@ URL: https://er-builder.github.io/family-dashboard/ (GitHub Pages, public). Auto
 - **Calendar** via `family-dashboard-proxy` Vercel function (`ICAL_URLS` comma-separated + `ICAL_LABELS` parallel labels).
 - **Google Apps Script** for shared to-dos (endpoint hard-coded in `index.html`).
 - **Table Stars** at `tablestars.erapps.xyz/api/public/stats?key=…` — keyed (`STATS_READ_KEY` in Vercel), wildcard CORS, returns `{kids: [{name, emoji, prize_count, cycle_progress}]}`. Powers the Stars slot in the context strip — per kid: `🎁 NAME N ⭐ X/10` (slow milestone count + fast daily-effort ratio). Both pulse on increment. Polled every 30 min.
-- **Spotify** via `family-dashboard-proxy` Vercel function (`/api/spotify-now`). Refresh-token auth (`SPOTIFY_CLIENT_ID` + `SPOTIFY_CLIENT_SECRET` + `SPOTIFY_REFRESH_TOKEN` env vars, all sensitive). Returns `{isPlaying, track, artist, album, albumArt, progress, duration, spotifyUrl}` when playing, or `{isPlaying:false, lastPlayed: {track, artist, album, albumArt, spotifyUrl} | null}` when not. `lastPlayed` requires `user-read-recently-played` on the refresh token; degrades to `null` if scope is missing. Polled every 10s; proxy caches 8s. See Spotify section below for the full integration.
+- **Spotify** via `family-dashboard-proxy` Vercel function (`/api/spotify-now`). Refresh-token auth (`SPOTIFY_CLIENT_ID` + `SPOTIFY_CLIENT_SECRET` + `SPOTIFY_REFRESH_TOKEN` env vars, all sensitive). Returns `{isPlaying, track, artist, album, albumArt, progress, duration, spotifyUrl}` when playing, or `{isPlaying:false, lastPlayed: {track, artist, album, albumArt, spotifyUrl} | null}` when not. `lastPlayed` requires `user-read-recently-played` on the refresh token; degrades to `null` if scope is missing. Polled every 15 s; proxy uses adaptive edge cache — `s-maxage=15` while playing, `s-maxage=60` when idle (gives ~70-90% Vercel HIT rate, was 10s+8s = ~0% hit). See Spotify section below for the full integration.
 
 ## Spotify integration (shipped 2026-05-10)
 
