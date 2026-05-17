@@ -860,6 +860,57 @@
     }
     .spotify-card .sp-ctrl-btn:active { transform: scale(0.88); }
     .spotify-card .sp-ctrl-btn.sp-play-pause { font-size: 36px; }
+    /* "Open Spotify" pill — playing-state only. Editorial palette (paper card
+       + sage glyph) instead of brand green — matches the rest of the dash. */
+    .spotify-card .sp-open-pill {
+      display: none;
+      margin-top: 14px;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px 8px 14px;
+      background: linear-gradient(135deg, var(--paper-3) 0%, var(--paper-2) 100%);
+      color: var(--ink);
+      border: 1px solid var(--rule-strong);
+      border-radius: 999px;
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      user-select: none;
+      transition: transform 100ms ease;
+    }
+    .spotify-card .sp-open-pill:active { transform: scale(0.97); }
+    .spotify-card .sp-open-pill .sp-open-glyph {
+      font-size: 14px;
+      line-height: 1;
+      color: var(--sage);
+    }
+    .spotify-card[data-state="playing"] .sp-open-pill { display: inline-flex; }
+    /* Long-press hint on the big album art — a small ⤴ in the corner so the
+       affordance is visible. The tap itself is short-press-safe (does
+       nothing); 700ms hold fires kiosk://spotify/launch. */
+    .spotify-card .sp-big-art-wrap-rel { position: relative; }
+    .spotify-card .sp-big-art-launch-hint {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 22px;
+      height: 22px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(20, 16, 26, 0.62);
+      color: var(--ink);
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+      pointer-events: none;
+    }
+    .spotify-card[data-state="playing"] .sp-big-art-launch-hint { display: flex; }
     .spotify-card .sp-close {
       position: absolute;
       top: 12px;
@@ -1935,6 +1986,14 @@
             <button class="sp-ctrl-btn sp-play-pause" id="sp-play-pause" aria-label="Play/Pause">&#x23F8;</button>
             <button class="sp-ctrl-btn" id="sp-next" aria-label="Next">&#x23ED;</button>
           </div>
+          <!-- Always-reachable "open Spotify" pill in playing state (2026-05-17).
+               In-card launcher was idle-only before; now the family can always
+               jump to the APK to switch playlist/account without leaving the
+               dashboard. -->
+          <button class="sp-open-pill" id="sp-open-pill" aria-label="Open Spotify">
+            <span class="sp-open-glyph">&#x2197;</span>
+            <span>Open Spotify</span>
+          </button>
           <!-- Idle-state elements: shown only when data-state="idle".
                sp-idle-art renders the last-played album cover when available,
                with a play-overlay glyph; otherwise falls back to the music
@@ -2888,10 +2947,13 @@
       // Music is playing \u2014 populate live player data.
       if (cardEl) cardEl.setAttribute("data-state", "playing");
       if (spBigArtWrap) {
+        // Wrap art in a relative container so the long-press launch hint
+        // (⤴ glyph, top-right) anchors correctly.
+        const hint = '<span class="sp-big-art-launch-hint" aria-hidden="true">&#x2197;</span>';
         if (data.albumArt) {
-          spBigArtWrap.innerHTML = '<img class="sp-big-art" src="' + _spEscAttr(data.albumArt) + '" alt="" />';
+          spBigArtWrap.innerHTML = '<div class="sp-big-art-wrap-rel"><img class="sp-big-art" src="' + _spEscAttr(data.albumArt) + '" alt="" />' + hint + '</div>';
         } else {
-          spBigArtWrap.innerHTML = '<div class="sp-big-art-placeholder"><span>&#x266B;</span></div>';
+          spBigArtWrap.innerHTML = '<div class="sp-big-art-wrap-rel"><div class="sp-big-art-placeholder"><span>&#x266B;</span></div>' + hint + '</div>';
         }
       }
       if (spBigTrack)  spBigTrack.textContent  = data.track  || "Unknown track";
@@ -2976,6 +3038,41 @@
     if (spPlayPause) spPlayPause.addEventListener("click", function() {
       spCommand(_spIsPlaying ? "pause" : "play");
     });
+
+    // "Open Spotify" pill — playing-state launcher. Always reachable while
+    // music plays, so the family can switch playlist/account on the APK
+    // without first pausing or fumbling for the corner button.
+    const spOpenPill = document.getElementById("sp-open-pill");
+    if (spOpenPill) spOpenPill.addEventListener("click", function() {
+      window.location.href = "kiosk://spotify/launch";
+    });
+
+    // Long-press the big album art (700ms) → launch the Spotify APK.
+    // Short tap does nothing (avoids stealing the play-pause click target).
+    (function() {
+      const wrap = document.getElementById("sp-big-art-wrap");
+      if (!wrap) return;
+      let pressTimer = null;
+      function start() {
+        clearTimeout(pressTimer);
+        pressTimer = setTimeout(function() {
+          // Only fire while card is in playing state — idle has its own paths.
+          const card = document.getElementById("spotify-card");
+          if (card && card.getAttribute("data-state") === "playing") {
+            if (navigator.vibrate) try { navigator.vibrate(20); } catch (_) {}
+            window.location.href = "kiosk://spotify/launch";
+          }
+        }, 700);
+      }
+      function cancel() { clearTimeout(pressTimer); pressTimer = null; }
+      wrap.addEventListener("touchstart", start, { passive: true });
+      wrap.addEventListener("touchend",   cancel, { passive: true });
+      wrap.addEventListener("touchcancel", cancel, { passive: true });
+      wrap.addEventListener("touchmove",  cancel, { passive: true });
+      wrap.addEventListener("mousedown",  start);
+      wrap.addEventListener("mouseup",    cancel);
+      wrap.addEventListener("mouseleave", cancel);
+    })();
 
     // Back-to-Routine pill \u2014 clears the music override so the routine card
     // re-appears in the primary panel. Visible only while override is active.
