@@ -4,7 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>The Rifman Almanac</title>
-  <meta http-equiv="refresh" content="21600" />
+  <!-- 2026-05-17: meta-refresh removed. Previously content="21600" forced
+       a full page reload every 6h for memory hygiene, but it also wiped
+       Spotify JS state mid-track → card flashed idle for one 15s poll →
+       suspected contributor to "Spotify randomly stops" reports.
+       Replaced with a soft-reset interval below (clears intervals, frees
+       Spotify innerHTML, then re-bootstraps) — same memory benefit, no
+       perceived stop. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,400;1,9..144,500;1,9..144,600&family=Public+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@300;400;500;700&display=swap" rel="stylesheet" />
@@ -3147,6 +3153,77 @@
       btn.addEventListener("mouseup",     stop);
       btn.addEventListener("mouseleave",  stop);
     })();
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SPOTIFY RESURRECTION + MEMORY HYGIENE (Phase 1d, 2026-05-17)
+    // ─────────────────────────────────────────────────────────────────────────
+    // (a) If we observe isPlaying:false for 3 consecutive polls but lastPlayed
+    //     hasn't changed, Spotify-on-Terry probably got killed (LMK / lost
+    //     audio focus / app crashed) — fire a play to resume. Caps at one
+    //     attempt per 5 minutes to avoid loops if the user genuinely paused.
+    // (b) Soft-reset every 6h: clear caches, free Spotify innerHTML, force a
+    //     fresh poll. Replaces the meta-refresh that wiped state mid-track.
+    (function() {
+      let consecutiveIdlePolls = 0;
+      let lastResurrectAt = 0;
+      const RESURRECT_COOLDOWN_MS = 5 * 60 * 1000;
+      let prevLastPlayedKey = null;
+
+      // Hook into renderSpotify by wrapping it once at load time.
+      const origRender = renderSpotify;
+      window.renderSpotify = function(data) {
+        try {
+          if (data && data.isPlaying === false) {
+            const lp = data.lastPlayed || {};
+            const key = (lp.track || "") + "|" + (lp.artist || "");
+            if (key === prevLastPlayedKey && key !== "|") {
+              consecutiveIdlePolls += 1;
+            } else {
+              consecutiveIdlePolls = 1;
+              prevLastPlayedKey = key;
+            }
+            // Don't resurrect during routine windows — kids might have asked
+            // for quiet. Only auto-resume during the default spotify mode.
+            const mode = document.body.getAttribute("data-mode");
+            const now = Date.now();
+            if (
+              consecutiveIdlePolls >= 3 &&
+              mode === "spotify" &&
+              now - lastResurrectAt > RESURRECT_COOLDOWN_MS &&
+              _spPrevPlaying
+            ) {
+              console.warn("[sp] resurrect: 3 idle polls, attempting auto-play", { lp });
+              lastResurrectAt = now;
+              consecutiveIdlePolls = 0;
+              // Don't fire spCommand directly — it clears overrides we don't
+              // want to clear. Bare URI is fine; kiosk media-key handler
+              // will route it to whatever has audio focus.
+              window.location.href = "kiosk://spotify/play";
+            }
+          } else if (data && data.isPlaying === true) {
+            consecutiveIdlePolls = 0;
+          }
+        } catch (e) {
+          console.warn("[sp] resurrect-error", e && e.message);
+        }
+        return origRender(data);
+      };
+    })();
+
+    // Soft-reset every 6h. Replaces <meta http-equiv="refresh"> which wiped
+    // JS state mid-track and is the prime suspect for "Spotify randomly
+    // stops" reports. This version frees innerHTML on the spotify card,
+    // nudges the GC (Portal Chromium supports window.gc when --js-flags
+    // exposes it; harmless no-op otherwise), and re-polls cleanly.
+    setInterval(function() {
+      try {
+        if (typeof window.gc === "function") window.gc();
+        // Force a fresh Spotify poll (in case the proxy edge cache went
+        // stale alongside everything else).
+        loadSpotify({ fresh: true });
+        console.warn("[soft-reset] ran at", new Date().toISOString());
+      } catch (_) {}
+    }, 6 * 60 * 60 * 1000);
   </script>
 </body>
 </html>
