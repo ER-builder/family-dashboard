@@ -877,13 +877,11 @@
        brand green — matches the rest of the dashboard's print aesthetic.
        Sage is the calm/ambient accent and doesn't conflict with the kid colors
        (cobalt = Eitan, terracotta = Tamar). */
-    /* B′: Spotify card is the default primary panel — corner button only
-       useful when something else (a routine card) is taking that slot. */
-    #spotify-corner { display: none; }
-    body[data-mode="morning"] #spotify-corner,
-    body[data-mode="evening"] #spotify-corner {
-      display: inline-flex;
-    }
+    /* Always-visible corner launcher (2026-05-17). Previously hidden in
+       spotify mode because the in-card launcher covered idle state — but
+       when music is *playing* there was no path to open the Spotify APK
+       at all (in-card launcher only renders for data-state="idle"). */
+    #spotify-corner { display: inline-flex; }
     #spotify-corner {
       position: fixed;
       bottom: 16px;
@@ -2902,24 +2900,50 @@
       _spPrevPlaying = true;
     }
 
-    async function loadSpotify() {
+    let _spLastErrorAt = 0;
+    let _spLastSuccessAt = Date.now();
+    async function loadSpotify(opts) {
       if (!SPOTIFY_PROXY_URL) return;
+      const fresh = !!(opts && opts.fresh);
+      const url = fresh
+        ? (SPOTIFY_PROXY_URL + (SPOTIFY_PROXY_URL.includes("?") ? "&" : "?") + "t=" + Date.now())
+        : SPOTIFY_PROXY_URL;
       try {
-        const res = await fetch(SPOTIFY_PROXY_URL, { cache: "no-store" });
+        const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error("HTTP " + res.status);
-        renderSpotify(await res.json());
-      } catch (e) { /* silent fail */ }
+        const data = await res.json();
+        _spLastSuccessAt = Date.now();
+        renderSpotify(data);
+        // Lightweight Bug-4 instrumentation: log every state change so we can
+        // diagnose "Spotify randomly stops" complaints. Strip in Phase 4 if
+        // noisy; keep if useful.
+        if (data && typeof console !== "undefined") {
+          console.warn("[sp] poll", { isPlaying: !!data.isPlaying, fresh, ts: Date.now() });
+        }
+      } catch (e) {
+        _spLastErrorAt = Date.now();
+        if (typeof console !== "undefined") console.warn("[sp] poll-error", e && e.message);
+      }
     }
 
     // B′: Spotify is the always-visible default panel — no open/close lifecycle.
     // Routine windows take over via updateMode(); when they end, we fall back
     // to "spotify" automatically.
     function spCommand(cmd) {
+      // Explicit pause/play tap should clear the music override immediately —
+      // grace timer (30s) is only for proxy-observed stops (track gaps, brief
+      // pauses). Without this, pausing during a routine left the card stuck in
+      // playing-UI for 30s after the user explicitly stopped.
+      if (cmd === "pause" && document.body.getAttribute("data-music-override") === "true") {
+        setMusicOverride(false);
+      }
       window.location.href = "kiosk://spotify/" + cmd;
-      // Spotify needs ~1s to reflect a state change; re-poll twice for snappier
-      // toggle/track updates.
-      setTimeout(loadSpotify, 800);
-      setTimeout(loadSpotify, 2200);
+      // Proxy edge-caches s-maxage=15 while playing — without cache-bust the
+      // post-command re-poll returns stale isPlaying:true, the icon doesn't
+      // flip, kid taps again → fires pause→play. Bust with ?t=<ms> so the
+      // user-initiated repolls always hit origin.
+      setTimeout(() => loadSpotify({ fresh: true }), 600);
+      setTimeout(() => loadSpotify({ fresh: true }), 1800);
     }
 
     // Tap-to-launch on the idle card. Both the launch button AND the album-art
