@@ -2642,7 +2642,11 @@
     function positionNowLine() {}
 
     loadCalendar();
-    setInterval(loadCalendar, 5 * 60 * 1000); // refetch every 5 min
+    // 2026-05-17: 5min → 30min. Calendar events change rarely (family adds
+    // them via Google Cal on phones); proxy caches 60min anyway, so polling
+    // faster than that just wasted Vercel CPU. 30min worst-case visibility
+    // lag for "wife added an event" is acceptable for a kitchen dashboard.
+    setInterval(loadCalendar, 30 * 60 * 1000);
     setInterval(positionNowLine, 60 * 1000);  // move the now-line every minute
 
     // ---------- TfL transit (Northern Line + Bus 102) ----------
@@ -3184,8 +3188,12 @@
     })();
 
     loadSpotify();
-    // 15s polling \u2014 proxy caches 15s when playing / 60s when idle. ~80% fewer Spotify API calls than 10s+8s.
-    setInterval(loadSpotify, 15 * 1000);
+    // 2026-05-17: 15s \u2192 60s. Background poll cadence dropped 4\u00d7 to gut Vercel
+    // CPU usage (proxy was 68% of all Vercel CPU). User-initiated polls after
+    // a tap still cache-bust for instant UI feedback (see spCommand). Music
+    // "started" detection slips from 0-15s to 0-60s; Phase 1d resurrection
+    // logic auto-catches genuine stops.
+    setInterval(loadSpotify, 60 * 1000);
 
     // ---------- Exit-to-Portal long-press (visible bottom-right button) ----------
     // 2-second hold fires kiosk://exit. MainActivity exits to Portal launcher.
