@@ -148,7 +148,8 @@
       font-family: var(--display);
       font-weight: 400;
       font-style: normal;
-      font-size: clamp(64px, 9.6vw, 116px);
+      /* 2026-05-17: +6% scale for kitchen-distance glanceability (~1.5–2m). */
+      font-size: clamp(68px, 10.2vw, 124px);
       line-height: 0.88;
       color: var(--ink);
       letter-spacing: -0.015em;
@@ -180,9 +181,10 @@
       align-items: center;
       gap: 10px;
       font-family: var(--sans);
-      font-size: 12px;
+      /* 2026-05-17: 12 → 13px, +letter-spacing for kitchen glanceability. */
+      font-size: 13px;
       font-weight: 700;
-      letter-spacing: 0.30em;
+      letter-spacing: 0.32em;
       text-transform: uppercase;
       color: var(--ink-dim);
       margin-bottom: 14px;
@@ -311,7 +313,9 @@
       grid-template-columns: 56px 1fr auto;
       gap: 20px;   /* was 14 — more breathing room around the title cell, esp.
                       for RTL Hebrew titles whose right edge butts against dur */
-      padding: 14px 16px 14px 20px;   /* extra left padding clears the ::before bar */
+      /* 2026-05-17: vertical padding 14 → 10 to gain 1–2 more visible events
+         per agenda without scroll. Horizontal padding unchanged. */
+      padding: 10px 16px 10px 20px;
       background: var(--paper-3);
       border-radius: 10px;
       border: 1px solid var(--rule);
@@ -352,7 +356,8 @@
     .agenda .block.now .when { color: var(--terracotta); }
     .agenda .block .ti {
       font-family: var(--serif);
-      font-size: 16px;
+      /* 2026-05-17: 16 → 19px, "now" 18 → 22 below — kitchen glance. */
+      font-size: 19px;
       font-weight: 500;
       color: var(--ink);
       line-height: 1.15;   /* was 1.25 — DM Serif Display has tall ascenders;
@@ -367,7 +372,7 @@
       overflow: hidden;
       min-width: 0;   /* allow grid 1fr column to actually shrink for ellipsis */
     }
-    .agenda .block.now .ti { font-size: 18px; font-weight: 600; }
+    .agenda .block.now .ti { font-size: 22px; font-weight: 600; }
     /* Tomorrow blocks: keep to a single line — they're recessed and compact. */
     .agenda .block.tomorrow .ti {
       -webkit-line-clamp: 1;
@@ -502,7 +507,8 @@
     .cs-weather .desc {
       font-family: var(--serif);
       font-style: italic;
-      font-size: 16px;
+      /* 2026-05-17: 16 → 18px context-strip readability boost. */
+      font-size: 18px;
       color: var(--ink-soft);
       text-transform: lowercase;
       margin-top: 3px;
@@ -536,7 +542,8 @@
     }
     .cs-transit .name {
       font-family: var(--serif);
-      font-size: 16px;
+      /* 2026-05-17: 16 → 18px. */
+      font-size: 18px;
       font-weight: 500;
       color: var(--ink);
       letter-spacing: -0.003em;
@@ -546,11 +553,11 @@
     }
     .cs-transit .status {
       font-family: var(--sans);
-      font-size: 11px;
+      font-size: 13px;
       font-weight: 700;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      padding: 4px 9px;
+      padding: 5px 11px;
       border-radius: 999px;
       white-space: nowrap;
     }
@@ -782,24 +789,28 @@
     .spotify-card .sp-idle-sub:empty { display: none; }
     .spotify-card .sp-launch-btn {
       margin-top: 8px;
-      background: #1DB954;
-      border: none;
+      /* 2026-05-17: de-Spotifyed — was solid #1DB954 (brand green) which
+         dominated the editorial dashboard palette. Now paper card + sage
+         glyph for the Spotify mark; reads as part of the dashboard. */
+      background: linear-gradient(135deg, var(--paper-3) 0%, var(--paper-2) 100%);
+      border: 1px solid var(--rule-strong);
       border-radius: 999px;
       padding: 12px 24px;
       font-family: var(--sans);
       font-weight: 800;
-      font-size: 13px;
-      letter-spacing: 0.14em;
+      font-size: 14px;
+      letter-spacing: 0.16em;
       text-transform: uppercase;
-      color: #fff;
+      color: var(--ink);
       display: inline-flex;
       align-items: center;
       gap: 10px;
       cursor: pointer;
       -webkit-tap-highlight-color: transparent;
       touch-action: manipulation;
-      box-shadow: 0 4px 14px -4px rgba(29, 185, 84, 0.45);
+      box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.55);
     }
+    .spotify-card .sp-launch-btn svg { color: var(--sage); }
     .spotify-card .sp-launch-btn:active { transform: scale(0.97); }
     .spotify-card .sp-launch-btn svg {
       width: 20px;
@@ -834,15 +845,31 @@
       box-shadow: 0 12px 40px -10px rgba(0,0,0,0.7);
     }
     .spotify-card .sp-big-track {
-      font-family: var(--serif);
-      font-size: clamp(18px, 2.4vw, 26px);
-      font-weight: 600;
+      font-family: var(--display);
+      /* 2026-05-17: editorial DM Serif Display + larger for kitchen glance.
+         Marquee CSS below kicks in when title overflows container. */
+      font-size: clamp(22px, 2.9vw, 32px);
+      font-weight: 400;
       color: var(--ink);
-      line-height: 1.15;
+      line-height: 1.1;
+      letter-spacing: -0.01em;
+      max-width: 100%;
+      overflow: hidden;
+      white-space: nowrap;
+      position: relative;
+    }
+    .spotify-card .sp-big-track.marquee > span {
+      display: inline-block;
+      padding-left: 100%;
+      animation: sp-marquee 12s linear infinite;
+    }
+    @keyframes sp-marquee {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-100%); }
     }
     .spotify-card .sp-big-artist {
       font-family: var(--sans);
-      font-size: clamp(13px, 1.5vw, 16px);
+      font-size: clamp(14px, 1.7vw, 18px);
       color: var(--ink-soft);
       margin-top: 4px;
     }
@@ -917,6 +944,22 @@
       pointer-events: none;
     }
     .spotify-card[data-state="playing"] .sp-big-art-launch-hint { display: flex; }
+    /* Stale-connection badge — appears when proxy hasn't replied in 60s.
+       Subtle, ink-dim — not alarmist; just acknowledges to the family that
+       we know the card might be lying about live state. */
+    .spotify-card .sp-stale-badge {
+      display: none;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      margin-top: 6px;
+    }
+    .spotify-card.sp-stale .sp-stale-badge { display: block; }
+    .spotify-card .sp-stale-badge::before {
+      content: "— connection — retrying";
+    }
     .spotify-card .sp-close {
       position: absolute;
       top: 12px;
@@ -2000,6 +2043,7 @@
             <span class="sp-open-glyph">&#x2197;</span>
             <span>Open Spotify</span>
           </button>
+          <div class="sp-stale-badge" aria-hidden="true"></div>
           <!-- Idle-state elements: shown only when data-state="idle".
                sp-idle-art renders the last-played album cover when available,
                with a play-overlay glyph; otherwise falls back to the music
@@ -2962,7 +3006,22 @@
           spBigArtWrap.innerHTML = '<div class="sp-big-art-wrap-rel"><div class="sp-big-art-placeholder"><span>&#x266B;</span></div>' + hint + '</div>';
         }
       }
-      if (spBigTrack)  spBigTrack.textContent  = data.track  || "Unknown track";
+      // Wrap track title in a <span> so the marquee CSS can translate it.
+      // Toggle .marquee only when the text actually overflows the container \u2014
+      // short titles stay still and centered.
+      if (spBigTrack) {
+        const title = data.track || "Unknown track";
+        spBigTrack.innerHTML = '<span></span>';
+        spBigTrack.firstChild.textContent = title;
+        // Defer measurement to next frame; the span needs to lay out first.
+        requestAnimationFrame(function() {
+          try {
+            const span = spBigTrack.firstChild;
+            const overflows = span && span.scrollWidth > spBigTrack.clientWidth + 4;
+            spBigTrack.classList.toggle("marquee", !!overflows);
+          } catch (_) {}
+        });
+      }
       if (spBigArtist) spBigArtist.textContent = data.artist || "";
       if (spPlayPause) spPlayPause.textContent = data.isPlaying ? "\u23F8" : "\u25B6";
       _spPrevPlaying = true;
@@ -2970,6 +3029,21 @@
 
     let _spLastErrorAt = 0;
     let _spLastSuccessAt = Date.now();
+
+    // Visible error state — if the proxy hasn't replied successfully in 60s,
+    // show a "connection retrying" line on the card so the family doesn't
+    // think the dashboard is silently lying about playback. Cleared as soon
+    // as the next poll succeeds.
+    function _spUpdateHealthBadge() {
+      try {
+        const card = document.getElementById("spotify-card");
+        if (!card) return;
+        const staleMs = Date.now() - _spLastSuccessAt;
+        card.classList.toggle("sp-stale", staleMs > 60_000);
+      } catch (_) {}
+    }
+    setInterval(_spUpdateHealthBadge, 5_000);
+
     async function loadSpotify(opts) {
       if (!SPOTIFY_PROXY_URL) return;
       const fresh = !!(opts && opts.fresh);
@@ -2998,6 +3072,9 @@
     // Routine windows take over via updateMode(); when they end, we fall back
     // to "spotify" automatically.
     function spCommand(cmd) {
+      // Tap feedback: 20ms haptic. Portal WebView supports navigator.vibrate;
+      // wrapped in a try because some old builds throw on first call.
+      if (navigator.vibrate) { try { navigator.vibrate(20); } catch (_) {} }
       // Explicit pause/play tap should clear the music override immediately —
       // grace timer (30s) is only for proxy-observed stops (track gaps, brief
       // pauses). Without this, pausing during a routine left the card stuck in
@@ -3050,6 +3127,7 @@
     // without first pausing or fumbling for the corner button.
     const spOpenPill = document.getElementById("sp-open-pill");
     if (spOpenPill) spOpenPill.addEventListener("click", function() {
+      if (navigator.vibrate) { try { navigator.vibrate(20); } catch (_) {} }
       window.location.href = "kiosk://spotify/launch";
     });
 
