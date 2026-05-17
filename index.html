@@ -2952,10 +2952,7 @@
     (function() {
       function tap() { window.location.href = "kiosk://spotify/launch"; }
       const launchBtn = document.getElementById("sp-launch-btn");
-      if (launchBtn) {
-        launchBtn.addEventListener("click", tap);
-        launchBtn.addEventListener("touchend", function(e) { e.preventDefault(); tap(); }, { passive: false });
-      }
+      if (launchBtn) launchBtn.addEventListener("click", tap);
       const idleArt = document.getElementById("sp-idle-art");
       if (idleArt) {
         idleArt.addEventListener("click", function() {
@@ -2970,27 +2967,22 @@
 
     const spPrevBtn = document.getElementById("sp-prev");
     const spNextBtn = document.getElementById("sp-next");
-    if (spPrevBtn) {
-      spPrevBtn.addEventListener("click", function() { spCommand("prev"); });
-      spPrevBtn.addEventListener("touchend", function(e) { e.preventDefault(); spCommand("prev"); }, { passive: false });
-    }
-    if (spNextBtn) {
-      spNextBtn.addEventListener("click", function() { spCommand("next"); });
-      spNextBtn.addEventListener("touchend", function(e) { e.preventDefault(); spCommand("next"); }, { passive: false });
-    }
-    if (spPlayPause) {
-      spPlayPause.addEventListener("click", function() { spCommand(_spIsPlaying ? "pause" : "play"); });
-      spPlayPause.addEventListener("touchend", function(e) { e.preventDefault(); spCommand(_spIsPlaying ? "pause" : "play"); }, { passive: false });
-    }
+    // 2026-05-17: collapsed dual click+touchend bindings. preventDefault on
+    // touchend was suppressing the synthetic click on Portal Chromium →
+    // intermittent dead taps. touch-action: manipulation (CSS) eliminates
+    // the 350ms tap delay without needing the touchend hack.
+    if (spPrevBtn) spPrevBtn.addEventListener("click", function() { spCommand("prev"); });
+    if (spNextBtn) spNextBtn.addEventListener("click", function() { spCommand("next"); });
+    if (spPlayPause) spPlayPause.addEventListener("click", function() {
+      spCommand(_spIsPlaying ? "pause" : "play");
+    });
 
     // Back-to-Routine pill \u2014 clears the music override so the routine card
     // re-appears in the primary panel. Visible only while override is active.
     (function() {
       const btn = document.getElementById("routine-back");
       if (!btn) return;
-      function tap() { setMusicOverride(false); }
-      btn.addEventListener("click", tap);
-      btn.addEventListener("touchend", function(e) { e.preventDefault(); tap(); }, { passive: false });
+      btn.addEventListener("click", function() { setMusicOverride(false); });
     })();
 
     // Spotify corner button \u2014 only visible during routine windows (CSS rule
@@ -3001,15 +2993,13 @@
     (function() {
       const btn = document.getElementById("spotify-corner");
       if (!btn) return;
-      function tap() {
-        if (_spIsPlaying) {
-          setMusicOverride(true);
-        } else {
-          window.location.href = "kiosk://spotify/launch";
-        }
-      }
-      btn.addEventListener("click", tap);
-      btn.addEventListener("touchend", function(e) { e.preventDefault(); tap(); }, { passive: false });
+      // 2026-05-17: corner is now always visible (no longer gated to
+      // morning/evening). Behavior unchanged: playing → focus the card,
+      // idle → launch the Spotify APK.
+      btn.addEventListener("click", function() {
+        if (_spIsPlaying) setMusicOverride(true);
+        else window.location.href = "kiosk://spotify/launch";
+      });
     })();
 
     loadSpotify();
