@@ -245,14 +245,43 @@ Dashboard polls the sheet every few minutes. Family edits on phone → shows on 
 
 ---
 
-## ✅ Open Tests / Follow-ups (post 2026-05-10 Spotify session)
+## ✅ Open Tests / Follow-ups
 
-These shipped but weren't end-to-end verified before session close:
+### 2026-05-17 reliability + polish ship (Phase 0–2 of 5.5→9.5 plan)
 
-1. **Dashboard ⏮ ⏸ ⏭ buttons.** Should now control Spotify on Terry via broadcast intents (Spotify-on-Terry is logged in to user's account). Test: start music on Terry → tap dashboard strip's full card → hit pause/skip. **Was broken pre-2026-05-10 because Spotify wasn't logged in; should work now with 8.6.x.**
-2. **2-min auto-return timer.** Verify by tapping green ♫, opening Spotify, leaving Terry alone for 2 min — dashboard should return.
-3. **Routine-window auto-open suppression.** Music starting at 07:30 (weekday morning routine) or 18:00 (evening routine) should NOT auto-pop the player card. Only triggers in `todo` mode (default daytime).
-4. **Overlay button position post-2026-05-10 size bump** (`y=68dp`, text 15sp, padding 18×11dp). Re-confirm clear of Portal status bar AND tappable.
+**Dashboard side (already deployed via `main` push, GitHub Pages auto):**
+- [ ] Pause/play icon now flips within 1s of tap (cache-bust + skip-grace working)
+- [ ] `#spotify-corner` visible during default daytime (no longer hidden outside morning/evening)
+- [ ] "Open Spotify" pill visible in playing state, ⤴ glyph in top-right of album art
+- [ ] Long-press album art (700ms) launches Spotify APK with haptic feedback
+- [ ] Track-name marquee animates only on long titles, short titles stay still
+- [ ] Stale badge ("— connection — retrying") appears under controls if proxy is silent ≥60s
+- [ ] Typography scale-up legible at kitchen distance (~1.5–2m); routine cards still fit without scroll
+- [ ] Phase 0 console.warn `[sp] poll {...}` visible via `chrome://inspect` on Mac
+
+**Kiosk APK (requires manual rebuild from Mac Terminal.app — sandbox blocks Gradle):**
+```
+/Users/elul/Projects/apps/kiosk-webview/build.sh && \
+adb -s 192.168.1.116:5555 install -r /Users/elul/Projects/apps/kiosk-webview/app/build/outputs/apk/debug/app-debug.apk && \
+terry restart
+```
+- [ ] After install + Terry restart, you'll see a Toast "Enable Notification access for Kiosk → reliable Spotify control" and be dropped into Settings → Notification access
+- [ ] Tap "Allow" on the Kiosk entry. After that, `adb -s 192.168.1.116:5555 logcat -s TerryKiosk` will show `notif=true` on next launch
+- [ ] Verify reliable media commands: tap ⏸ on dashboard → logcat shows `media cmd=pause beforeState=3 listener=true` → after 600ms either `changed=true` OR a `fallback=transportControls` line
+- [ ] If listener grant is denied, kiosk still works — logcat shows `listener=false` and no verify lines; bare media key still dispatched
+
+### Out-of-scope (path to 10/10, separate plan)
+
+Documented in `docs/plans/2026-05-17-reliability-and-polish-9-5.md`:
+- Spotify Web Playback SDK in the dashboard (kills polling lag entirely, removes 8.6.x APK pin)
+- Wake-word voice via Picovoice Porcupine ("Terry, pause")
+- Phone widget firing `kiosk://spotify/*` over Tailscale → Pi → ADB to Terry
+- LMK exemption for Spotify (root tweak, Portal is already hacked)
+
+### Pre-2026-05-17 follow-ups (still open)
+
+1. **Routine-window auto-open suppression.** Music starting at 07:30 (weekday morning) or 18:00 (evening) should NOT auto-pop the player card. Only triggers in default `spotify` mode.
+2. **Overlay button position post-2026-05-10 size bump** (`y=68dp`, text 15sp, padding 18×11dp). Re-confirm clear of Portal status bar AND tappable.
 
 ## 🎨 Design Refinement Pass (queued 2026-05-10)
 
