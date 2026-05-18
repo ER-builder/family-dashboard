@@ -3223,13 +3223,44 @@
       fetchSpotifyToken().catch(e => console.warn("[sdk] refresh failed:", e.message));
     }, 50 * 60 * 1000);
 
-    // SDK script may load AFTER this script runs (deferred); subscribe to
-    // the standard onSpotifyWebPlaybackSDKReady callback OR check if it's
-    // already loaded.
-    if (window.Spotify && window.Spotify.Player) {
-      initSpotifySDK();
-    } else {
-      window.onSpotifyWebPlaybackSDKReady = initSpotifySDK;
+    // Robust SDK bootstrap. Three timing cases to handle:
+    //   1. SDK script already loaded + already called onSpotifyWebPlaybackSDKReady
+    //      before our script ran (this happens because the SDK script is in
+    //      <head> for early download but our init code is at the bottom of
+    //      the page). The original handler was undefined when fired, so the
+    //      callback path is dead — we need to check window.Spotify directly.
+    //   2. SDK script not yet loaded — register the callback as a fallback.
+    //   3. SDK script failed entirely (CSP, network, blocked) — poll for 10s,
+    //      then surface a visible error so we don't fail silently.
+    let _sdkBooted = false;
+    function bootstrapSDK() {
+      if (_sdkBooted) return true;
+      if (window.Spotify && window.Spotify.Player) {
+        _sdkBooted = true;
+        initSpotifySDK();
+        return true;
+      }
+      return false;
+    }
+    // Render idle card immediately from the proxy lastPlayed so the card
+    // isn't empty during SDK boot (or if SDK never boots).
+    loadSpotifyFallback();
+    if (!bootstrapSDK()) {
+      window.onSpotifyWebPlaybackSDKReady = bootstrapSDK;
+      // Polling backup: covers case 1 (SDK already loaded but our callback
+      // assignment missed the firing). 20 × 500ms = 10s window.
+      let _sdkPollAttempts = 0;
+      const _sdkPollHandle = setInterval(() => {
+        if (bootstrapSDK() || ++_sdkPollAttempts >= 20) {
+          clearInterval(_sdkPollHandle);
+          if (!_sdkBooted) {
+            console.warn("[sdk] script never reported ready after 10s — falling back to legacy proxy polling");
+            // Last-resort fallback: re-enable the legacy 60s proxy polling
+            // so the card at least shows current state.
+            setInterval(loadSpotifyFallback, 60 * 1000);
+          }
+        }
+      }, 500);
     }
 
     // Tap-to-launch on the idle card. Both the launch button AND the album-art
