@@ -1,0 +1,3389 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>The Rifman Almanac</title>
+  <!-- 2026-05-17: meta-refresh removed. Previously content="21600" forced
+       a full page reload every 6h for memory hygiene, but it also wiped
+       Spotify JS state mid-track → card flashed idle for one 15s poll →
+       suspected contributor to "Spotify randomly stops" reports.
+       Replaced with a soft-reset interval below (clears intervals, frees
+       Spotify innerHTML, then re-bootstraps) — same memory benefit, no
+       perceived stop. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,400;1,9..144,500;1,9..144,600&family=Public+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700&family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  <!-- 2026-05-18: Spotify Web Playback SDK (Phase C rebuild).
+       Dashboard becomes a Connect device named "Terry"; audio plays through
+       the WebView; controls go directly to player.* instead of the proxy
+       roundtrip + kiosk media-key dispatch. -->
+  <script src="https://sdk.scdn.co/spotify-player.js"></script>
+  <style>
+    :root {
+      /* warm cream text on deep aubergine night — brightness boost 2026-04-27 */
+      --ink:        #fbf0d6;   /* was #f3e7cf */
+      --ink-soft:   #d6c6a5;   /* was #c7b89e */
+      --ink-dim:    #998a6f;   /* was #8a7d62 */
+      --ink-faint:  #6a6048;   /* was #58503f */
+
+      --paper:      #1a1422;   /* was #14101a — slightly lifted */
+      --paper-2:    #281f30;   /* was #1f1925 — brighter cards */
+      --paper-3:    #322738;   /* was #2a2230 */
+
+      /* print-mag accents — slightly more saturation in soft tints */
+      --ochre:      #f0bc55;   /* was #e9b44c — touch warmer */
+      --ochre-soft: rgba(240, 188, 85, 0.18);
+      --terracotta: #d05f48;   /* was #c8553d */
+      --terracotta-soft: rgba(208, 95, 72, 0.17);
+      --sage:       #76b48f;   /* was #6ba883 */
+      --sage-soft:  rgba(118, 180, 143, 0.15);
+      --cobalt:     #7ba0d4;   /* was #6e95c8 */
+      --cobalt-soft: rgba(123, 160, 212, 0.16);
+      --lavender:   #c0b3d4;   /* was #b4a6c9 */
+      --lavender-soft: rgba(192, 179, 212, 0.16);
+
+      --rule:        rgba(251, 240, 214, 0.13);
+      --rule-strong: rgba(251, 240, 214, 0.26);
+
+      --serif:   "Fraunces", "Heebo", "Frank Ruhl Libre", Georgia, "Times New Roman", serif;
+      --sans:    "Public Sans", "Heebo", "Frank Ruhl Libre", system-ui, -apple-system, "Segoe UI", sans-serif;
+      --mono:    "JetBrains Mono", ui-monospace, "SF Mono", Consolas, monospace;
+      /* Display face for big glanceable numbers (clock, weather temp).
+         DM Serif Display: high-contrast Bodoni-style — looks like an editorial
+         masthead, but its tall narrow tabular figures read instantly at
+         across-the-kitchen distance. Each digit is unmistakable as a shape. */
+      --display: "DM Serif Display", "Fraunces", Georgia, serif;
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      color: var(--ink);
+      font-family: var(--sans);
+      font-weight: 400;
+      letter-spacing: 0.005em;
+      -webkit-font-smoothing: antialiased;
+      background:
+        /* warm pendant-light spotlight, top-left — brighter 2026-04-27 */
+        radial-gradient(ellipse 95% 75% at 18% -8%, rgba(240, 188, 85, 0.26) 0%, transparent 60%),
+        /* warm glow, bottom-right corner — brighter */
+        radial-gradient(ellipse 75% 95% at 112% 112%, rgba(208, 95, 72, 0.16) 0%, transparent 58%),
+        /* base midnight gradient — lifted */
+        linear-gradient(180deg, #1a1422 0%, #221a2a 55%, #1a1422 100%);
+    }
+
+    /* paper grain overlay — subtle, like newsprint */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0.42;
+      mix-blend-mode: overlay;
+      background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.95  0 0 0 0 0.91  0 0 0 0 0.81  0 0 0 0.07 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+      z-index: 0;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-columns: minmax(0, 0.55fr) minmax(0, 1.45fr);
+      grid-template-rows: auto auto minmax(0, 1fr);
+      gap: 18px;
+      padding: 18px 22px;
+      height: 100vh;
+    }
+    .app > .masthead   { grid-column: 1 / -1; }
+
+    /* ─────────────────────────────────────────
+       MASTHEAD — newspaper-style header
+       ───────────────────────────────────────── */
+    .masthead {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: end;
+      gap: 28px;
+      padding: 6px 4px 16px;
+      border-bottom: 1px solid var(--rule-strong);
+      position: relative;
+    }
+    .masthead::after {
+      content: "";
+      position: absolute;
+      left: 4px;
+      right: 4px;
+      bottom: -3px;
+      height: 1px;
+      background: var(--rule);
+    }
+    .marque { display: flex; flex-direction: column; }
+    .greeting {
+      font-family: var(--serif);
+      font-variation-settings: "opsz" 96;
+      font-size: clamp(30px, 3.7vw, 44px);
+      font-weight: 600;
+      line-height: 1.05;
+      color: var(--ink);
+      margin-top: 0;
+      letter-spacing: -0.005em;
+    }
+    .date {
+      font-family: var(--serif);
+      font-style: italic;
+      font-weight: 400;
+      font-size: clamp(18px, 1.8vw, 22px);
+      color: var(--ink-soft);
+      margin-top: 8px;
+      letter-spacing: 0.01em;
+    }
+    .clock {
+      /* DM Serif Display — editorial masthead numbers. Tall, dramatic, glanceable.
+         Each digit is a memorable shape (flat-bottomed 2, tailed 5, sharp 7) so
+         kids parse it instantly without sounding it out. Single weight by design;
+         the high-contrast strokes do the visual work. */
+      font-family: var(--display);
+      font-weight: 400;
+      font-style: normal;
+      /* 2026-05-17: +6% scale for kitchen-distance glanceability (~1.5–2m). */
+      font-size: clamp(68px, 10.2vw, 124px);
+      line-height: 0.88;
+      color: var(--ink);
+      letter-spacing: -0.015em;
+      font-feature-settings: "tnum" 1, "lnum" 1;
+      /* Soft pendant-light glow tying back to the masthead spotlight motif. */
+      text-shadow: 0 2px 28px rgba(233, 180, 76, 0.12);
+    }
+
+    /* ─────────────────────────────────────────
+       CARDS — base
+       ───────────────────────────────────────── */
+    .card {
+      background: var(--paper-2);
+      border-radius: 18px;
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      border: 1px solid var(--rule);
+      box-shadow:
+        inset 0 1px 0 rgba(243, 231, 207, 0.04),
+        0 18px 44px -20px rgba(0, 0, 0, 0.65);
+      position: relative;
+    }
+
+    /* Eyebrow label inside cards (NOT to collide with .label class set by JS on routine items) */
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--sans);
+      /* 2026-05-17: 12 → 13px, +letter-spacing for kitchen glanceability. */
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.32em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      margin-bottom: 14px;
+      flex-shrink: 0;
+    }
+    .eyebrow .glyph {
+      color: var(--ochre);
+      font-family: var(--serif);
+      font-style: italic;
+      font-size: 17px;
+      letter-spacing: 0;
+      line-height: 1;
+    }
+    .eyebrow .name {
+      color: var(--ink-soft);
+    }
+    .eyebrow .rule {
+      flex: 1;
+      height: 1px;
+      background: var(--rule);
+    }
+    .eyebrow .meta {
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      color: var(--ink-dim);
+      font-weight: 400;
+    }
+
+    .card .body {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ─────────────────────────────────────────
+       CALENDAR — block agenda (B′ redesign 2026-05-10)
+       Vertical stack of chunky event cards. Today section split into
+       Now / Up Next; Tomorrow section visually recessed (dimmer text +
+       indented + dashed separator) so a glance can't confuse the day.
+       Replaced the prior 06–21 vertical timeline.
+       ───────────────────────────────────────── */
+    .calendar { grid-row: 3; grid-column: 1; }
+    .calendar .body {
+      gap: 0;
+      overflow-y: auto;
+      position: relative;
+    }
+    .calendar .body::-webkit-scrollbar { width: 5px; }
+    .calendar .body::-webkit-scrollbar-thumb { background: var(--rule-strong); border-radius: 3px; }
+    /* Reserve clearance at the bottom of the agenda so the fixed Spotify
+       corner button (left edge, only in routine modes) doesn't overlap the
+       last event row. Without this, "Push the bins out 30m" loses its time. */
+    body[data-mode="morning"] .calendar .body,
+    body[data-mode="evening"] .calendar .body {
+      padding-bottom: 64px;
+    }
+
+    /* All-day chips strip (today only) */
+    .cal-allday {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 12px;
+      padding: 0 0 4px;
+    }
+    .cal-allday:empty { display: none; }
+    .cal-allday .chip {
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--terracotta);
+      background: var(--terracotta-soft);
+      padding: 5px 12px;
+      border-radius: 999px;
+      letter-spacing: 0.04em;
+    }
+    .cal-allday .chip.source-family { background: var(--ochre-soft);      color: var(--ochre); }
+    .cal-allday .chip.source-elul   { background: var(--cobalt-soft);     color: var(--cobalt); }
+    .cal-allday .chip.source-school { background: var(--sage-soft);       color: var(--sage); }
+    .cal-allday .chip.source-lior   { background: var(--terracotta-soft); color: var(--terracotta); }
+
+    /* Agenda — block list */
+    .agenda {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 0;
+    }
+    .agenda .section-head {
+      font-family: var(--sans);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.28em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      padding: 8px 0 0;
+    }
+    .agenda .section-head.now { color: var(--terracotta); }
+    .agenda .day-head {
+      font-family: var(--serif);
+      font-style: italic;
+      font-weight: 500;
+      font-size: 17px;
+      color: var(--ochre);
+      margin: 14px 0 4px;
+      padding-top: 14px;
+      border-top: 1px dashed var(--rule-strong);
+      letter-spacing: 0.005em;
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+    }
+    .agenda .day-head .dot {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink-dim);
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      font-weight: 700;
+      font-style: normal;
+    }
+    .agenda .block {
+      display: grid;
+      grid-template-columns: 56px 1fr auto;
+      gap: 20px;   /* was 14 — more breathing room around the title cell, esp.
+                      for RTL Hebrew titles whose right edge butts against dur */
+      /* 2026-05-17: vertical padding 14 → 10 to gain 1–2 more visible events
+         per agenda without scroll. Horizontal padding unchanged. */
+      padding: 10px 16px 10px 20px;
+      background: var(--paper-3);
+      border-radius: 10px;
+      border: 1px solid var(--rule);
+      align-items: center;
+      overflow: hidden;
+      box-shadow: 0 4px 12px -8px rgba(0, 0, 0, 0.4);
+      position: relative;
+      --block-bar: var(--cobalt);
+    }
+    /* Source bar is a ::before pseudo, NOT a child div — old Portal Chromium
+       auto-places abs-positioned grid children into the first track, which
+       pushes time/title/dur one column right and clips them off-card. */
+    .agenda .block::before {
+      content: "";
+      position: absolute;
+      left: 0; top: 0; bottom: 0;
+      width: 4px;
+      background: var(--block-bar);
+      border-radius: 10px 0 0 10px;
+    }
+    .agenda .block.source-family { --block-bar: var(--ochre); }
+    .agenda .block.source-elul   { --block-bar: var(--cobalt); }
+    .agenda .block.source-school { --block-bar: var(--sage); }
+    .agenda .block.source-lior   { --block-bar: var(--terracotta); }
+    .agenda .block.past { opacity: 0.40; }
+    .agenda .block.now {
+      background: linear-gradient(135deg, rgba(208, 95, 72, 0.18) 0%, var(--paper-3) 70%);
+      border-color: var(--terracotta);
+    }
+    .agenda .block .when {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--ink-soft);
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      font-feature-settings: "tnum" 1;
+    }
+    .agenda .block.now .when { color: var(--terracotta); }
+    .agenda .block .ti {
+      font-family: var(--serif);
+      /* 2026-05-17: 16 → 19px, "now" 18 → 22 below — kitchen glance. */
+      font-size: 19px;
+      font-weight: 500;
+      color: var(--ink);
+      line-height: 1.15;   /* was 1.25 — DM Serif Display has tall ascenders;
+                              tighter leading puts the optical center closer
+                              to the geometric center of the row */
+      letter-spacing: -0.003em;
+      /* 2-line clamp instead of single-line ellipsis — stops long Hebrew/English
+         titles from getting cut. -webkit-line-clamp is fine on Portal Chromium. */
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      min-width: 0;   /* allow grid 1fr column to actually shrink for ellipsis */
+    }
+    .agenda .block.now .ti { font-size: 22px; font-weight: 600; }
+    /* Tomorrow blocks: keep to a single line — they're recessed and compact. */
+    .agenda .block.tomorrow .ti {
+      -webkit-line-clamp: 1;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+    .agenda .block .dur {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--ink-dim);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+    }
+    /* Tomorrow blocks: recessed (dimmer text, smaller title, indented, paler bg) */
+    .agenda .block.tomorrow {
+      background: rgba(40, 31, 48, 0.55);
+      border-color: var(--rule);
+      margin-left: 14px;
+    }
+    .agenda .block.tomorrow .when { color: var(--ink-dim); }
+    .agenda .block.tomorrow .ti {
+      color: var(--ink-soft);
+      font-size: 13px;       /* was 14 — fits more chars before truncation */
+      font-weight: 400;
+    }
+    .agenda .block.tomorrow::before { opacity: 0.5; }
+
+    .cal-empty, .cal-error {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 80px;
+      text-align: center;
+      padding: 18px;
+      color: var(--ink-soft);
+      font-family: var(--serif);
+      font-style: italic;
+      font-size: 15px;
+    }
+    .cal-empty::before, .cal-error::before {
+      content: "✦";
+      display: block;
+      font-family: var(--serif);
+      font-size: 28px;
+      color: var(--ochre);
+      opacity: 0.55;
+      margin-bottom: 8px;
+      line-height: 1;
+      font-style: normal;
+    }
+    .cal-error { color: var(--terracotta); }
+    .cal-error::before { color: var(--terracotta); content: "❡"; }
+    .cal-error small {
+      display: block;
+      margin-top: 6px;
+      font-family: var(--mono);
+      font-style: normal;
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      color: var(--ink-dim);
+    }
+
+    /* ─────────────────────────────────────────
+       RIGHT COLUMN — context strip (top) + primary panel (bottom)
+       UX redesign D + E.1, 2026-04-26.
+       Top region is a horizontal "always-on" strip with weather, transit,
+       stars compacted into one row. Bottom region is a single primary panel
+       that swaps content via body[data-mode] — morning routine, evening
+       routine, or to-do (default). Every card ALWAYS reachable now.
+       ───────────────────────────────────────── */
+    .right {
+      grid-row: 3;
+      grid-column: 2;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-height: 0;
+    }
+
+    /* ── CONTEXT STRIP (top) ── */
+    .context-strip {
+      flex-shrink: 0;
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) 1px minmax(0, 1.7fr) 1px minmax(0, 1fr);
+      gap: 14px;
+      align-items: stretch;
+      padding: 14px 18px;
+      background: var(--paper-2);
+      border: 1px solid var(--rule);
+      border-radius: 18px;
+      box-shadow:
+        inset 0 1px 0 rgba(243, 231, 207, 0.04),
+        0 18px 44px -20px rgba(0, 0, 0, 0.65);
+      overflow: hidden;
+      position: relative;
+    }
+    .cs-divider {
+      width: 1px;
+      background: linear-gradient(to bottom, transparent, var(--rule-strong) 25%, var(--rule-strong) 75%, transparent);
+      align-self: stretch;
+    }
+
+    /* Weather slot */
+    .cs-weather {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      min-width: 0;
+    }
+    .cs-weather .icon {
+      font-size: 46px;
+      line-height: 1;
+      filter: drop-shadow(0 3px 10px rgba(233, 180, 76, 0.35));
+      flex-shrink: 0;
+    }
+    .cs-weather .info {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .cs-weather .temp {
+      font-family: var(--display);
+      font-weight: 400;
+      font-size: clamp(48px, 5vw, 62px);
+      line-height: 0.95;
+      color: var(--ochre);
+      font-feature-settings: "tnum" 1, "lnum" 1;
+      letter-spacing: -0.02em;
+      text-shadow: 0 2px 18px rgba(233, 180, 76, 0.20);
+    }
+    .cs-weather .desc {
+      font-family: var(--serif);
+      font-style: italic;
+      /* 2026-05-17: 16 → 18px context-strip readability boost. */
+      font-size: 18px;
+      color: var(--ink-soft);
+      text-transform: lowercase;
+      margin-top: 3px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Transit slot */
+    .cs-transit {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .cs-transit .row {
+      display: grid;
+      grid-template-columns: 38px 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+    .cs-transit .badge {
+      font-family: var(--sans);
+      font-size: 12px;
+      font-weight: 800;
+      border-radius: 5px;
+      padding: 4px 0;
+      text-align: center;
+      letter-spacing: 0.04em;
+    }
+    .cs-transit .name {
+      font-family: var(--serif);
+      /* 2026-05-17: 16 → 18px. */
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--ink);
+      letter-spacing: -0.003em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .cs-transit .status {
+      font-family: var(--sans);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 5px 11px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .cs-transit .status.good   { background: var(--sage-soft);       color: var(--sage); }
+    .cs-transit .status.minor  { background: var(--ochre-soft);      color: var(--ochre); }
+    .cs-transit .status.severe { background: var(--terracotta-soft); color: var(--terracotta); }
+    /* When live arrivals are present on the 102, hide the "Good Service" pill —
+       knowing the next bus is more useful than knowing the line is fine.
+       The pill comes back automatically as a fallback if live data drops out. */
+    .cs-transit .row.has-arrivals .status { display: none; }
+
+    /* Live arrivals strip under the 102 row — one mini-row per stop/direction. */
+    .cs-arrivals {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 6px 0 0 0;   /* flush-left: arrivals sit under the badge column */
+    }
+    .cs-arrivals:empty { display: none; }
+    .cs-arrivals .arr-row {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: baseline;
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--ink-soft);
+      font-feature-settings: "tnum" 1;
+    }
+    .cs-arrivals .arr-row .dest {
+      font-family: var(--sans);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .cs-arrivals .arr-row .times { display: flex; gap: 7px; align-items: baseline; flex-wrap: nowrap; }
+    .cs-arrivals .arr-row .t { color: var(--ink); font-weight: 700; font-size: 16px; }
+    .cs-arrivals .arr-row .t.due { color: var(--ochre); }
+    .cs-arrivals .arr-row .t.sched { color: var(--ink-soft); font-weight: 500; }
+    .cs-arrivals .arr-row .t .u {
+      font-family: var(--sans);
+      font-size: 10px;
+      letter-spacing: 0.10em;
+      color: var(--ink-dim);
+      text-transform: uppercase;
+      margin-left: 2px;
+      font-weight: 600;
+    }
+    .cs-arrivals .arr-row .sep { color: var(--ink-faint); }
+    .cs-arrivals .arr-row .none {
+      font-family: var(--serif);
+      font-style: italic;
+      color: var(--ink-dim);
+      font-size: 13px;
+    }
+    .cs-arrivals .arr-row .sched-tag {
+      font-family: var(--sans);
+      font-size: 9px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      margin-left: 5px;
+      padding: 2px 5px;
+      border: 1px solid var(--rule);
+      border-radius: 3px;
+      font-weight: 700;
+    }
+
+    /* Stars slot — 3-column grid per kid (NAME left | PRIZES center | CYCLE right)
+       with two ultra-light vertical hairlines spanning both rows so the alignment
+       reads as columnar. Internal padding keeps content off the strip dividers. */
+    .cs-stars {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 8px;
+      min-width: 0;
+      position: relative;
+      padding: 4px 10px;
+    }
+    .cs-stars::before, .cs-stars::after {
+      content: "";
+      position: absolute;
+      top: 8px; bottom: 8px;
+      width: 1px;
+      background: linear-gradient(to bottom, transparent, rgba(251, 240, 214, 0.10) 25%, rgba(251, 240, 214, 0.10) 75%, transparent);
+      pointer-events: none;
+    }
+    .cs-stars::before { left: 33.33%; }
+    .cs-stars::after  { left: 66.67%; }
+    .cs-stars .kid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      align-items: center;
+      font-family: var(--sans);
+      font-size: 16px;
+    }
+    .cs-stars .kid .label {
+      font-weight: 600;
+      color: var(--ink);
+      letter-spacing: 0.005em;
+      text-align: left;
+      padding-left: 4px;
+    }
+    .cs-stars .kid .count {
+      font-family: var(--display);
+      font-size: 28px;
+      line-height: 0.9;
+      color: var(--ochre);
+      font-feature-settings: "tnum" 1;
+      text-align: center;
+      transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
+      display: inline-block;
+    }
+    .cs-stars .kid[data-kid="eitan"] .count { color: var(--cobalt); }
+    .cs-stars .kid[data-kid="tamar"] .count { color: var(--terracotta); }
+    .cs-stars .kid .count.pulse { transform: scale(1.22); }
+    .cs-stars .kid .count .gift {
+      font-family: var(--sans);
+      font-size: 16px;
+      vertical-align: 4px;
+      margin-right: 4px;
+      color: var(--ink-soft);
+    }
+    /* Cycle progress (X/10) — fast-moving feedback for daily stars earned.
+       Mono so it reads as a counter, not a milestone. Pulses on increment. */
+    .cs-stars .kid .cycle {
+      font-family: var(--mono);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--ink-soft);
+      letter-spacing: 0.02em;
+      font-feature-settings: "tnum" 1;
+      text-align: right;
+      padding-right: 4px;
+      transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1), color 200ms ease;
+      display: inline-block;
+    }
+    .cs-stars .kid[data-kid="eitan"] .cycle.full { color: var(--cobalt); }
+    .cs-stars .kid[data-kid="tamar"] .cycle.full { color: var(--terracotta); }
+    .cs-stars .kid .cycle.pulse { transform: scale(1.18); }
+    .cs-stars .kid .cycle .star {
+      color: var(--ochre);
+      margin-right: 2px;
+      vertical-align: -1px;
+    }
+
+
+    /* Spotify now-playing card in primary panel (spotify mode) */
+    .spotify-card {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      padding: 28px 24px;
+      text-align: center;
+      position: relative;
+    }
+    /* Spotify idle placeholder — shown when nothing's playing. Surfaces the
+       last-played track (album art + title + artist) so a single tap restarts
+       it. Same dimensions as the live player so the layout doesn't shift. */
+    .spotify-card .sp-idle-art {
+      width: clamp(140px, 22vw, 200px);
+      height: clamp(140px, 22vw, 200px);
+      border-radius: 10px;
+      background:
+        repeating-linear-gradient(45deg, var(--paper-3) 0 8px, var(--paper-2) 8px 16px);
+      background-size: cover;
+      background-position: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 12px 40px -10px rgba(0,0,0,0.7);
+      position: relative;
+      overflow: hidden;
+    }
+    .spotify-card .sp-idle-art .sp-idle-art-fallback {
+      font-size: 72px;
+      color: var(--ink-faint);
+    }
+    .spotify-card .sp-idle-art.has-art .sp-idle-art-fallback { display: none; }
+    /* Play-affordance overlay on the album art when there's a last-played track. */
+    .spotify-card .sp-idle-art.has-art::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(circle at center, rgba(0,0,0,0.55) 0 38%, rgba(0,0,0,0.15) 38% 70%, transparent 70%);
+      pointer-events: none;
+    }
+    .spotify-card .sp-idle-art.has-art .sp-idle-play-glyph {
+      position: absolute;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #111;
+      font-size: 28px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+    }
+    .spotify-card .sp-idle-art:not(.has-art) .sp-idle-play-glyph { display: none; }
+    .spotify-card .sp-idle-prompt {
+      font-family: var(--serif);
+      font-size: clamp(18px, 2vw, 22px);
+      font-weight: 600;
+      color: var(--ink);
+      line-height: 1.2;
+    }
+    .spotify-card .sp-idle-prompt.empty {
+      font-style: italic;
+      font-weight: 500;
+      color: var(--ink-soft);
+    }
+    .spotify-card .sp-idle-sub {
+      font-family: var(--sans);
+      font-size: clamp(13px, 1.5vw, 16px);
+      color: var(--ink-soft);
+      margin-top: 4px;
+    }
+    .spotify-card .sp-idle-sub:empty { display: none; }
+    .spotify-card .sp-launch-btn {
+      margin-top: 8px;
+      /* 2026-05-17: de-Spotifyed — was solid #1DB954 (brand green) which
+         dominated the editorial dashboard palette. Now paper card + sage
+         glyph for the Spotify mark; reads as part of the dashboard. */
+      background: linear-gradient(135deg, var(--paper-3) 0%, var(--paper-2) 100%);
+      border: 1px solid var(--rule-strong);
+      border-radius: 999px;
+      padding: 12px 24px;
+      font-family: var(--sans);
+      font-weight: 800;
+      font-size: 14px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--ink);
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.55);
+    }
+    .spotify-card .sp-launch-btn svg { color: var(--sage); }
+    .spotify-card .sp-launch-btn:active { transform: scale(0.97); }
+    .spotify-card .sp-launch-btn svg {
+      width: 20px;
+      height: 20px;
+      display: block;
+    }
+    .spotify-card[data-state="idle"] .sp-big-art,
+    .spotify-card[data-state="idle"] .sp-big-art-placeholder,
+    .spotify-card[data-state="idle"] .sp-controls,
+    .spotify-card[data-state="idle"] .sp-close { display: none !important; }
+    .spotify-card[data-state="playing"] .sp-idle-art,
+    .spotify-card[data-state="playing"] .sp-idle-prompt,
+    .spotify-card[data-state="playing"] .sp-idle-sub,
+    .spotify-card[data-state="playing"] .sp-launch-btn { display: none !important; }
+    .spotify-card .sp-big-art {
+      width: clamp(140px, 22vw, 200px);
+      height: clamp(140px, 22vw, 200px);
+      border-radius: 10px;
+      object-fit: cover;
+      box-shadow: 0 12px 40px -10px rgba(0,0,0,0.7);
+      background: var(--paper-3);
+    }
+    .spotify-card .sp-big-art-placeholder {
+      width: clamp(140px, 22vw, 200px);
+      height: clamp(140px, 22vw, 200px);
+      border-radius: 10px;
+      background: var(--paper-3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 64px;
+      box-shadow: 0 12px 40px -10px rgba(0,0,0,0.7);
+    }
+    .spotify-card .sp-big-track {
+      font-family: var(--display);
+      /* 2026-05-17: editorial DM Serif Display + larger for kitchen glance.
+         Marquee CSS below kicks in when title overflows container. */
+      font-size: clamp(22px, 2.9vw, 32px);
+      font-weight: 400;
+      color: var(--ink);
+      line-height: 1.1;
+      letter-spacing: -0.01em;
+      max-width: 100%;
+      overflow: hidden;
+      white-space: nowrap;
+      position: relative;
+    }
+    .spotify-card .sp-big-track.marquee > span {
+      display: inline-block;
+      padding-left: 100%;
+      animation: sp-marquee 12s linear infinite;
+    }
+    @keyframes sp-marquee {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-100%); }
+    }
+    .spotify-card .sp-big-artist {
+      font-family: var(--sans);
+      font-size: clamp(14px, 1.7vw, 18px);
+      color: var(--ink-soft);
+      margin-top: 4px;
+    }
+    .spotify-card .sp-controls {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      margin-top: 4px;
+    }
+    .spotify-card .sp-ctrl-btn {
+      background: none;
+      border: none;
+      color: var(--ink);
+      font-size: 28px;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 50%;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      transition: background 150ms ease, transform 100ms ease;
+    }
+    .spotify-card .sp-ctrl-btn:active { transform: scale(0.88); }
+    .spotify-card .sp-ctrl-btn.sp-play-pause { font-size: 36px; }
+    /* "Open Spotify" pill — playing-state only. Editorial palette (paper card
+       + sage glyph) instead of brand green — matches the rest of the dash. */
+    .spotify-card .sp-open-pill {
+      display: none;
+      margin-top: 14px;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px 8px 14px;
+      background: linear-gradient(135deg, var(--paper-3) 0%, var(--paper-2) 100%);
+      color: var(--ink);
+      border: 1px solid var(--rule-strong);
+      border-radius: 999px;
+      font-family: var(--sans);
+      font-weight: 700;
+      font-size: 12px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      user-select: none;
+      transition: transform 100ms ease;
+    }
+    .spotify-card .sp-open-pill:active { transform: scale(0.97); }
+    .spotify-card .sp-open-pill .sp-open-glyph {
+      font-size: 14px;
+      line-height: 1;
+      color: var(--sage);
+    }
+    .spotify-card[data-state="playing"] .sp-open-pill { display: inline-flex; }
+    /* Long-press hint on the big album art — a small ⤴ in the corner so the
+       affordance is visible. The tap itself is short-press-safe (does
+       nothing); 700ms hold fires kiosk://spotify/launch. */
+    .spotify-card .sp-big-art-wrap-rel { position: relative; }
+    .spotify-card .sp-big-art-launch-hint {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 22px;
+      height: 22px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(20, 16, 26, 0.62);
+      color: var(--ink);
+      border-radius: 50%;
+      font-size: 11px;
+      font-weight: 700;
+      pointer-events: none;
+    }
+    .spotify-card[data-state="playing"] .sp-big-art-launch-hint { display: flex; }
+    /* Stale-connection badge — appears when proxy hasn't replied in 60s.
+       Subtle, ink-dim — not alarmist; just acknowledges to the family that
+       we know the card might be lying about live state. */
+    .spotify-card .sp-stale-badge {
+      display: none;
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      margin-top: 6px;
+    }
+    .spotify-card.sp-stale .sp-stale-badge { display: block; }
+    .spotify-card .sp-stale-badge::before {
+      content: "— connection — retrying";
+    }
+    .spotify-card .sp-close {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      background: none;
+      border: none;
+      color: var(--ink-dim);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 6px;
+      -webkit-tap-highlight-color: transparent;
+    }
+    /* Spotify launch button -- bottom-left corner, mirrors exit button.
+       Editorial-palette tone (paper card + sage accent) instead of Spotify
+       brand green — matches the rest of the dashboard's print aesthetic.
+       Sage is the calm/ambient accent and doesn't conflict with the kid colors
+       (cobalt = Eitan, terracotta = Tamar). */
+    /* Always-visible corner launcher (2026-05-17). Previously hidden in
+       spotify mode because the in-card launcher covered idle state — but
+       when music is *playing* there was no path to open the Spotify APK
+       at all (in-card launcher only renders for data-state="idle"). */
+    #spotify-corner { display: inline-flex; }
+    #spotify-corner {
+      position: fixed;
+      bottom: 16px;
+      left: 16px;
+      z-index: 9999;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px 10px 12px;
+      background: linear-gradient(135deg, var(--paper-3) 0%, var(--paper-2) 100%);
+      color: var(--ink);
+      border: 1px solid var(--rule-strong);
+      border-radius: 999px;
+      font-family: var(--sans);
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      user-select: none;
+      box-shadow:
+        0 8px 20px -6px rgba(0, 0, 0, 0.55),
+        inset 0 1px 0 rgba(243, 231, 207, 0.05);
+      transition: transform 100ms ease, box-shadow 200ms ease;
+    }
+    #spotify-corner:active { transform: scale(0.97); }
+    #spotify-corner .sp-corner-icon {
+      font-size: 18px;
+      line-height: 1;
+      color: var(--sage);
+    }
+    #spotify-corner .sp-corner-label {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      line-height: 1;
+    }
+    #spotify-corner .sp-corner-sub {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      color: var(--ink-dim);
+      text-transform: uppercase;
+      font-weight: 500;
+      margin-top: 4px;
+    }
+
+    /* Back-to-Routine pill — shown only when music override is on AND the
+       active mode is morning/evening (so we have a routine to return to).
+       Mirrors the Spotify-corner geometry. */
+    #routine-back { display: none; }
+    body[data-music-override="true"][data-mode="morning"] #routine-back,
+    body[data-music-override="true"][data-mode="evening"] #routine-back {
+      display: inline-flex;
+    }
+    #routine-back {
+      position: fixed;
+      bottom: 16px;
+      left: 16px;
+      z-index: 9999;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 18px 10px 14px;
+      background: linear-gradient(135deg, var(--paper-3) 0%, var(--paper-2) 100%);
+      color: var(--ink);
+      border: 1px solid var(--rule-strong);
+      border-radius: 999px;
+      font-family: var(--sans);
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      user-select: none;
+      box-shadow:
+        0 8px 20px -6px rgba(0, 0, 0, 0.55),
+        inset 0 1px 0 rgba(243, 231, 207, 0.05);
+    }
+    #routine-back:active { transform: scale(0.97); }
+    #routine-back .arrow { font-size: 16px; line-height: 1; color: var(--ochre); }
+    /* Morning mode: weather forecast is critical — give weather most of the
+       row, hide the Stars slot (kids' stars matter more in the afternoon /
+       evening). Weather expands to ~65% of the row and shows a 6-cell hourly
+       outlook strip alongside the current temp. */
+    body[data-mode="morning"] .context-strip {
+      grid-template-columns: minmax(0, 2.2fr) 1px minmax(0, 1fr);
+    }
+    body[data-mode="morning"] .cs-stars,
+    body[data-mode="morning"] .cs-divider-stars {
+      display: none;
+    }
+    /* Weather contents grow to fill the new room: bigger temp, bigger icon,
+       hourly outlook becomes visible. */
+    body[data-mode="morning"] .cs-weather { gap: 18px; }
+    body[data-mode="morning"] .cs-weather .icon { font-size: 62px; }
+    body[data-mode="morning"] .cs-weather .temp { font-size: clamp(60px, 6vw, 76px); }
+    body[data-mode="morning"] .cs-weather .desc { font-size: 18px; }
+    body[data-mode="morning"] .cs-weather .w-outlook {
+      display: grid !important;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      flex: 1;
+      padding-left: 22px;
+      border-left: 1px solid var(--rule-strong);
+      margin-left: 14px;
+    }
+    /* Hidden by default; shown in morning mode (full size, rule above) and
+       in todo mode (compact). Evening mode keeps it hidden — that screen
+       is dominated by routine items so we don't need extra context. */
+    .w-outlook { display: none; }
+    body[data-mode="spotify"] .context-strip,
+    body[data-mode="todo"]    .context-strip {
+      grid-template-columns: minmax(0, 2.0fr) 1px minmax(0, 1.5fr) 1px minmax(0, 0.95fr);
+    }
+    body[data-mode="spotify"] .cs-weather .w-outlook,
+    body[data-mode="todo"]    .cs-weather .w-outlook {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 8px;
+      flex: 1;
+      padding-left: 18px;
+      border-left: 1px solid var(--rule-strong);
+      margin-left: 12px;
+    }
+    /* Default-mode hourly cells are tighter than morning mode but readable. */
+    body[data-mode="spotify"] .w-outlook .h .when,
+    body[data-mode="todo"]    .w-outlook .h .when { font-size: 10px; }
+    body[data-mode="spotify"] .w-outlook .h .icon,
+    body[data-mode="todo"]    .w-outlook .h .icon { font-size: 20px; }
+    body[data-mode="spotify"] .w-outlook .h .t,
+    body[data-mode="todo"]    .w-outlook .h .t { font-size: 14px; }
+    .w-outlook .h {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 3px;
+      min-width: 0;
+    }
+    .w-outlook .h .when {
+      font-family: var(--sans);
+      font-size: 11px;
+      letter-spacing: 0.14em;
+      color: var(--ink-dim);
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .w-outlook .h .icon {
+      font-size: 22px;
+      line-height: 1;
+      filter: drop-shadow(0 2px 6px rgba(240, 188, 85, 0.25));
+    }
+    .w-outlook .h .t {
+      font-family: var(--mono);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--ink);
+      font-feature-settings: "tnum" 1;
+    }
+    .w-outlook .h.rain .t { color: var(--cobalt); }
+
+    /* ── PRIMARY PANEL (bottom) ── */
+    .primary-panel {
+      flex: 1;
+      min-height: 0;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    /* Default: hide all primary-panel children. Mode-specific rules show one. */
+    .primary-panel > .card,
+    .primary-panel > section {
+      display: none;
+    }
+    /* Music override: when music starts during a routine window, the spotify
+       card takes over the primary panel until the user dismisses it (Back to
+       Routine pill) or the music has been stopped for the grace period. */
+    body[data-music-override="true"] .primary-panel > #morning-card,
+    body[data-music-override="true"] .primary-panel > #evening-card { display: none !important; }
+    body[data-music-override="true"] .primary-panel > .spotify-card { display: flex !important; }
+    body[data-music-override="true"] #spotify-corner { display: none !important; }
+
+    body[data-mode="morning"] .primary-panel > #morning-card,
+    body[data-mode="evening"] .primary-panel > #evening-card,
+    body[data-mode="spotify"] .primary-panel > .spotify-card {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+    }
+    /* The visible card fills the panel — release the old `flex-shrink: 0` and
+       any internal max-height that capped them when stacked. */
+    .primary-panel > .card {
+      flex-shrink: 1;
+    }
+
+    /* ─────────────────────────────────────────
+       WEATHER — atmospheric card
+       ───────────────────────────────────────── */
+    .weather {
+      flex-shrink: 0;
+      background:
+        radial-gradient(ellipse 90% 70% at 85% 0%, rgba(233, 180, 76, 0.20) 0%, transparent 60%),
+        linear-gradient(155deg, #2c2336 0%, #1f1828 100%);
+      overflow: hidden;
+    }
+    .weather::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(circle at 88% 22%, rgba(233, 180, 76, 0.18), transparent 32%);
+      pointer-events: none;
+    }
+    /* Weather: compact horizontal layout — top row inline, stats inline, hourly thin */
+    .weather { padding: 14px 18px; }
+    .weather .eyebrow { margin-bottom: 8px; }
+    .weather .body { gap: 10px; }
+    .weather .top {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 14px;
+      align-items: center;
+      position: relative;
+    }
+    .weather .icon {
+      font-size: 42px;
+      line-height: 1;
+      filter: drop-shadow(0 3px 10px rgba(233, 180, 76, 0.35));
+    }
+    .weather .temp {
+      /* Same display face as the clock, but in OCHRE — visually warm, signals
+         "info you actually need to plan your day." Pairs with the warm pendant
+         spotlight already living in the weather card's gradient. */
+      font-family: var(--display);
+      font-weight: 400;
+      font-size: clamp(44px, 5vw, 60px);
+      line-height: 0.95;
+      color: var(--ochre);
+      font-feature-settings: "tnum" 1, "lnum" 1;
+      letter-spacing: -0.02em;
+      text-shadow: 0 2px 18px rgba(233, 180, 76, 0.20);
+    }
+    .weather .desc {
+      font-family: var(--serif);
+      font-style: italic;
+      font-weight: 400;
+      font-size: 14px;
+      color: var(--ink-soft);
+      text-transform: lowercase;
+      margin-top: 2px;
+      letter-spacing: 0.005em;
+    }
+    .weather .stats {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink);
+      font-feature-settings: "tnum" 1;
+      text-align: right;
+      line-height: 1.25;
+    }
+    .weather .stats span { display: block; }
+    .weather .stats span::before {
+      content: attr(data-label);
+      font-family: var(--sans);
+      font-size: 8px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      font-weight: 700;
+      margin-right: 4px;
+    }
+    .weather .hourly {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 4px;
+      padding-top: 8px;
+      border-top: 1px dashed var(--rule);
+      position: relative;
+    }
+    .weather .hourly .h {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+    .weather .hourly .h .when {
+      font-family: var(--sans);
+      font-size: 8px;
+      letter-spacing: 0.16em;
+      color: var(--ink-dim);
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .weather .hourly .h .icon {
+      font-size: 14px;
+      line-height: 1;
+      filter: drop-shadow(0 2px 5px rgba(233, 180, 76, 0.22));
+    }
+    .weather .hourly .h .t {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink);
+      font-feature-settings: "tnum" 1;
+    }
+    .weather .hourly .h.rain .t { color: var(--cobalt); }
+
+    /* ─────────────────────────────────────────
+       TRANSIT — Northern Line + Bus 102
+       ───────────────────────────────────────── */
+    .transit { flex-shrink: 0; padding: 12px 18px; }
+    .transit .eyebrow { margin-bottom: 6px; }
+    .transit .body { gap: 0; }
+    .transit .line-row {
+      display: grid;
+      grid-template-columns: 36px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      padding: 5px 4px;
+      border-bottom: 1px solid var(--rule);
+    }
+    .transit .line-row:last-child { border-bottom: 0; }
+    .transit .badge {
+      font-family: var(--sans);
+      font-size: 10px;
+      font-weight: 800;
+      border-radius: 5px;
+      padding: 4px 0;
+      text-align: center;
+      letter-spacing: 0.04em;
+    }
+    .transit .line-name {
+      font-family: var(--serif);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--ink);
+      letter-spacing: -0.003em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .transit .status {
+      font-family: var(--sans);
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 3px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .transit .status.good   { background: var(--sage-soft);       color: var(--sage); }
+    .transit .status.minor  { background: var(--ochre-soft);      color: var(--ochre); }
+    .transit .status.severe { background: var(--terracotta-soft); color: var(--terracotta); }
+
+    .transit .arrivals {
+      padding: 8px 0 4px 38px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      border-top: 1px dashed var(--rule);
+      margin-top: 6px;
+    }
+    .transit .arr-row {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--ink-soft);
+    }
+    .transit .arr-row .dest {
+      font-family: var(--sans);
+      font-size: 10px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      font-weight: 700;
+      flex-shrink: 0;
+      min-width: 92px;
+    }
+    .transit .arr-row .times {
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+      flex-wrap: wrap;
+      font-feature-settings: "tnum" 1;
+    }
+    .transit .arr-row .t { color: var(--ink); font-weight: 700; font-size: 15px; }
+    .transit .arr-row .t.due { color: var(--ochre); }
+    .transit .arr-row .t .u {
+      font-family: var(--sans);
+      font-size: 9px;
+      letter-spacing: 0.12em;
+      color: var(--ink-dim);
+      text-transform: uppercase;
+      margin-left: 2px;
+      font-weight: 600;
+    }
+    .transit .arr-row .sep { color: var(--ink-faint); }
+    .transit .arr-row .none { font-family: var(--serif); font-style: italic; color: var(--ink-dim); font-size: 13px; }
+    .transit .arr-dbg { font-family: var(--mono); font-size: 9px; letter-spacing: 0.05em; color: rgba(243,231,207,0.18); padding: 4px 0 0 38px; line-height: 1; }
+    .transit .arr-row .t.sched { color: var(--ink-soft); font-weight: 600; }
+    .transit .arr-row .sched-tag {
+      font-family: var(--sans);
+      font-size: 9px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      margin-left: 8px;
+      padding: 2px 5px;
+      border: 1px solid var(--rule);
+      border-radius: 3px;
+      font-weight: 700;
+      vertical-align: 1px;
+    }
+
+    /* ─────────────────────────────────────────
+       STARS CARD — Table Stars mirror (read-only)
+       Hidden during routine windows via the rule below
+       ───────────────────────────────────────── */
+    .stars { flex-shrink: 0; padding: 12px 18px; }
+    .stars .eyebrow { margin-bottom: 6px; }
+    .stars .body { gap: 10px; }
+    .stars .kid-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      align-items: center;
+      gap: 14px;
+      padding: 6px 0;
+      border-bottom: 1px dashed var(--rule);
+    }
+    .stars .kid-row:last-child { border-bottom: 0; }
+    .stars .kid-id {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      min-width: 110px;
+    }
+    .stars .kid-emoji { font-size: 22px; line-height: 1; }
+    .stars .kid-name {
+      font-family: var(--sans);
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--kid-accent, var(--ink-soft));
+    }
+    .stars .prize-count {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      font-family: var(--display);
+      font-size: 36px;
+      line-height: 0.9;
+      letter-spacing: -0.01em;
+      color: var(--kid-accent, var(--ink));
+      font-feature-settings: "tnum" 1;
+      transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .stars .prize-count.pulse { transform: scale(1.08); }
+    .stars .prize-count .gift { font-size: 20px; vertical-align: 2px; }
+    .stars .prize-count .times {
+      font-family: var(--sans);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--ink-dim);
+      letter-spacing: 0.1em;
+      align-self: center;
+    }
+    .stars .bar {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 4px;
+      min-width: 130px;
+    }
+    .stars .bar .pips { letter-spacing: 2px; font-size: 14px; line-height: 1; }
+    .stars .bar .pips .on  { color: var(--kid-accent, var(--ink)); }
+    .stars .bar .pips .off { color: var(--ink-faint); }
+    .stars .bar .ratio {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      color: var(--ink-dim);
+      font-feature-settings: "tnum" 1;
+    }
+    .stars .kid-row.eitan   { --kid-accent: var(--cobalt); }
+    .stars .kid-row.tamar   { --kid-accent: var(--terracotta); }
+    .stars .note {
+      font-family: var(--serif);
+      font-style: italic;
+      font-size: 12px;
+      color: var(--ink-dim);
+      padding: 4px 0 0 0;
+    }
+
+    /* ─────────────────────────────────────────
+       ROUTINE CARDS — library card style
+       ───────────────────────────────────────── */
+    .routine {
+      flex-shrink: 0;
+      padding: 0;
+      overflow: hidden;
+      /* No max-height: kids must see all 9 items without scrolling.
+         Other cards in right column shrink to make room. */
+    }
+    .topstripe {
+      height: 8px;
+      display: flex;
+    }
+    .topstripe i {
+      flex: 1;
+      display: block;
+    }
+    .morning .topstripe i:nth-child(1) { background: var(--cobalt); }
+    .morning .topstripe i:nth-child(2) { background: var(--terracotta); }
+    .evening .topstripe i:nth-child(1) { background: var(--lavender); }
+    .evening .topstripe i:nth-child(2) { background: var(--ochre); }
+    .topstripe::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 8px;
+      height: 1px;
+      background: rgba(20, 16, 26, 0.6);
+    }
+
+    .routine .inner {
+      padding: 10px 14px 12px;   /* tightened from 12/16/14 to fit 8 items without overflow */
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      flex: 1;
+      position: relative;
+    }
+    .routine .body { gap: 6px; min-height: 0; }   /* was 10 */
+    .routine .cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;          /* was 22 — still clear separation, less overflow risk */
+      min-height: 0;
+    }
+
+    .routine .kid {
+      --kid: var(--ochre);
+      --kid-soft: var(--ochre-soft);
+      padding: 8px 10px 10px 12px;  /* was 12/12/14/14 — saved ~8px vertical */
+      border-radius: 14px;
+      background: var(--kid-soft);
+      border: 1px solid rgba(251, 240, 214, 0.10);
+      border-left: 5px solid var(--kid);   /* thick left stripe in kid accent — strong column ID */
+      display: flex;
+      flex-direction: column;
+      gap: 4px;            /* was 6 */
+      position: relative;
+    }
+    .routine .kid[data-kid^="eitan"] { --kid: var(--cobalt);     --kid-soft: var(--cobalt-soft); }
+    .routine .kid[data-kid^="tamar"] { --kid: var(--terracotta); --kid-soft: var(--terracotta-soft); }
+
+    .routine .kid h3 {
+      margin: 0;
+      font-family: var(--serif);
+      font-variation-settings: "opsz" 96;
+      font-size: 17px;       /* was 19 — modest reduction, kid name still prominent */
+      font-weight: 600;
+      color: var(--ink);
+      display: flex;
+      align-items: baseline;
+      gap: 7px;
+      letter-spacing: -0.005em;
+    }
+    .routine .kid h3 .badge {
+      font-size: 16px;
+      line-height: 1;
+    }
+    .routine .kid h3 .progress {
+      margin-left: auto;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-soft);
+      font-weight: 400;
+      font-feature-settings: "tnum" 1;
+      letter-spacing: 0.05em;
+    }
+
+    .routine .progress-bar {
+      height: 3px;            /* was 4 */
+      border-radius: 999px;
+      background: rgba(243, 231, 207, 0.07);
+      overflow: hidden;
+      margin: -2px 0 2px;     /* was -2 0 4 */
+    }
+    .routine .progress-bar > span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: var(--kid);
+      border-radius: 999px;
+      transition: width 350ms cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 0 12px var(--kid);
+    }
+
+    .routine ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+    .routine li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 6px;
+      font-family: var(--sans);
+      font-size: 15px;
+      font-weight: 500;
+      cursor: pointer;
+      user-select: none;
+      border-radius: 9px;
+      min-height: 40px;
+      transition: background 140ms ease, transform 100ms ease;
+      color: var(--ink);
+      border: 0;
+    }
+    /* Hide transit during a routine window so kids' card has room.
+       Parents see transit before/after routine times. */
+    /* Pre-redesign rules — kept only as inert no-ops. The .right column no
+       longer has direct .transit / .stars children; both live in .context-strip
+       (always visible). Body.routine-active also removed in favor of body[data-mode],
+       but harmless if anything still toggles it. */
+    body.routine-active .right > .transit { display: none; }
+    body.routine-active .right > .stars   { display: none; }
+    .routine li:hover { background: rgba(243, 231, 207, 0.05); }
+    .routine li:active { transform: scale(0.98); }
+    .routine li .icon {
+      font-size: 19px;
+      line-height: 1;
+      width: 26px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    /* The JS sets .label class on the text span inside each routine item. */
+    .routine li .label {
+      flex: 1;
+      min-width: 0;
+      line-height: 1.25;
+    }
+    .routine li input[type="checkbox"] {
+      appearance: none;
+      width: 28px;
+      height: 28px;
+      border: 2px solid rgba(243, 231, 207, 0.32);
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      cursor: pointer;
+      background: transparent;
+      transition:
+        transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1),
+        background 160ms ease,
+        border-color 160ms ease;
+    }
+    .routine li input[type="checkbox"]:checked {
+      background: var(--kid);
+      border-color: transparent;
+      transform: scale(1.08) rotate(-3deg);
+    }
+    .routine li input[type="checkbox"]:checked::after {
+      content: "✓";
+      color: var(--paper);
+      font-family: var(--sans);
+      font-size: 18px;
+      font-weight: 800;
+    }
+    .routine li.done .label { color: var(--ink-dim); text-decoration: line-through; text-decoration-thickness: 1.5px; }
+    .routine li.done .icon { filter: grayscale(0.7); opacity: 0.45; }
+    .routine li.optional .label { font-style: italic; color: var(--ink-soft); }
+    .routine li.optional::after {
+      content: "opt";
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      padding: 2px 6px;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+
+    /* ─────────────────────────────────────────
+       Page entrance
+       ───────────────────────────────────────── */
+    .masthead { animation: fadeDown 700ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+    .card     { animation: rise 700ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+    .calendar { animation-delay: 80ms; }
+    .weather  { animation-delay: 140ms; }
+    .routine  { animation-delay: 200ms; }
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: none; }
+    }
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-6px); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    /* ─────────────────────────────────────────
+       CELEBRATION — fires when a kid finishes morning routine
+       ───────────────────────────────────────── */
+    .celebration {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 10000;
+      overflow: hidden;
+    }
+    .celebration .toast {
+      position: absolute;
+      left: 50%;
+      top: 38%;
+      transform: translate(-50%, -50%) scale(1);
+      font-family: var(--serif);
+      font-size: clamp(36px, 5.4vw, 64px);
+      font-weight: 700;
+      color: var(--ink);
+      text-align: center;
+      background:
+        radial-gradient(ellipse 70% 90% at 50% 0%, rgba(233, 180, 76, 0.20) 0%, transparent 60%),
+        var(--paper-2);
+      border: 1px solid var(--rule-strong);
+      border-radius: 22px;
+      padding: 36px 56px;
+      box-shadow: 0 24px 80px -20px rgba(0, 0, 0, 0.75);
+      animation: celebPop 700ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+      letter-spacing: -0.01em;
+    }
+    .celebration .toast .name {
+      font-family: var(--serif);
+      font-weight: 700;
+      letter-spacing: 0.01em;
+    }
+    .celebration .toast .sub {
+      font-family: var(--sans);
+      font-style: normal;
+      font-weight: 600;
+      font-size: 0.32em;
+      letter-spacing: 0.06em;
+      color: var(--ink-soft);
+      margin-top: 16px;
+    }
+    .celebration.fading .toast {
+      animation: celebFade 600ms cubic-bezier(0.4, 0, 0.6, 1) both;
+    }
+    .celebration .confetti {
+      position: absolute;
+      top: -40px;
+      animation: confettiFall linear forwards;
+      will-change: transform;
+      user-select: none;
+    }
+    @keyframes celebPop {
+      from { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+      to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+    @keyframes celebFade {
+      to { opacity: 0; transform: translate(-50%, -50%) scale(0.85); }
+    }
+    @keyframes confettiFall {
+      from { transform: translateY(-40px) rotate(0deg); opacity: 0; }
+      8%   { opacity: 1; }
+      to   { transform: translateY(110vh) rotate(720deg); opacity: 0.6; }
+    }
+    .kid.celebrating h3 {
+      animation: namePulse 1200ms ease-out both;
+    }
+    @keyframes namePulse {
+      0%, 100% { transform: scale(1); }
+      40%      { transform: scale(1.08); }
+    }
+
+    /* Exit-to-Portal button — bottom-right, hold 2s to leave kiosk */
+    #exit-corner {
+      position: fixed;
+      bottom: 16px;
+      right: 16px;
+      z-index: 9999;
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      padding: 10px 16px 10px 11px;
+      background: linear-gradient(135deg, var(--terracotta) 0%, #b04830 100%);
+      color: #fff7e6;
+      border: 1px solid rgba(255, 247, 230, 0.28);
+      border-radius: 999px;
+      font-family: var(--sans);
+      font-weight: 800;
+      font-size: 12px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: none;
+      user-select: none;
+      box-shadow:
+        0 8px 20px -6px rgba(200, 85, 61, 0.55),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+      transition: transform 100ms ease, box-shadow 200ms ease;
+    }
+    #exit-corner:active { transform: scale(0.97); }
+    #exit-corner.holding {
+      box-shadow:
+        0 0 0 4px rgba(233, 180, 76, 0.30),
+        0 10px 24px -6px rgba(200, 85, 61, 0.65),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    }
+    .exit-ring {
+      position: relative;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 2px solid rgba(255, 247, 230, 0.55);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    #exit-corner.holding .exit-ring { border-color: var(--ochre); }
+    .exit-fill {
+      position: absolute;
+      inset: -2px;
+      border-radius: 50%;
+      background: conic-gradient(var(--ochre) 0%, transparent 0%);
+      transition: background 80ms linear;
+      mask: radial-gradient(circle, transparent 52%, #000 54%);
+      -webkit-mask: radial-gradient(circle, transparent 52%, #000 54%);
+      pointer-events: none;
+    }
+    .exit-icon {
+      position: absolute;
+      font-size: 12px;
+      line-height: 1;
+    }
+    .exit-label {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      letter-spacing: 0.06em;
+      line-height: 1;
+    }
+    .exit-sublabel {
+      font-family: var(--mono);
+      font-size: 8px;
+      letter-spacing: 0.12em;
+      color: rgba(255, 247, 230, 0.55);
+      text-transform: uppercase;
+      font-weight: 500;
+      margin-top: 3px;
+    }
+
+    /* Smaller screens — Portal Mini portrait */
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto auto;
+        padding: 14px;
+        gap: 14px;
+      }
+      .calendar { grid-row: 3; grid-column: 1; min-height: 240px; }
+      .right    { grid-row: 4; grid-column: 1; }
+    }
+  </style>
+</head>
+<body data-mode="spotify">
+  <!-- Visible exit button: long-press 2s to exit kiosk and return to Portal home.
+       Long-press (not tap) so kids don't trigger by accident. The progress ring
+       fills as you hold; releasing early cancels. Intercepted in MainActivity. -->
+  <!-- Spotify launch button -- tap to open Spotify on Terry (sideloaded APK).
+       Fires kiosk://spotify/launch which MainActivity handles. -->
+  <button id="spotify-corner" aria-label="Open Spotify">
+    <span class="sp-corner-icon">&#x266B;</span>
+    <span class="sp-corner-label">
+      Spotify
+      <span class="sp-corner-sub">tap to open</span>
+    </span>
+  </button>
+  <!-- Back-to-Routine pill — replaces the Spotify-corner pill when music
+       takes over the panel during a routine. Tap returns to the checklist. -->
+  <button id="routine-back" aria-label="Back to routine">
+    <span class="arrow">&#x2190;</span>
+    Back to Routine
+  </button>
+  <button id="exit-corner" aria-label="Hold to exit to Portal — dashboard auto-returns in 5 minutes (paused if a call is active)">
+    <span class="exit-ring">
+      <span class="exit-fill"></span>
+      <span class="exit-icon">📞</span>
+    </span>
+    <span class="exit-label">
+      Hold to exit
+      <span class="exit-sublabel">back in 5m · pauses on calls</span>
+    </span>
+  </button>
+
+  <div class="app">
+    <header class="masthead">
+      <div class="marque">
+        <div class="greeting" id="greeting">—</div>
+        <div class="date" id="date">—</div>
+      </div>
+      <div class="clock" id="clock">--:--</div>
+    </header>
+
+    <section class="card calendar">
+      <div class="eyebrow">
+        <span class="name">Today</span>
+        <span class="rule"></span>
+        <span class="meta" id="cal-date"></span>
+      </div>
+      <div class="body" id="cal-body">
+        <div class="cal-allday" id="cal-allday"></div>
+        <div class="agenda" id="agenda">
+          <div class="cal-empty">Loading…</div>
+        </div>
+      </div>
+    </section>
+
+    <div class="right">
+      <!-- ── CONTEXT STRIP: weather · transit · stars in one horizontal row.
+           Always visible. Compact form of three former cards.
+           IDs preserved so existing data-fetching JS still finds its targets. -->
+      <section class="context-strip" id="context-strip">
+        <div class="cs-weather">
+          <div class="icon" id="w-icon">⛅</div>
+          <div class="info">
+            <div class="temp" id="w-temp">—°</div>
+            <div class="desc" id="w-desc">Loading…</div>
+          </div>
+          <!-- Morning-only outlook strip — fills the reclaimed space when stars
+               are hidden. Shows next ~12h of forecast (6 × 3-hourly cells).
+               Hidden in todo/evening modes via CSS. -->
+          <div class="w-outlook" id="w-outlook"></div>
+          <!-- #w-hi/#w-lo/#w-feels intentionally absent; loadWeather() null-guards. -->
+        </div>
+        <div class="cs-divider"></div>
+        <div class="cs-transit">
+          <div class="row" id="tfl-northern">
+            <span class="badge" style="background:#000;color:#fff;">N</span>
+            <span class="name">Northern</span>
+            <span class="status">…</span>
+          </div>
+          <div class="row" id="tfl-102">
+            <span class="badge" style="background:#dc241f;color:#fff;">102</span>
+            <span class="name">Bus 102</span>
+            <span class="status">…</span>
+          </div>
+          <!-- Live arrivals strip: rendered by loadTflArrivals(). When live data
+               is available (TfL Countdown returns predictions), the 102's status
+               pill above is hidden via .has-arrivals class — the live times ARE
+               the status. If TfL has no live data, falls back to schedule
+               (with SCHED chip) and the status pill remains visible. -->
+          <div class="cs-arrivals" id="tfl-102-arrivals"></div>
+        </div>
+        <div class="cs-divider cs-divider-stars"></div>
+        <div class="cs-stars" id="stars-body">
+          <!-- Populated by loadStars() -- keeps the same #stars-body container ID -->
+        </div>
+      </section>
+
+      <!-- ── PRIMARY PANEL: the dominant task of the moment.
+           One child visible at a time, picked by body[data-mode]. -->
+      <section class="primary-panel" id="primary-panel">
+        <section class="card routine morning" id="morning-card">
+        <div class="topstripe"><i></i><i></i></div>
+        <div class="inner">
+          <div class="eyebrow">
+            <span class="glyph">☀</span>
+            <span class="name">Morning Routine</span>
+            <span class="rule"></span>
+            <span class="meta">06–09</span>
+          </div>
+          <div class="body">
+            <div class="cols">
+              <div class="kid" data-kid="eitan-morning">
+                <h3><span class="badge">☀️</span>Eitan<span class="progress" id="prog-eitan-morning"></span></h3>
+                <div class="progress-bar"><span id="bar-eitan-morning"></span></div>
+                <ul></ul>
+              </div>
+              <div class="kid" data-kid="tamar-morning">
+                <h3><span class="badge">☀️</span>Tamar<span class="progress" id="prog-tamar-morning"></span></h3>
+                <div class="progress-bar"><span id="bar-tamar-morning"></span></div>
+                <ul></ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+        <section class="card routine evening" id="evening-card">
+        <div class="topstripe"><i></i><i></i></div>
+        <div class="inner">
+          <div class="eyebrow">
+            <span class="glyph">☾</span>
+            <span class="name">Evening Routine</span>
+            <span class="rule"></span>
+            <span class="meta">15:30–20:30</span>
+          </div>
+          <div class="body">
+            <div class="cols">
+              <div class="kid" data-kid="eitan-evening">
+                <h3><span class="badge">🌙</span>Eitan<span class="progress" id="prog-eitan-evening"></span></h3>
+                <div class="progress-bar"><span id="bar-eitan-evening"></span></div>
+                <ul></ul>
+              </div>
+              <div class="kid" data-kid="tamar-evening">
+                <h3><span class="badge">🌙</span>Tamar<span class="progress" id="prog-tamar-evening"></span></h3>
+                <div class="progress-bar"><span id="bar-tamar-evening"></span></div>
+                <ul></ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+        <!-- Old transit + stars + To-Do cards removed (To-Do dropped 2026-05-10
+             B′ redesign — family uses Google Keep on phones for shared notes).
+             Spotify card is now the default primary panel content; routine cards
+             take over only during their windows. -->
+
+        <!-- Spotify card — default visible. Two states:
+             - data-state="idle"    : friendly "no music playing" placeholder + tap-to-launch
+             - data-state="playing" : full now-playing player with art + controls -->
+        <section class="card spotify-card" id="spotify-card" data-state="idle">
+          <div class="sp-big-art-placeholder" id="sp-big-art-wrap">
+            <span>&#x266B;</span>
+          </div>
+          <div>
+            <div class="sp-big-track" id="sp-big-track"></div>
+            <div class="sp-big-artist" id="sp-big-artist"></div>
+          </div>
+          <div class="sp-controls">
+            <button class="sp-ctrl-btn" id="sp-prev" aria-label="Previous">&#x23EE;</button>
+            <button class="sp-ctrl-btn sp-play-pause" id="sp-play-pause" aria-label="Play/Pause">&#x23F8;</button>
+            <button class="sp-ctrl-btn" id="sp-next" aria-label="Next">&#x23ED;</button>
+          </div>
+          <!-- Always-reachable "open Spotify" pill in playing state (2026-05-17).
+               In-card launcher was idle-only before; now the family can always
+               jump to the APK to switch playlist/account without leaving the
+               dashboard. -->
+          <button class="sp-open-pill" id="sp-open-pill" aria-label="Open Spotify">
+            <span class="sp-open-glyph">&#x2197;</span>
+            <span>Open Spotify</span>
+          </button>
+          <div class="sp-stale-badge" aria-hidden="true"></div>
+          <!-- Idle-state elements: shown only when data-state="idle".
+               sp-idle-art renders the last-played album cover when available,
+               with a play-overlay glyph; otherwise falls back to the music
+               note. Title/artist below mirror the live-player layout. -->
+          <div class="sp-idle-art" id="sp-idle-art">
+            <span class="sp-idle-art-fallback">&#x266B;</span>
+            <span class="sp-idle-play-glyph" aria-hidden="true">&#x25B6;</span>
+          </div>
+          <div>
+            <div class="sp-idle-prompt empty" id="sp-idle-track">Tap to play</div>
+            <div class="sp-idle-sub" id="sp-idle-artist"></div>
+          </div>
+          <button class="sp-launch-btn" id="sp-launch-btn" aria-label="Launch Spotify">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.59 14.42a.62.62 0 0 1-.86.21c-2.36-1.44-5.34-1.77-8.84-.97a.625.625 0 1 1-.28-1.22c3.83-.88 7.13-.51 9.78 1.12.3.18.39.57.2.86zm1.23-2.74a.78.78 0 0 1-1.07.26c-2.7-1.66-6.82-2.14-10.02-1.17a.78.78 0 1 1-.46-1.5c3.66-1.11 8.21-.58 11.31 1.32.37.23.49.71.24 1.09zm.11-2.85C14.7 8.99 9.5 8.83 6.43 9.76a.93.93 0 1 1-.55-1.78c3.53-1.07 9.27-.86 12.93 1.31a.93.93 0 0 1-.95 1.6z"/>
+            </svg>
+            <span>Tap to play</span>
+          </button>
+        </section>
+      </section><!-- /.primary-panel -->
+    </div><!-- /.right -->
+  </div><!-- /.app -->
+
+  <script>
+    // ---------- Config ----------
+    const OPENWEATHER_API_KEY = "49fa7d892311cf0a36c08bbcf4204107";
+    const CITY = "London,uk";
+    const TZ = "Europe/London";
+
+    // ---------- HTML escape (used anywhere we inject API-sourced strings) ----------
+    // Minimal implementation — old Portal Chromium lacks a native one and several
+    // renderers (TFL arrivals, Stars card) inject remote strings into innerHTML.
+    function escapeHtml(s) {
+      if (s == null) return "";
+      return String(s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    // ---------- Clock + greeting ----------
+    function tick() {
+      const now = new Date();
+      const time = new Intl.DateTimeFormat("en-GB", {
+        timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false
+      }).format(now);
+      document.getElementById("clock").textContent = time;
+
+      const date = new Intl.DateTimeFormat("en-GB", {
+        timeZone: TZ, weekday: "long", day: "numeric", month: "long", year: "numeric"
+      }).format(now);
+      document.getElementById("date").textContent = date;
+
+      // Compact short-form date for the calendar eyebrow (replaces "ALMANAC TODAY").
+      const calDate = new Intl.DateTimeFormat("en-GB", {
+        timeZone: TZ, weekday: "short", day: "numeric", month: "short"
+      }).format(now);
+      const calDateEl = document.getElementById("cal-date");
+      if (calDateEl) calDateEl.textContent = calDate.toUpperCase();
+
+      const hour = parseInt(new Intl.DateTimeFormat("en-GB", {
+        timeZone: TZ, hour: "2-digit", hour12: false
+      }).format(now), 10);
+      let g = "Good evening";
+      if (hour < 5) g = "Good night";
+      else if (hour < 12) g = "Good morning";
+      else if (hour < 18) g = "Good afternoon";
+      document.getElementById("greeting").textContent = g + ", Rifman family";
+    }
+    tick();
+    setInterval(tick, 1000);
+
+    // ---------- To-Do removed 2026-05-10 (B′ redesign) ----------
+    // Family uses Google Keep on phones for shared notes — the dashboard no
+    // longer surfaces a writeable list. Apps Script endpoint kept alive in
+    // case we ever want a read-only "today's notes" callout.
+
+    // ---------- Weather ----------
+    const ICONS = {
+      "01": "☀️", "02": "🌤️", "03": "⛅", "04": "☁️",
+      "09": "🌧️", "10": "🌦️", "11": "⛈️", "13": "❄️", "50": "🌫️"
+    };
+    async function loadWeather() {
+      if (!OPENWEATHER_API_KEY || OPENWEATHER_API_KEY === "YOUR_API_KEY") {
+        document.getElementById("w-desc").textContent = "Add OpenWeather API key";
+        return;
+      }
+      try {
+        const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(CITY)}&appid=${OPENWEATHER_API_KEY}&units=metric`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const d = await res.json();
+        const code = (d.weather?.[0]?.icon || "01d").slice(0, 2);
+        document.getElementById("w-icon").textContent = ICONS[code] || "🌡️";
+        document.getElementById("w-temp").textContent = Math.round(d.main.temp) + "°";
+        document.getElementById("w-desc").textContent = d.weather?.[0]?.description || "";
+        // Hi/Lo/Feels elements removed from the markup — guard against null.
+        const hi = document.getElementById("w-hi");
+        const lo = document.getElementById("w-lo");
+        const fl = document.getElementById("w-feels");
+        if (hi) hi.textContent = Math.round(d.main.temp_max) + "°";
+        if (lo) lo.textContent = Math.round(d.main.temp_min) + "°";
+        if (fl) fl.textContent = Math.round(d.main.feels_like) + "°";
+      } catch (err) {
+        document.getElementById("w-desc").textContent = "Weather unavailable";
+      }
+    }
+    async function loadHourly() {
+      if (!OPENWEATHER_API_KEY || OPENWEATHER_API_KEY === "YOUR_API_KEY") return;
+      // 5 future cells from OpenWeather's 3-hourly forecast. NOW is dropped —
+      // the big current-temp number already shows it, and the duplicate cell
+      // visually overlapped the temp digits at 1280×800.
+      const target = document.getElementById("w-outlook");
+      if (!target) return;
+      try {
+        const url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(CITY)}&appid=${OPENWEATHER_API_KEY}&units=metric&cnt=5`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const d = await res.json();
+        target.textContent = "";
+        (d.list || []).slice(0, 5).forEach(item => {
+          const cell = document.createElement("div");
+          cell.className = "h";
+          // Highlight rain (10/09/11) so "will it rain at 3pm?" pops
+          const code = (item.weather && item.weather[0] && item.weather[0].icon) ? item.weather[0].icon.slice(0, 2) : "01";
+          if (code === "09" || code === "10" || code === "11") cell.classList.add("rain");
+          const when = document.createElement("div");
+          when.className = "when";
+          // Format as HH:MM in London time — clearer than "Xh" suffix.
+          const hhmm = new Intl.DateTimeFormat("en-GB", {
+            timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false
+          }).format(new Date(item.dt * 1000));
+          when.textContent = hhmm;
+          const ic = document.createElement("div");
+          ic.className = "icon";
+          ic.textContent = ICONS[code] || "🌡";
+          const t = document.createElement("div");
+          t.className = "t";
+          t.textContent = Math.round(item.main.temp) + "°";
+          cell.append(when, ic, t);
+          target.appendChild(cell);
+        });
+      } catch (err) {
+        // Hourly is nice-to-have — fail quietly
+      }
+    }
+    // ---------- Routines (per-kid, daily reset, time-windowed) ----------
+    const ROUTINES = {
+      morning: {
+        // 8 chores per kid (was 9; "Free Time / TV" dropped 2026-04-27 — replaced
+        // by the celebration overlay that fires when all 8 are checked).
+        "eitan-morning": ["Breakfast","Get Dressed","Brush Teeth","Socks and Shoes","Vitamin","Water Bottle","Pack a Snack","Pack Your Bag"],
+        "tamar-morning": ["Breakfast","Get Dressed","Brush Teeth","Socks and Shoes","Hair","Water Bottle","Pack a Snack","Pack Your Bag"]
+      },
+      evening: {
+        // 8 chores per kid (was 10; "(Optional) Dessert" + "Reading Time" dropped
+        // 2026-04-27 — celebration overlay handles the "good night, story time"
+        // moment instead. "(Optional) TV / Games" renamed to "Free Time".
+        "eitan-evening": ["Homework","Free Time","Dinner Prep","Dinner","House Chores","Shower","PJ","Brush Teeth"],
+        "tamar-evening": ["Homework","Free Time","Dinner Prep","Dinner","House Chores","Shower","PJ","Brush Teeth"]
+      }
+    };
+    function todayKey() {
+      return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year:"numeric", month:"2-digit", day:"2-digit" }).format(new Date());
+    }
+    function routineStorageKey(kid) { return `routine:${todayKey()}:${kid}`; }
+    function loadRoutine(kid) {
+      try { return new Set(JSON.parse(localStorage.getItem(routineStorageKey(kid))) || []); }
+      catch { return new Set(); }
+    }
+    function saveRoutine(kid, set) {
+      localStorage.setItem(routineStorageKey(kid), JSON.stringify([...set]));
+    }
+    function pruneOldRoutines() {
+      const today = todayKey();
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const k = localStorage.key(i);
+        if (k && (k.startsWith("routine:") || k.startsWith("morning:")) && !k.includes(`:${today}:`)) {
+          localStorage.removeItem(k);
+        }
+      }
+    }
+    const ITEM_ICONS = {
+      "Breakfast": "🥣",
+      "Get Dressed": "👕",
+      "Brush Teeth": "🪥",
+      "Socks and Shoes": "🧦",
+      "Vitamin": "💊",
+      "Hair": "💇",
+      "Water Bottle": "💧",
+      "Pack a Snack": "🍎",
+      "Pack Your Bag": "🎒",
+      "Homework": "✏️",
+      "Free Time": "🎮",
+      "Dinner Prep": "🍳",
+      "Dinner": "🍽️",
+      "House Chores": "🧹",
+      "Shower": "🚿",
+      "PJ": "🩳"
+    };
+    function cleanLabel(label) {
+      return label.replace(/^\(Optional\)\s*/, "");
+    }
+    // ---------- Celebration (morning routine completion) ----------
+    const CELEBRATION_EMOJI = ["🎉","✨","⭐","🎊","💫","🌟","🎈","🥳"];
+    function celebrationKey(kid) { return `celebrated:${todayKey()}:${kid}`; }
+    function maybeCelebrate(kid, allDone, kidEl) {
+      if (!allDone) return;
+      // Fires for both -morning and -evening kids; key includes the suffix so
+      // morning + evening celebrations are independent (one of each per day).
+      if (!kid.endsWith("-morning") && !kid.endsWith("-evening")) return;
+      if (localStorage.getItem(celebrationKey(kid))) return;
+      localStorage.setItem(celebrationKey(kid), "1");
+      fireCelebration(kid, kidEl);
+    }
+    function fireCelebration(kid, kidEl) {
+      const parts = kid.split("-");                 // ["eitan","morning"] etc.
+      const name = parts[0];
+      const slot = parts[1];                        // "morning" | "evening"
+      const display = name.charAt(0).toUpperCase() + name.slice(1);
+      const accent = name === "eitan" ? "var(--cobalt)" : "var(--terracotta)";
+      const wrap = document.createElement("div");
+      wrap.className = "celebration";
+      const toast = document.createElement("div");
+      toast.className = "toast";
+      const nameEl = document.createElement("span");
+      nameEl.className = "name";
+      nameEl.style.color = accent;
+      nameEl.textContent = display;
+
+      // Headline + sub copy depend on slot — different vibe morning vs evening.
+      let leadEmoji, leadTrail, subText;
+      if (slot === "evening") {
+        leadEmoji = "🌙 ";
+        leadTrail = " — all set!";
+        subText = "good night · story time · sweet dreams ✨";
+      } else {
+        leadEmoji = "🎉 ";
+        leadTrail = " — all done!";
+        subText = "ready for school · free time until 8:30 ☀️";
+      }
+      toast.appendChild(document.createTextNode(leadEmoji));
+      toast.appendChild(nameEl);
+      toast.appendChild(document.createTextNode(leadTrail));
+      const sub = document.createElement("div");
+      sub.className = "sub";
+      sub.textContent = subText;
+      toast.appendChild(sub);
+      wrap.appendChild(toast);
+      for (let i = 0; i < 44; i++) {
+        const c = document.createElement("span");
+        c.className = "confetti";
+        c.textContent = CELEBRATION_EMOJI[i % CELEBRATION_EMOJI.length];
+        c.style.left = Math.random() * 100 + "vw";
+        c.style.animationDelay = (Math.random() * 0.7) + "s";
+        c.style.animationDuration = (1.8 + Math.random() * 1.6) + "s";
+        c.style.fontSize = (18 + Math.random() * 26) + "px";
+        wrap.appendChild(c);
+      }
+      document.body.appendChild(wrap);
+      if (kidEl) {
+        kidEl.classList.add("celebrating");
+        setTimeout(() => kidEl.classList.remove("celebrating"), 1300);
+      }
+      setTimeout(() => wrap.classList.add("fading"), 2500);
+      setTimeout(() => wrap.remove(), 3300);
+    }
+
+    function renderRoutines() {
+      pruneOldRoutines();
+      const all = { ...ROUTINES.morning, ...ROUTINES.evening };
+      Object.entries(all).forEach(([kid, items]) => {
+        const ul = document.querySelector(`.kid[data-kid="${kid}"] ul`);
+        if (!ul) return;
+        const checked = loadRoutine(kid);
+        ul.innerHTML = "";
+        items.forEach((label, idx) => {
+          const li = document.createElement("li");
+          if (checked.has(idx)) li.classList.add("done");
+          if (label.startsWith("(Optional")) li.classList.add("optional");
+
+          const icon = document.createElement("span");
+          icon.className = "icon";
+          icon.textContent = ITEM_ICONS[label] || "•";
+
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.checked = checked.has(idx);
+          cb.addEventListener("change", () => {
+            const set = loadRoutine(kid);
+            if (cb.checked) set.add(idx); else set.delete(idx);
+            saveRoutine(kid, set);
+            renderRoutines();
+          });
+
+          const labelEl = document.createElement("span");
+          labelEl.className = "label";
+          labelEl.textContent = cleanLabel(label);
+
+          li.append(cb, icon, labelEl);
+          li.addEventListener("click", e => { if (e.target.tagName !== "INPUT") cb.click(); });
+          ul.appendChild(li);
+        });
+
+        const prog = document.getElementById(`prog-${kid}`);
+        if (prog) prog.textContent = `${checked.size}/${items.length}`;
+        const bar = document.getElementById(`bar-${kid}`);
+        if (bar) bar.style.width = `${Math.round((checked.size / items.length) * 100)}%`;
+
+        // Celebrate when all (incl. optional) are done — morning only.
+        const kidEl = document.querySelector(`.kid[data-kid="${kid}"]`);
+        maybeCelebrate(kid, checked.size === items.length, kidEl);
+      });
+    }
+    function nowMinutesLondon() {
+      // Use toLocaleTimeString which is widely supported on old WebViews
+      // (formatToParts can fail or be unimplemented on older Chromium).
+      try {
+        const s = new Date().toLocaleTimeString("en-GB", {
+          timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false
+        });
+        const m = s.match(/(\d{1,2}):(\d{2})/);
+        if (m) return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+      } catch (e) {}
+      const d = new Date();
+      return d.getHours() * 60 + d.getMinutes();
+    }
+    // Belt-and-suspenders: set both the HTML attribute and style.display.
+    // Old Android WebViews sometimes ignore .hidden property assignment.
+    function setCardVisible(id, visible) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (visible) {
+        el.removeAttribute("hidden");
+        el.style.display = "";
+      } else {
+        el.setAttribute("hidden", "");
+        el.style.display = "none";
+      }
+    }
+    function isWeekendLondon() {
+      // Robust on old WebViews — toLocaleDateString with weekday is well-supported.
+      try {
+        const wd = new Date().toLocaleDateString("en-GB", { timeZone: TZ, weekday: "short" });
+        return /^(Sat|Sun)/i.test(wd);
+      } catch (e) {
+        const day = new Date().getDay(); // 0=Sun,6=Sat
+        return day === 0 || day === 6;
+      }
+    }
+    // B′ (2026-05-10): primary panel mode picker.
+    // Sets body[data-mode] to "morning" | "evening" | "spotify" — CSS rules
+    // in the .primary-panel block show exactly one child for the active mode.
+    // To-Do mode dropped (the To-Do card was removed from markup); Spotify is
+    // the always-visible default outside routine windows, with an idle
+    // placeholder when nothing's playing.
+    function pickMode() {
+      // Dev / testing override: ?mode=morning|evening|spotify forces a mode for
+      // the current page load. Lets us test routines outside their windows
+      // (e.g. preview morning at 11am from a laptop browser). No persistence —
+      // a normal reload without the query goes back to time-based logic.
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const override = params.get("mode");
+        if (override === "morning" || override === "evening" || override === "spotify") {
+          return override;
+        }
+        // Backwards-compat: ?mode=todo still works (treated as the new default).
+        if (override === "todo") return "spotify";
+      } catch (_) {}
+      try {
+        const mins = nowMinutesLondon();
+        const weekend = isWeekendLondon();
+        // Morning routine = weekday school prep only.
+        if (!weekend && mins >= 6 * 60 && mins < 9 * 60) return "morning";
+        // Evening routine = every day (incl. weekends).
+        if (mins >= 15 * 60 + 30 && mins < 20 * 60 + 30) return "evening";
+        return "spotify";
+      } catch (e) {
+        return "spotify";  // safe default — Spotify card always renders
+      }
+    }
+    function updateMode() {
+      const mode = pickMode();
+      document.body.setAttribute("data-mode", mode);
+      // Backwards-compat: keep the routine-active class around in case any
+      // straggler CSS still references it.
+      document.body.classList.toggle("routine-active", mode === "morning" || mode === "evening");
+      // Routine window ended: clear any music override (it was only meaningful
+      // while a routine card was hiding behind it). Outside routines, the
+      // spotify card is the natural default.
+      if (mode === "spotify" && document.body.getAttribute("data-music-override") === "true") {
+        setMusicOverride(false);
+      }
+    }
+    renderRoutines();
+    updateMode();
+    setInterval(() => { renderRoutines(); updateMode(); }, 60 * 1000);
+
+    loadWeather();
+    loadHourly();
+    setInterval(() => { loadWeather(); loadHourly(); }, 15 * 60 * 1000); // every 15 min
+
+    // ---------- Calendar (block-agenda view, via Vercel proxy) ----------
+    // B′ redesign 2026-05-10: replaced the prior 06–21 vertical timeline with
+    // a block-list agenda. Today's events are split into Now / Up Next / Later;
+    // tomorrow's events get a dashed-rule day-head and are visually recessed.
+    const CAL_PROXY_URL = "https://family-dashboard-proxy.vercel.app/api/cal";
+
+    function dayKey(d) {
+      return new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year:"numeric", month:"2-digit", day:"2-digit" }).format(d);
+    }
+    function fmtTime(d) {
+      return new Intl.DateTimeFormat("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false }).format(d);
+    }
+    function shortDayHead(d) {
+      // "Tomorrow · MON 11 MAY"
+      const wd = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, weekday: "short" }).format(d).toUpperCase();
+      const dm = new Intl.DateTimeFormat("en-GB", { timeZone: TZ, day: "numeric", month: "short" }).format(d).toUpperCase();
+      return wd + " " + dm;
+    }
+    // London-tz minutes-since-midnight for any Date
+    function londonMins(d) {
+      try {
+        const s = new Intl.DateTimeFormat("en-GB", {
+          timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false
+        }).format(d);
+        const m = s.match(/(\d{1,2}):(\d{2})/);
+        if (m) return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+      } catch (e) {}
+      return d.getHours() * 60 + d.getMinutes();
+    }
+
+    async function loadCalendar() {
+      try {
+        const res = await fetch(CAL_PROXY_URL, { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const { events } = await res.json();
+        renderCalendar(events || []);
+      } catch (err) {
+        const agenda = document.getElementById("agenda");
+        if (agenda) {
+          while (agenda.firstChild) agenda.removeChild(agenda.firstChild);
+          const wrap = document.createElement("div");
+          wrap.className = "cal-error";
+          wrap.appendChild(document.createTextNode("Calendar unavailable"));
+          const small = document.createElement("small");
+          small.textContent = String(err.message || err);
+          wrap.appendChild(small);
+          agenda.appendChild(wrap);
+        }
+      }
+    }
+
+    // Build a CSS class fragment from event.source (Family/Elul/School/etc).
+    function sourceClass(ev) {
+      if (!ev || !ev.source) return "";
+      const slug = String(ev.source).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      return slug ? " source-" + slug : "";
+    }
+
+    function fmtDuration(startMs, endMs) {
+      const mins = Math.max(0, Math.round((endMs - startMs) / 60000));
+      if (mins === 0) return "";
+      if (mins < 60) return mins + "m";
+      const h = Math.floor(mins / 60);
+      const m = mins % 60;
+      return m === 0 ? h + "h" : h + "h " + m + "m";
+    }
+
+    function makeBlock(ev, opts) {
+      opts = opts || {};
+      const block = document.createElement("div");
+      let cls = "block" + sourceClass(ev);
+      if (opts.now) cls += " now";
+      if (opts.past) cls += " past";
+      if (opts.tomorrow) cls += " tomorrow";
+      block.className = cls;
+
+      // Source-color bar is rendered via .block::before (CSS pseudo) — see CSS.
+      // Don't append a real .bar div: old Portal Chromium auto-places abs-
+      // positioned grid children into a track, shifting all real cells right.
+
+      const when = document.createElement("div");
+      when.className = "when";
+      when.textContent = ev.allDay ? "all day" : fmtTime(new Date(ev.start));
+      block.appendChild(when);
+
+      const ti = document.createElement("div");
+      ti.className = "ti";
+      ti.textContent = ev.title;
+      block.appendChild(ti);
+
+      const dur = document.createElement("div");
+      dur.className = "dur";
+      if (ev.allDay) {
+        dur.textContent = "";
+      } else {
+        dur.textContent = fmtDuration(new Date(ev.start).getTime(), new Date(ev.end).getTime());
+      }
+      block.appendChild(dur);
+
+      if (ev.location) block.title = ev.location;
+      return block;
+    }
+
+    function renderCalendar(events) {
+      const allDayEl = document.getElementById("cal-allday");
+      const agendaEl = document.getElementById("agenda");
+      if (!allDayEl || !agendaEl) return;
+      while (allDayEl.firstChild) allDayEl.removeChild(allDayEl.firstChild);
+      while (agendaEl.firstChild) agendaEl.removeChild(agendaEl.firstChild);
+
+      const today = dayKey(new Date());
+      const tomorrowDate = new Date(Date.now() + 86400000);
+      const tomorrow = dayKey(tomorrowDate);
+      const todayAllDay = [];
+      const todayTimed = [];
+      const tomorrowItems = [];
+      for (const ev of events) {
+        const start = new Date(ev.start);
+        const k = dayKey(start);
+        if (k === today) {
+          (ev.allDay ? todayAllDay : todayTimed).push(ev);
+        } else if (k === tomorrow) {
+          tomorrowItems.push(ev);
+        }
+      }
+      // Sort by start asc
+      todayTimed.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+      tomorrowItems.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+
+      // ─── All-day chips
+      todayAllDay.forEach(ev => {
+        const c = document.createElement("div");
+        c.className = "chip" + sourceClass(ev);
+        c.textContent = ev.title;
+        allDayEl.appendChild(c);
+      });
+
+      // ─── Today: split into Now / Up Next / Later
+      const nowMins = nowMinutesLondon();
+      const happeningNow = [];
+      const upcoming = [];
+      todayTimed.forEach(ev => {
+        const sM = londonMins(new Date(ev.start));
+        const eM = londonMins(new Date(ev.end));
+        if (sM <= nowMins && nowMins < eM) {
+          happeningNow.push(ev);
+        } else if (sM > nowMins) {
+          upcoming.push(ev);
+        }
+        // events fully in the past are dropped from the agenda — agenda is forward-looking
+      });
+
+      function addSection(label, opts, items) {
+        if (!items.length) return;
+        const head = document.createElement("div");
+        head.className = "section-head" + (opts && opts.now ? " now" : "");
+        head.textContent = (opts && opts.now ? "▌ " : "") + label;
+        agendaEl.appendChild(head);
+        items.forEach(ev => {
+          agendaEl.appendChild(makeBlock(ev, opts || {}));
+        });
+      }
+
+      addSection("Now", { now: true }, happeningNow);
+      addSection("Up Next", {}, upcoming.slice(0, 6));
+
+      // ─── Tomorrow section (visually recessed)
+      if (tomorrowItems.length) {
+        const head = document.createElement("div");
+        head.className = "day-head";
+        head.appendChild(document.createTextNode("Tomorrow"));
+        const dot = document.createElement("span");
+        dot.className = "dot";
+        dot.textContent = "· " + shortDayHead(tomorrowDate);
+        head.appendChild(dot);
+        agendaEl.appendChild(head);
+        tomorrowItems.slice(0, 6).forEach(ev => {
+          agendaEl.appendChild(makeBlock(ev, { tomorrow: true }));
+        });
+      }
+
+      if (!todayAllDay.length && !todayTimed.length && !tomorrowItems.length) {
+        const empty = document.createElement("div");
+        empty.className = "cal-empty";
+        empty.textContent = "A quiet stretch ahead.";
+        agendaEl.appendChild(empty);
+      }
+    }
+
+    // No-op kept for any external callers; the now-line lived inside the timeline view.
+    function positionNowLine() {}
+
+    loadCalendar();
+    // 2026-05-17: 5min → 30min. Calendar events change rarely (family adds
+    // them via Google Cal on phones); proxy caches 60min anyway, so polling
+    // faster than that just wasted Vercel CPU. 30min worst-case visibility
+    // lag for "wife added an event" is acceptable for a kitchen dashboard.
+    setInterval(loadCalendar, 30 * 60 * 1000);
+    setInterval(positionNowLine, 60 * 1000);  // move the now-line every minute
+
+    // ---------- TfL transit (Northern Line + Bus 102) ----------
+    // TfL severity scale: 10 = Good Service, 9 = Minor Delays, 6 or below = Severe.
+    //
+    // Live bus arrivals: fill in TFL_STOPS with stop IDs from
+    //   https://tfl.gov.uk/bus/route/102/  → click stop on map → URL contains the StopID.
+    // Stop IDs are short codes like "490004733E" (letter at end = direction).
+    const TFL_STOPS = [
+      { id: "490004463E", route: "102", dest: "East Finchley" },
+      { id: "490004463W", route: "102", dest: "Golders Green" },
+    ];
+
+    // Cache scheduled timetables for the day so we don't refetch every 30s.
+    const _tflTimetableCache = {}; // key: stopId|route|YYYY-MM-DD → ["HH:MM", ...]
+    async function fetchScheduledTimes(stop) {
+      const today = new Date().toLocaleDateString("en-CA", { timeZone: TZ });
+      const key = `${stop.id}|${stop.route}|${today}`;
+      if (_tflTimetableCache[key]) return _tflTimetableCache[key];
+      try {
+        const res = await fetch(`https://api.tfl.gov.uk/Line/${stop.route}/Timetable/${stop.id}`, { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        // Find today's schedule by name match (e.g. "Friday", "Mon-Fri", "Saturday").
+        const todayName = new Date().toLocaleDateString("en-GB", { timeZone: TZ, weekday: "long" });
+        const schedules = data?.timetable?.routes?.[0]?.schedules || [];
+        const today3 = todayName.slice(0, 3);
+        const match = schedules.find(s => {
+          const n = (s.name || "").toLowerCase();
+          return n.includes(todayName.toLowerCase())
+              || n.includes(today3.toLowerCase())
+              || (today3 !== "Sat" && today3 !== "Sun" && /mon-?fri|weekday/.test(n));
+        }) || schedules[0];
+        const journeys = match?.knownJourneys || [];
+        const times = journeys.map(j => `${String(j.hour).padStart(2, "0")}:${String(j.minute).padStart(2, "0")}`);
+        _tflTimetableCache[key] = times;
+        return times;
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function nextScheduled(times, k = 3) {
+      const now = new Date();
+      const nowMin = now.toLocaleTimeString("en-GB", { timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false });
+      const [hN, mN] = nowMin.split(":").map(Number);
+      const cur = hN * 60 + mN;
+      return times
+        .map(t => { const [h, m] = t.split(":").map(Number); return { t, mins: h * 60 + m }; })
+        .filter(x => x.mins >= cur)
+        .sort((a, b) => a.mins - b.mins)
+        .slice(0, k);
+    }
+
+    // Sequential rewrite — no nested Promise.all, no optional chaining of array
+    // index access. Old Portal Chromium occasionally chokes on these and the
+    // whole render aborts silently. Keeps a tiny diagnostic line at the bottom
+    // of the arrivals container so we can SEE on Terry whether render ran.
+    async function loadTflArrivals() {
+      const container = document.getElementById("tfl-102-arrivals");
+      if (!container) return;
+      if (!TFL_STOPS.length) {
+        container.setAttribute("hidden", "");
+        container.style.display = "none";
+        return;
+      }
+
+      const rows = [];
+      let liveCount = 0, schedCount = 0, errCount = 0;
+
+      for (let si = 0; si < TFL_STOPS.length; si++) {
+        const s = TFL_STOPS[si];
+        let live = [];
+        let stopErr = false;
+        try {
+          const res = await fetch(
+            "https://api.tfl.gov.uk/StopPoint/" + encodeURIComponent(s.id) + "/Arrivals?mode=bus",
+            { cache: "no-store" }
+          );
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          const data = await res.json();
+          if (Array.isArray(data)) {
+            live = data.filter(function (a) { return a && a.lineId === s.route; })
+                       .sort(function (a, b) { return a.timeToStation - b.timeToStation; })
+                       .slice(0, 3);
+          }
+        } catch (e) {
+          stopErr = true;
+        }
+
+        const dest = "→ " + escapeHtml(s.dest);
+
+        if (stopErr) {
+          errCount++;
+          rows.push('<div class="arr-row"><span class="dest">' + dest + '</span><span class="none">offline</span></div>');
+          continue;
+        }
+
+        if (live.length) {
+          liveCount += live.length;
+          const parts = [];
+          for (let i = 0; i < live.length; i++) {
+            const mins = Math.round(live[i].timeToStation / 60);
+            const cell = (mins <= 0)
+              ? '<span class="t due">Due</span>'
+              : '<span class="t">' + mins + '<span class="u">min</span></span>';
+            parts.push((i > 0 ? '<span class="sep">·</span>' : '') + cell);
+          }
+          rows.push('<div class="arr-row"><span class="dest">' + dest + '</span><span class="times">' + parts.join(' ') + '</span></div>');
+          continue;
+        }
+
+        // Live empty → schedule fallback
+        let sched = [];
+        try { sched = await fetchScheduledTimes(s); } catch (_) { sched = []; }
+        const upcoming = nextScheduled(sched, 3);
+        if (!upcoming.length) {
+          rows.push('<div class="arr-row"><span class="dest">' + dest + '</span><span class="none">no buses today</span></div>');
+          continue;
+        }
+        schedCount += upcoming.length;
+        const nowM = nowMinutesLondon();
+        const sparts = [];
+        for (let i = 0; i < upcoming.length; i++) {
+          const delta = upcoming[i].mins - nowM;
+          let cell;
+          if (delta <= 0)       cell = '<span class="t due">Due</span>';
+          else if (delta < 60)  cell = '<span class="t sched">' + delta + '<span class="u">min</span></span>';
+          else                  cell = '<span class="t sched">' + escapeHtml(upcoming[i].t) + '</span>';
+          sparts.push((i > 0 ? '<span class="sep">·</span>' : '') + cell);
+        }
+        rows.push('<div class="arr-row"><span class="dest">' + dest + '</span><span class="times">' + sparts.join(' ') + '<span class="sched-tag">scheduled</span></span></div>');
+      }
+
+      container.innerHTML = rows.join("");
+      container.removeAttribute("hidden");
+      container.style.display = "";
+
+      // If we got LIVE arrivals (predictions, not just scheduled), hide the
+      // line's "Good Service" pill — the live times convey the same info more
+      // usefully. If only scheduled fallback or all errors, keep the pill so
+      // the user still has the line-status signal.
+      const tfl102 = document.getElementById("tfl-102");
+      if (tfl102) {
+        if (liveCount > 0) tfl102.classList.add("has-arrivals");
+        else               tfl102.classList.remove("has-arrivals");
+      }
+    }
+
+    async function loadTfl() {
+      const lines = [
+        { id: "northern", el: "tfl-northern" },
+        { id: "102",      el: "tfl-102" }
+      ];
+      await Promise.all(lines.map(async ({ id, el }) => {
+        const row = document.getElementById(el);
+        const span = row && row.querySelector(".status");
+        if (!span) return;
+        try {
+          const res = await fetch(`https://api.tfl.gov.uk/Line/${id}/Status`, { cache: "no-store" });
+          if (!res.ok) throw new Error("HTTP " + res.status);
+          const data = await res.json();
+          const desc = data?.[0]?.lineStatuses?.[0]?.statusSeverityDescription || "Unknown";
+          const sev  = data?.[0]?.lineStatuses?.[0]?.statusSeverity ?? 10;
+          const tone = sev >= 10 ? "good" : sev >= 7 ? "minor" : "severe";
+          span.textContent = desc;
+          span.classList.remove("good", "minor", "severe");
+          span.classList.add(tone);
+        } catch (e) {
+          span.textContent = "Unavailable";
+          span.classList.remove("good", "minor");
+          span.classList.add("severe");
+        }
+      }));
+    }
+    loadTfl();
+    setInterval(loadTfl, 5 * 60 * 1000); // line status every 5 min
+    loadTflArrivals();
+    setInterval(loadTflArrivals, 30 * 1000); // bus arrivals every 30s
+
+    // ---------- Table Stars mirror (read-only card in the off-routine ambient slot) ----------
+    // Keyed public endpoint — the key gates a low-sensitivity summary (prize_count,
+    // cycle_progress, last_earned_at), same posture as OPENWEATHER_API_KEY above.
+    const STARS_ENDPOINT =
+      "https://tablestars.erapps.xyz/api/public/stats?key=810c212871db6636f5b773b301f4a5e7d56bc51aaf88b657";
+    const _lastPrizeCount = {}; // kid.id -> last seen prize_count (drives pulse)
+    const _lastCycleProgress = {}; // kid.id -> last seen cycle_progress (drives pulse)
+
+    function slugKid(name) {
+      return (name || "").toLowerCase().replace(/[^a-z]/g, "");
+    }
+
+    // Compact context-strip rendering: per-kid row with prize count (slow,
+    // celebratory milestone) AND cycle progress X/10 (fast daily-effort metric).
+    // Both pulse on increment between polls. Cycle highlights kid-accent when full.
+    function renderStars(kids) {
+      const body = document.getElementById("stars-body");
+      if (!body) return;
+      if (!kids || !kids.length) {
+        body.innerHTML = "";
+        return;
+      }
+      const rows = kids.map(function(k) {
+        const slug = slugKid(k.name);
+        const pc = k.prize_count || 0;
+        const cycle = Math.max(0, Math.min(10, k.cycle_progress || 0));
+        const cycleClass = "cycle" + (cycle >= 10 ? " full" : "");
+        const idAttr = escapeHtml(k.id);
+        return (
+          '<div class="kid" data-kid="' + escapeHtml(slug) + '" data-id="' + idAttr + '">' +
+            '<span class="label">' + escapeHtml(k.name || "") + '</span>' +
+            '<span class="count"><span class="gift">🎁</span>' + pc + '</span>' +
+            '<span class="' + cycleClass + '"><span class="star">⭐</span>' + cycle + '/10</span>' +
+          '</div>'
+        );
+      });
+      body.innerHTML = rows.join("");
+
+      // Pulse on increment for both metrics.
+      kids.forEach(function(k) {
+        const id = String(k.id);
+        const sel = '.kid[data-id="' + CSS.escape(id) + '"]';
+
+        const prevPc = _lastPrizeCount[k.id];
+        const nowPc = k.prize_count || 0;
+        if (prevPc !== undefined && nowPc > prevPc) {
+          const el = body.querySelector(sel + " .count");
+          if (el) {
+            el.classList.add("pulse");
+            setTimeout(function() { el.classList.remove("pulse"); }, 320);
+          }
+        }
+        _lastPrizeCount[k.id] = nowPc;
+
+        const prevCy = _lastCycleProgress[k.id];
+        const nowCy = Math.max(0, Math.min(10, k.cycle_progress || 0));
+        if (prevCy !== undefined && nowCy > prevCy) {
+          const el = body.querySelector(sel + " .cycle");
+          if (el) {
+            el.classList.add("pulse");
+            setTimeout(function() { el.classList.remove("pulse"); }, 320);
+          }
+        }
+        _lastCycleProgress[k.id] = nowCy;
+      });
+    }
+
+    async function loadStars() {
+      try {
+        const res = await fetch(STARS_ENDPOINT, { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        renderStars(data && data.kids);
+      } catch (e) {
+        // Silent fail — leaves card hidden (or showing last-good state) rather than
+        // flashing an error row in the kitchen. Retry on next poll.
+      }
+    }
+    loadStars();
+    setInterval(loadStars, 30 * 60 * 1000); // stars change 1-2x per day; 30 min is plenty
+
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SPOTIFY -- now-playing ambient card + full player card + launch button
+    // ─────────────────────────────────────────────────────────────────────────
+    // Proxy endpoint (Vercel). Returns { isPlaying, track, artist, albumArt, ... }
+    // Set to "" to disable the feature gracefully (card stays hidden).
+    const SPOTIFY_PROXY_URL = "https://family-dashboard-proxy.vercel.app/api/spotify-now";
+
+    let _spIsPlaying = false;
+    let _spPrevPlaying = false; // for false\u2192true transition detection (auto-open)
+    let _spAutoCloseTimer = null;
+    let _spStopGraceTimer = null; // when music stops while override is on, wait
+                                  // GRACE_MS before clearing \u2014 avoids snapping
+                                  // back to the routine on a brief pause.
+    const SP_OVERRIDE_GRACE_MS = 30 * 1000;
+
+    function setMusicOverride(on) {
+      if (on) {
+        document.body.setAttribute("data-music-override", "true");
+      } else {
+        document.body.removeAttribute("data-music-override");
+        if (_spStopGraceTimer) { clearTimeout(_spStopGraceTimer); _spStopGraceTimer = null; }
+      }
+    }
+
+    const spBigArtWrap = document.getElementById("sp-big-art-wrap");
+    const spBigTrack   = document.getElementById("sp-big-track");
+    const spBigArtist  = document.getElementById("sp-big-artist");
+    const spPlayPause  = document.getElementById("sp-play-pause");
+    const spClose      = document.getElementById("sp-close");
+
+    function _spEscAttr(s) {
+      return String(s || "").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+    }
+
+    function renderSpotify(data) {
+      _spIsPlaying = !!(data && data.isPlaying);
+      const cardEl = document.getElementById("spotify-card");
+
+      // Music override: false\u2192true transition during a routine should swap
+      // the routine card out for the playing card. true\u2192false starts a grace
+      // timer (don't snap back on a quick pause / track gap).
+      if (_spIsPlaying && !_spPrevPlaying) {
+        const mode = document.body.getAttribute("data-mode");
+        if (mode === "morning" || mode === "evening") {
+          setMusicOverride(true);
+        }
+        if (_spStopGraceTimer) { clearTimeout(_spStopGraceTimer); _spStopGraceTimer = null; }
+      } else if (!_spIsPlaying && _spPrevPlaying) {
+        if (document.body.getAttribute("data-music-override") === "true") {
+          if (_spStopGraceTimer) clearTimeout(_spStopGraceTimer);
+          _spStopGraceTimer = setTimeout(() => setMusicOverride(false), SP_OVERRIDE_GRACE_MS);
+        }
+      }
+
+      if (!_spIsPlaying) {
+        // B\u2032: card stays visible in idle state \u2014 no closing, no mode switch.
+        // Surface last-played track so a single tap restarts it.
+        if (cardEl) cardEl.setAttribute("data-state", "idle");
+        if (spBigTrack)  spBigTrack.textContent  = "";
+        if (spBigArtist) spBigArtist.textContent = "";
+
+        const idleArt    = document.getElementById("sp-idle-art");
+        const idleTrack  = document.getElementById("sp-idle-track");
+        const idleArtist = document.getElementById("sp-idle-artist");
+        const lp = data && data.lastPlayed;
+        if (idleArt) {
+          if (lp && lp.albumArt) {
+            idleArt.style.backgroundImage = "url('" + _spEscAttr(lp.albumArt) + "')";
+            idleArt.classList.add("has-art");
+          } else {
+            idleArt.style.backgroundImage = "";
+            idleArt.classList.remove("has-art");
+          }
+        }
+        if (idleTrack) {
+          if (lp && lp.track) {
+            idleTrack.textContent = lp.track;
+            idleTrack.classList.remove("empty");
+          } else {
+            idleTrack.textContent = "Tap to play";
+            idleTrack.classList.add("empty");
+          }
+        }
+        if (idleArtist) idleArtist.textContent = (lp && lp.artist) ? lp.artist : "";
+
+        _spPrevPlaying = false;
+        return;
+      }
+
+      // Music is playing \u2014 populate live player data.
+      if (cardEl) cardEl.setAttribute("data-state", "playing");
+      if (spBigArtWrap) {
+        // Wrap art in a relative container so the long-press launch hint
+        // (⤴ glyph, top-right) anchors correctly.
+        const hint = '<span class="sp-big-art-launch-hint" aria-hidden="true">&#x2197;</span>';
+        if (data.albumArt) {
+          spBigArtWrap.innerHTML = '<div class="sp-big-art-wrap-rel"><img class="sp-big-art" src="' + _spEscAttr(data.albumArt) + '" alt="" />' + hint + '</div>';
+        } else {
+          spBigArtWrap.innerHTML = '<div class="sp-big-art-wrap-rel"><div class="sp-big-art-placeholder"><span>&#x266B;</span></div>' + hint + '</div>';
+        }
+      }
+      // Wrap track title in a <span> so the marquee CSS can translate it.
+      // Toggle .marquee only when the text actually overflows the container \u2014
+      // short titles stay still and centered.
+      if (spBigTrack) {
+        const title = data.track || "Unknown track";
+        spBigTrack.innerHTML = '<span></span>';
+        spBigTrack.firstChild.textContent = title;
+        // Defer measurement to next frame; the span needs to lay out first.
+        requestAnimationFrame(function() {
+          try {
+            const span = spBigTrack.firstChild;
+            const overflows = span && span.scrollWidth > spBigTrack.clientWidth + 4;
+            spBigTrack.classList.toggle("marquee", !!overflows);
+          } catch (_) {}
+        });
+      }
+      if (spBigArtist) spBigArtist.textContent = data.artist || "";
+      if (spPlayPause) spPlayPause.textContent = data.isPlaying ? "\u23F8" : "\u25B6";
+      _spPrevPlaying = true;
+    }
+
+    let _spLastErrorAt = 0;
+    let _spLastSuccessAt = Date.now();
+
+    // Visible error state — if the proxy hasn't replied successfully in 60s,
+    // show a "connection retrying" line on the card so the family doesn't
+    // think the dashboard is silently lying about playback. Cleared as soon
+    // as the next poll succeeds.
+    function _spUpdateHealthBadge() {
+      try {
+        const card = document.getElementById("spotify-card");
+        if (!card) return;
+        const staleMs = Date.now() - _spLastSuccessAt;
+        card.classList.toggle("sp-stale", staleMs > 60_000);
+      } catch (_) {}
+    }
+    setInterval(_spUpdateHealthBadge, 5_000);
+
+    // ─────────────────────────────────────────────────────────────────────
+    // SPOTIFY WEB PLAYBACK SDK (2026-05-18 Phase C)
+    // Dashboard is the player. Audio plays through this WebView. State comes
+    // from SDK events; controls go directly to player.* — no proxy roundtrip,
+    // no kiosk media-key dispatch. The /api/spotify-now polling endpoint is
+    // kept as a fallback for the idle-card lastPlayed image when the SDK
+    // isn't connected (cold start, token expiry, etc).
+    // ─────────────────────────────────────────────────────────────────────
+    const SPOTIFY_TOKEN_URL = "https://family-dashboard-proxy.vercel.app/api/spotify-token?key=sdk-feasibility-2026-05-18-terry";
+    let _spPlayer = null;
+    let _spDeviceId = null;
+    let _spAccessToken = null;
+
+    async function fetchSpotifyToken() {
+      const r = await fetch(SPOTIFY_TOKEN_URL, { cache: "no-store" });
+      if (!r.ok) throw new Error("token endpoint " + r.status);
+      const data = await r.json();
+      if (!data.access_token) throw new Error("no access_token");
+      _spAccessToken = data.access_token;
+      _spLastSuccessAt = Date.now();
+      return _spAccessToken;
+    }
+
+    // Translate SDK state → the shape renderSpotify() expects (same as the
+    // old proxy JSON). One adapter keeps the entire card-render path
+    // unchanged.
+    function sdkStateToProxyShape(state) {
+      if (!state || !state.track_window || !state.track_window.current_track) {
+        return { isPlaying: false };
+      }
+      const t = state.track_window.current_track;
+      const images = (t.album && t.album.images) || [];
+      // SDK returns images sorted largest→smallest; pick a 300-ish size.
+      const albumArt = (images[1] || images[0] || {}).url || null;
+      return {
+        isPlaying:  !state.paused,
+        track:      t.name || "",
+        artist:     (t.artists || []).map(a => a.name).join(", "),
+        album:      (t.album && t.album.name) || "",
+        albumArt,
+        progress:   state.position || 0,
+        duration:   state.duration || 0,
+        spotifyUrl: null,
+      };
+    }
+
+    // Fallback poll of the legacy proxy — ONLY when the SDK isn't connected,
+    // so the idle card can still show lastPlayed art on first load.
+    async function loadSpotifyFallback() {
+      const PROXY = "https://family-dashboard-proxy.vercel.app/api/spotify-now";
+      try {
+        const res = await fetch(PROXY, { cache: "no-store" });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!_spPlayer || !_spDeviceId) renderSpotify(data);
+      } catch (_) { /* silent — non-critical */ }
+    }
+
+    // Direct-to-SDK command. No URI, no kiosk roundtrip, no cache-bust.
+    function spCommand(cmd) {
+      if (navigator.vibrate) { try { navigator.vibrate(20); } catch (_) {} }
+      if (cmd === "pause" && document.body.getAttribute("data-music-override") === "true") {
+        setMusicOverride(false);
+      }
+      if (!_spPlayer) {
+        console.warn("[sdk] spCommand(" + cmd + ") with no player — fallback to kiosk URI");
+        window.location.href = "kiosk://spotify/" + cmd;
+        return;
+      }
+      let p;
+      switch (cmd) {
+        case "play":   p = _spPlayer.resume(); break;
+        case "pause":  p = _spPlayer.pause();  break;
+        case "next":   p = _spPlayer.nextTrack(); break;
+        case "prev":   p = _spPlayer.previousTrack(); break;
+        default:       return;
+      }
+      if (p && p.catch) p.catch(e => console.warn("[sdk] " + cmd + " failed:", e && e.message));
+    }
+
+    // Transfer playback to Terry on first SDK-ready, but ONLY if nothing
+    // else is currently active — don't yank music away from a phone that's
+    // already playing.
+    async function maybeTransferToTerry() {
+      if (!_spAccessToken || !_spDeviceId) return;
+      try {
+        const r = await fetch("https://api.spotify.com/v1/me/player", {
+          headers: { Authorization: "Bearer " + _spAccessToken },
+        });
+        // 204 = no active device. 200 = some device is active.
+        if (r.status === 204) {
+          // No-op: don't auto-transfer with no playback. Family taps phone
+          // → Terry when they want it.
+          console.warn("[sdk] no active device — leaving Terry idle");
+          return;
+        }
+        if (r.ok) {
+          const data = await r.json();
+          if (data && data.device && data.device.id === _spDeviceId) {
+            console.warn("[sdk] Terry is already the active device");
+            return;
+          }
+          // Some other device is active. Don't auto-transfer; the family
+          // chose that device deliberately.
+          console.warn("[sdk] another device is active:", data?.device?.name);
+        }
+      } catch (e) {
+        console.warn("[sdk] maybeTransferToTerry probe failed:", e && e.message);
+      }
+    }
+
+    async function initSpotifySDK() {
+      try {
+        await fetchSpotifyToken();
+      } catch (e) {
+        console.warn("[sdk] initial token fetch failed:", e && e.message);
+        // Fall back to legacy polling once so the idle card has SOMETHING.
+        loadSpotifyFallback();
+        return;
+      }
+
+      _spPlayer = new Spotify.Player({
+        name: "Terry",
+        getOAuthToken: cb => cb(_spAccessToken),
+        volume: 0.5,
+      });
+
+      _spPlayer.addListener("ready", ({ device_id }) => {
+        _spDeviceId = device_id;
+        console.warn("[sdk] ✓ READY device_id=" + device_id);
+        maybeTransferToTerry();
+      });
+      _spPlayer.addListener("not_ready", ({ device_id }) => {
+        console.warn("[sdk] not_ready device_id=" + device_id);
+      });
+      _spPlayer.addListener("initialization_error",  e => console.warn("[sdk] init_error:", e.message));
+      _spPlayer.addListener("authentication_error",  e => {
+        console.warn("[sdk] auth_error:", e.message);
+        // Token may have expired between init and connect — refresh once.
+        fetchSpotifyToken().catch(err => console.warn("[sdk] refresh failed:", err.message));
+      });
+      _spPlayer.addListener("account_error",         e => console.warn("[sdk] account_error:", e.message));
+      _spPlayer.addListener("playback_error",        e => console.warn("[sdk] playback_error:", e.message));
+
+      _spPlayer.addListener("player_state_changed", state => {
+        // null state = playback transferred to another device. Render as idle.
+        if (!state) {
+          renderSpotify({ isPlaying: false });
+          return;
+        }
+        renderSpotify(sdkStateToProxyShape(state));
+        // Keep _spLastSuccessAt fresh so the stale-connection badge stays off.
+        _spLastSuccessAt = Date.now();
+      });
+
+      const ok = await _spPlayer.connect();
+      console.warn("[sdk] connect() returned:", ok);
+
+      // Render idle immediately so the card isn't empty during SDK setup.
+      loadSpotifyFallback();
+    }
+
+    // Token refresh loop: every 50min. Spotify tokens are 60min; the SDK
+    // calls getOAuthToken() on its own schedule when it needs a fresh one,
+    // but we proactively refresh _spAccessToken so the callback returns
+    // instantly without a network round-trip.
+    setInterval(() => {
+      fetchSpotifyToken().catch(e => console.warn("[sdk] refresh failed:", e.message));
+    }, 50 * 60 * 1000);
+
+    // SDK script may load AFTER this script runs (deferred); subscribe to
+    // the standard onSpotifyWebPlaybackSDKReady callback OR check if it's
+    // already loaded.
+    if (window.Spotify && window.Spotify.Player) {
+      initSpotifySDK();
+    } else {
+      window.onSpotifyWebPlaybackSDKReady = initSpotifySDK;
+    }
+
+    // Tap-to-launch on the idle card. Both the launch button AND the album-art
+    // region open the Spotify APK — the play-overlay glyph on top of the cover
+    // makes the whole tile look tappable, so it should actually be tappable.
+    (function() {
+      function tap() { window.location.href = "kiosk://spotify/launch"; }
+      const launchBtn = document.getElementById("sp-launch-btn");
+      if (launchBtn) launchBtn.addEventListener("click", tap);
+      const idleArt = document.getElementById("sp-idle-art");
+      if (idleArt) {
+        idleArt.addEventListener("click", function() {
+          // Only act as launcher when actually in idle state — playing-state
+          // hides the idle art, but guard anyway in case CSS changes.
+          const card = document.getElementById("spotify-card");
+          if (card && card.getAttribute("data-state") === "idle") tap();
+        });
+        idleArt.style.cursor = "pointer";
+      }
+    })();
+
+    const spPrevBtn = document.getElementById("sp-prev");
+    const spNextBtn = document.getElementById("sp-next");
+    // 2026-05-17: collapsed dual click+touchend bindings. preventDefault on
+    // touchend was suppressing the synthetic click on Portal Chromium →
+    // intermittent dead taps. touch-action: manipulation (CSS) eliminates
+    // the 350ms tap delay without needing the touchend hack.
+    if (spPrevBtn) spPrevBtn.addEventListener("click", function() { spCommand("prev"); });
+    if (spNextBtn) spNextBtn.addEventListener("click", function() { spCommand("next"); });
+    if (spPlayPause) spPlayPause.addEventListener("click", function() {
+      spCommand(_spIsPlaying ? "pause" : "play");
+    });
+
+    // "Open Spotify" pill — playing-state launcher. Always reachable while
+    // music plays, so the family can switch playlist/account on the APK
+    // without first pausing or fumbling for the corner button.
+    const spOpenPill = document.getElementById("sp-open-pill");
+    if (spOpenPill) spOpenPill.addEventListener("click", function() {
+      if (navigator.vibrate) { try { navigator.vibrate(20); } catch (_) {} }
+      window.location.href = "kiosk://spotify/launch";
+    });
+
+    // Long-press the big album art (700ms) → launch the Spotify APK.
+    // Short tap does nothing (avoids stealing the play-pause click target).
+    (function() {
+      const wrap = document.getElementById("sp-big-art-wrap");
+      if (!wrap) return;
+      let pressTimer = null;
+      function start() {
+        clearTimeout(pressTimer);
+        pressTimer = setTimeout(function() {
+          // Only fire while card is in playing state — idle has its own paths.
+          const card = document.getElementById("spotify-card");
+          if (card && card.getAttribute("data-state") === "playing") {
+            if (navigator.vibrate) try { navigator.vibrate(20); } catch (_) {}
+            window.location.href = "kiosk://spotify/launch";
+          }
+        }, 700);
+      }
+      function cancel() { clearTimeout(pressTimer); pressTimer = null; }
+      wrap.addEventListener("touchstart", start, { passive: true });
+      wrap.addEventListener("touchend",   cancel, { passive: true });
+      wrap.addEventListener("touchcancel", cancel, { passive: true });
+      wrap.addEventListener("touchmove",  cancel, { passive: true });
+      wrap.addEventListener("mousedown",  start);
+      wrap.addEventListener("mouseup",    cancel);
+      wrap.addEventListener("mouseleave", cancel);
+    })();
+
+    // Back-to-Routine pill \u2014 clears the music override so the routine card
+    // re-appears in the primary panel. Visible only while override is active.
+    (function() {
+      const btn = document.getElementById("routine-back");
+      if (!btn) return;
+      btn.addEventListener("click", function() { setMusicOverride(false); });
+    })();
+
+    // Spotify corner button \u2014 only visible during routine windows (CSS rule
+    // hides it otherwise, since the in-panel card is the launcher then).
+    // Smart click: music already playing \u2192 swap routine card for the player
+    // (set music override). Nothing playing \u2192 launch the Spotify APK so the
+    // user can pick something.
+    (function() {
+      const btn = document.getElementById("spotify-corner");
+      if (!btn) return;
+      // 2026-05-17: corner is now always visible (no longer gated to
+      // morning/evening). Behavior unchanged: playing → focus the card,
+      // idle → launch the Spotify APK.
+      btn.addEventListener("click", function() {
+        if (_spIsPlaying) setMusicOverride(true);
+        else window.location.href = "kiosk://spotify/launch";
+      });
+    })();
+
+    // 2026-05-18: polling removed. SDK fires player_state_changed events
+    // synchronously \u2014 no setInterval needed. Cold-start idle card is
+    // rendered once via loadSpotifyFallback() in initSpotifySDK().
+
+    // ---------- Exit-to-Portal long-press (visible bottom-right button) ----------
+    // 2-second hold fires kiosk://exit. MainActivity exits to Portal launcher.
+    // Auto-return is now scheduled by the Activity's onStop hook (not here),
+    // and the AutoReturnReceiver pauses if a call is active — so a long video
+    // call won't get yanked out at 5 min.
+    (function() {
+      const btn = document.getElementById("exit-corner");
+      if (!btn) return;
+      const fill = btn.querySelector(".exit-fill");
+      const HOLD_MS = 2000;
+      let raf, startedAt;
+
+      function tick() {
+        const elapsed = performance.now() - startedAt;
+        const pct = Math.min(100, (elapsed / HOLD_MS) * 100);
+        if (fill) fill.style.background =
+          `conic-gradient(var(--ochre) ${pct}%, transparent ${pct}%)`;
+        if (pct >= 100) {
+          stop();
+          window.location.href = "kiosk://exit";
+          return;
+        }
+        raf = requestAnimationFrame(tick);
+      }
+      function start(e) {
+        if (e.cancelable) e.preventDefault();
+        stop();
+        btn.classList.add("holding");
+        startedAt = performance.now();
+        raf = requestAnimationFrame(tick);
+      }
+      function stop() {
+        if (raf) cancelAnimationFrame(raf);
+        raf = null;
+        btn.classList.remove("holding");
+        if (fill) fill.style.background = "conic-gradient(var(--ochre) 0%, transparent 0%)";
+      }
+      btn.addEventListener("touchstart",  start, { passive: false });
+      btn.addEventListener("touchend",    stop,  { passive: true });
+      btn.addEventListener("touchcancel", stop,  { passive: true });
+      btn.addEventListener("mousedown",   start);
+      btn.addEventListener("mouseup",     stop);
+      btn.addEventListener("mouseleave",  stop);
+    })();
+
+    // 2026-05-18: Phase 1d resurrection + soft-reset removed.
+    // - Resurrection was needed because the proxy-poll architecture couldn't
+    //   tell "Spotify died" from "Spotify is just quiet." With the SDK,
+    //   player_state_changed fires reliably on real stops and never on
+    //   "still playing, just between tracks" — no more guessing.
+    // - Soft-reset (window.gc + fresh poll) wiped JS state mid-track. With
+    //   the SDK, doing that would tear down the audio session. Nothing
+    //   replaces it; the SDK is more memory-efficient than the polling +
+    //   img-innerHTML loop it replaces.
+    // - <meta http-equiv="refresh"> was already removed earlier; no
+    //   page-level reload happens anymore.
+  </script>
+</body>
+</html>
