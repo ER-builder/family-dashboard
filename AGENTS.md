@@ -53,6 +53,26 @@ URL: https://er-builder.github.io/family-dashboard/ (GitHub Pages, public). Auto
 - **Portal launcher (Aloha):** `com.facebook.alohaapps.launcher` / activity `com.facebook.aloha.app.home.touch.HomeActivity`. Set as default Home; doesn't surface third-party LAUNCHER apps in its UI (kiosk only relaunchable via terry CLI, BootReceiver, or as registered HOME alternate).
 - **Portal is degoogled:** no Google Play Services (`com.google.android.gms`), no Chrome stable. Only `org.chromium.chrome` for browsers. Has bearing on any 3rd-party app login that uses Custom Tabs / browser deep-linking — see Spotify section below.
 
+## Spotify Web Playback SDK — attempted 2026-05-18, rolled back
+
+The 10/10 path via SDK rebuild was attempted and rolled back same day. SDK
+works in Portal's standalone Chromium browser (Widevine L1 + HW_SECURE_ALL
+confirmed via Axinom). SDK does **NOT** work in the system WebView
+(`android.webkit.WebView`) the kiosk uses — `INIT_ERR: Failed to initialize
+player` on `player.connect()`, EME init silently fails despite the API
+surface being present. UA shows `wv` token. Don't re-attempt the SDK
+without first replacing the WebView component (launch standalone Chromium
+or sideload a newer System WebView APK). Full retro at
+`docs/plans/2026-05-18-sdk-rebuild-learnings.md`. Test files kept in repo
+(`index-sdk.html`, `sdk-test-v2.html`) as reference; `/api/spotify-token`
+proxy endpoint was deleted (security exposure — recreate from git history
+if revisiting).
+
+**Spotify Web Playback SDK scope set (for future re-attempts):**
+`streaming user-read-email user-read-private user-read-playback-state user-modify-playback-state user-read-currently-playing user-read-recently-played`.
+`user-read-private` is the easy-to-miss one — without it the SDK throws
+`AUTH_ERR: Invalid token scopes`.
+
 ## Reliability patterns (2026-05-17 hardening pass)
 
 These came out of the 5.5→9.5 plan and are now load-bearing. Don't regress:
