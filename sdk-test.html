@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Spotify SDK Feasibility Test — Terry</title>
+  <style>
+    html, body { margin: 0; padding: 0; background: #14101a; color: #fbf0d6; font-family: -apple-system, sans-serif; }
+    #status {
+      padding: 32px 28px;
+      font-size: 44px;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+      background: #d6a020;
+      color: #14101a;
+      min-height: 100px;
+    }
+    #status.ok    { background: #4ec27a; color: #052614; }
+    #status.fail  { background: #d05f48; color: #fff; }
+    #log {
+      padding: 20px 28px;
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 17px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    #log .err { color: #ff8a72; }
+    #log .ok  { color: #4ec27a; }
+  </style>
+</head>
+<body>
+  <div id="status">Loading Spotify SDK script…</div>
+  <div id="log"></div>
+
+  <script src="https://sdk.scdn.co/spotify-player.js"></script>
+  <script>
+    const TOKEN_URL = "https://family-dashboard-proxy.vercel.app/api/spotify-token?key=sdk-feasibility-2026-05-18-terry";
+
+    const statusEl = document.getElementById("status");
+    const logEl    = document.getElementById("log");
+
+    function setStatus(text, kind) {
+      statusEl.textContent = text;
+      statusEl.className = kind || "";
+    }
+    function log(text, kind) {
+      const line = document.createElement("div");
+      line.textContent = "[" + new Date().toISOString().slice(11, 23) + "] " + text;
+      if (kind) line.className = kind;
+      logEl.appendChild(line);
+    }
+
+    window.addEventListener("error", function(ev) {
+      log("window.error: " + (ev.message || ev.error?.message || "(no msg)"), "err");
+    });
+    window.addEventListener("unhandledrejection", function(ev) {
+      log("unhandledrejection: " + (ev.reason?.message || ev.reason), "err");
+    });
+
+    log("Page loaded. Waiting for Spotify SDK script to register…");
+
+    // If the SDK script never registers the callback after 10s, it failed to
+    // load — Portal Chromium probably rejected the script or its dependencies.
+    const sdkTimeout = setTimeout(function() {
+      setStatus("✗ SDK script never registered", "fail");
+      log("Timeout: window.onSpotifyWebPlaybackSDKReady never fired after 10s. Script load failed or callback was lost.", "err");
+    }, 10_000);
+
+    window.onSpotifyWebPlaybackSDKReady = async function() {
+      clearTimeout(sdkTimeout);
+      log("✓ window.onSpotifyWebPlaybackSDKReady fired — SDK script loaded", "ok");
+      setStatus("SDK loaded, fetching access token…");
+
+      let accessToken;
+      try {
+        const r = await fetch(TOKEN_URL);
+        if (!r.ok) throw new Error("Token endpoint returned " + r.status);
+        const data = await r.json();
+        accessToken = data.access_token;
+        if (!accessToken) throw new Error("No access_token in response: " + JSON.stringify(data));
+        log("✓ Got access token (" + accessToken.length + " chars, expires in " + data.expires_in + "s)", "ok");
+      } catch (e) {
+        setStatus("✗ Token fetch failed", "fail");
+        log("Token error: " + e.message, "err");
+        return;
+      }
+
+      setStatus("Constructing Spotify.Player…");
+      let player;
+      try {
+        player = new Spotify.Player({
+          name: "Terry SDK Feasibility Test",
+          getOAuthToken: function(cb) { cb(accessToken); },
+          volume: 0.4,
+        });
+        log("✓ Player constructed", "ok");
+      } catch (e) {
+        setStatus("✗ Player constructor threw", "fail");
+        log("Constructor error: " + e.message, "err");
+        return;
+      }
+
+      player.addListener("ready", function(state) {
+        setStatus("✓ READY — SDK WORKS ON TERRY", "ok");
+        log("ready: device_id=" + state.device_id, "ok");
+      });
+      player.addListener("not_ready", function(state) {
+        log("not_ready: device_id=" + state.device_id, "err");
+      });
+      player.addListener("initialization_error", function(e) {
+        setStatus("✗ INITIALIZATION ERROR", "fail");
+        log("initialization_error: " + e.message, "err");
+      });
+      player.addListener("authentication_error", function(e) {
+        setStatus("✗ AUTH ERROR", "fail");
+        log("authentication_error: " + e.message, "err");
+      });
+      player.addListener("account_error", function(e) {
+        setStatus("✗ ACCOUNT ERROR (Premium required?)", "fail");
+        log("account_error: " + e.message, "err");
+      });
+      player.addListener("playback_error", function(e) {
+        log("playback_error: " + e.message, "err");
+      });
+
+      setStatus("Connecting…");
+      log("Calling player.connect()…");
+      try {
+        const ok = await player.connect();
+        log("player.connect() returned: " + ok, ok ? "ok" : "err");
+        if (!ok) setStatus("✗ connect() returned false", "fail");
+        // If we don't get a ready/error event in 8s after a successful
+        // connect(), something subtler is wrong — EME negotiation may be
+        // silently hanging.
+        setTimeout(function() {
+          if (statusEl.className === "") {
+            setStatus("⚠ connect() returned but no ready/error after 8s", "fail");
+            log("No ready event after 8s — possible silent EME hang", "err");
+          }
+        }, 8_000);
+      } catch (e) {
+        setStatus("✗ connect() threw", "fail");
+        log("connect() exception: " + e.message, "err");
+      }
+    };
+  </script>
+</body>
+</html>
