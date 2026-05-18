@@ -3101,12 +3101,28 @@
 
     // Fallback poll of the legacy proxy — ONLY when the SDK isn't connected,
     // so the idle card can still show lastPlayed art on first load.
+    //
+    // Proxy quirk (2026-05-18): when Spotify reports a paused state with
+    // an active track, the response has isPlaying:false BUT track/artist/
+    // albumArt at the top level (NOT in lastPlayed). renderSpotify reads
+    // only lastPlayed, so the idle card came up empty. Normalise by
+    // synthesising lastPlayed from the top-level fields when missing.
     async function loadSpotifyFallback() {
       const PROXY = "https://family-dashboard-proxy.vercel.app/api/spotify-now";
       try {
         const res = await fetch(PROXY, { cache: "no-store" });
         if (!res.ok) return;
         const data = await res.json();
+        if (!data.isPlaying && !data.lastPlayed && data.track) {
+          data.lastPlayed = {
+            track:      data.track,
+            artist:     data.artist,
+            album:      data.album,
+            albumArt:   data.albumArt,
+            spotifyUrl: data.spotifyUrl,
+          };
+        }
+        _spLastSuccessAt = Date.now();
         if (!_spPlayer || !_spDeviceId) renderSpotify(data);
       } catch (_) { /* silent — non-critical */ }
     }
@@ -3175,7 +3191,11 @@
       }
 
       _spPlayer = new Spotify.Player({
-        name: "Terry",
+        // Named "Terry (Dashboard)" during the SDK-rebuild verification so
+        // the iPhone Connect picker can disambiguate from the legacy
+        // "Spotify on Terry" APK that's still installed. Renamed back to
+        // plain "Terry" at Phase F after the APK is no longer load-bearing.
+        name: "Terry (Dashboard)",
         getOAuthToken: cb => cb(_spAccessToken),
         volume: 0.5,
       });
