@@ -3181,57 +3181,63 @@
     }
 
     async function initSpotifySDK() {
+      _sdkDiag("initSpotifySDK called");
       try {
         await fetchSpotifyToken();
+        _sdkDiag("token OK", "ok");
       } catch (e) {
-        console.warn("[sdk] initial token fetch failed:", e && e.message);
-        // Fall back to legacy polling once so the idle card has SOMETHING.
+        _sdkDiag("token FAIL: " + e.message, "err");
         loadSpotifyFallback();
         return;
       }
 
-      _spPlayer = new Spotify.Player({
-        // Named "Terry (Dashboard)" during the SDK-rebuild verification so
-        // the iPhone Connect picker can disambiguate from the legacy
-        // "Spotify on Terry" APK that's still installed. Renamed back to
-        // plain "Terry" at Phase F after the APK is no longer load-bearing.
-        name: "Terry (Dashboard)",
-        getOAuthToken: cb => cb(_spAccessToken),
-        volume: 0.5,
-      });
+      try {
+        _spPlayer = new Spotify.Player({
+          name: "Terry (Dashboard)",
+          getOAuthToken: cb => cb(_spAccessToken),
+          volume: 0.5,
+        });
+        _sdkDiag("Player constructed", "ok");
+      } catch (e) {
+        _sdkDiag("Player ctor FAIL: " + e.message, "err");
+        return;
+      }
 
       _spPlayer.addListener("ready", ({ device_id }) => {
         _spDeviceId = device_id;
-        console.warn("[sdk] ✓ READY device_id=" + device_id);
+        _sdkDiag("READY id=" + device_id.slice(0, 12), "ok");
         maybeTransferToTerry();
       });
       _spPlayer.addListener("not_ready", ({ device_id }) => {
-        console.warn("[sdk] not_ready device_id=" + device_id);
+        _sdkDiag("not_ready id=" + device_id.slice(0, 12), "err");
       });
-      _spPlayer.addListener("initialization_error",  e => console.warn("[sdk] init_error:", e.message));
+      _spPlayer.addListener("initialization_error",  e => _sdkDiag("INIT_ERR: " + e.message, "err"));
       _spPlayer.addListener("authentication_error",  e => {
-        console.warn("[sdk] auth_error:", e.message);
-        // Token may have expired between init and connect — refresh once.
-        fetchSpotifyToken().catch(err => console.warn("[sdk] refresh failed:", err.message));
+        _sdkDiag("AUTH_ERR: " + e.message, "err");
+        fetchSpotifyToken().catch(err => _sdkDiag("refresh FAIL: " + err.message, "err"));
       });
-      _spPlayer.addListener("account_error",         e => console.warn("[sdk] account_error:", e.message));
-      _spPlayer.addListener("playback_error",        e => console.warn("[sdk] playback_error:", e.message));
+      _spPlayer.addListener("account_error",         e => _sdkDiag("ACCT_ERR: " + e.message, "err"));
+      _spPlayer.addListener("playback_error",        e => _sdkDiag("PLAYBACK_ERR: " + e.message, "err"));
 
       _spPlayer.addListener("player_state_changed", state => {
-        // null state = playback transferred to another device. Render as idle.
         if (!state) {
+          _sdkDiag("state: null (transferred away)");
           renderSpotify({ isPlaying: false });
           return;
         }
+        _sdkDiag("state: " + (state.paused ? "paused" : "playing"));
         renderSpotify(sdkStateToProxyShape(state));
-        // Keep _spLastSuccessAt fresh so the stale-connection badge stays off.
         _spLastSuccessAt = Date.now();
       });
 
-      const ok = await _spPlayer.connect();
-      console.warn("[sdk] connect() returned:", ok);
+      _sdkDiag("calling connect()...");
+      try {
+        const ok = await _spPlayer.connect();
+        _sdkDiag("connect() = " + ok, ok ? "ok" : "err");
+      } catch (e) {
+        _sdkDiag("connect() THREW: " + e.message, "err");
+      }
 
-      // Render idle immediately so the card isn't empty during SDK setup.
       loadSpotifyFallback();
     }
 
@@ -3242,6 +3248,40 @@
     setInterval(() => {
       fetchSpotifyToken().catch(e => console.warn("[sdk] refresh failed:", e.message));
     }, 50 * 60 * 1000);
+
+    // ─────────────────────────────────────────────────────────────────────
+    // VISIBLE SDK DIAGNOSTIC PANEL (Gate 2 troubleshooting, 2026-05-18)
+    // Fixed top-right corner. Logs every SDK lifecycle event so we can
+    // see exactly where things fail in the kiosk WebView without needing
+    // chrome://inspect from Mac. Strip in Phase F.
+    // ─────────────────────────────────────────────────────────────────────
+    (function() {
+      const panel = document.createElement("div");
+      panel.id = "sdk-diag";
+      panel.style.cssText = "position:fixed;top:8px;right:8px;z-index:100000;" +
+        "background:rgba(20,16,26,0.92);color:#fbf0d6;font-family:ui-monospace,monospace;" +
+        "font-size:11px;line-height:1.35;padding:8px 10px;border-radius:8px;" +
+        "border:1px solid #5a4c70;max-width:340px;max-height:50vh;overflow-y:auto;";
+      panel.innerHTML = "<div style='font-weight:700;color:#f0bc55;margin-bottom:4px;'>SDK DIAG</div><div id='sdk-diag-log'></div>";
+      document.body.appendChild(panel);
+      const logDiv = document.getElementById("sdk-diag-log");
+      window._sdkDiag = function(msg, kind) {
+        const line = document.createElement("div");
+        const t = new Date().toISOString().slice(11, 19);
+        line.textContent = t + " " + msg;
+        if (kind === "err") line.style.color = "#ff8a72";
+        if (kind === "ok")  line.style.color = "#4ec27a";
+        logDiv.appendChild(line);
+        if (logDiv.children.length > 30) logDiv.removeChild(logDiv.firstChild);
+        logDiv.scrollTop = logDiv.scrollHeight;
+        console.warn("[sdk-diag]", msg);
+      };
+      _sdkDiag("page loaded, UA: " + navigator.userAgent.slice(0, 80));
+      _sdkDiag("WebSocket: " + (typeof WebSocket !== "undefined" ? "✓" : "✗"));
+      _sdkDiag("EME: " + (navigator.requestMediaKeySystemAccess ? "✓" : "✗"));
+      window.addEventListener("error", e => _sdkDiag("ERR " + (e.message || ""), "err"));
+      window.addEventListener("unhandledrejection", e => _sdkDiag("REJ " + (e.reason?.message || e.reason), "err"));
+    })();
 
     // Audio-activation gate (Chromium + iOS Safari):
     // Browser autoplay policy blocks audio that wasn't started by a user
@@ -3283,6 +3323,7 @@
     function bootstrapSDK() {
       if (_sdkBooted) return true;
       if (window.Spotify && window.Spotify.Player) {
+        _sdkDiag("bootstrap: Spotify.Player available, booting");
         _sdkBooted = true;
         initSpotifySDK();
         return true;
