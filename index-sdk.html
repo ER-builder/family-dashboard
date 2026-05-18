@@ -3243,6 +3243,33 @@
       fetchSpotifyToken().catch(e => console.warn("[sdk] refresh failed:", e.message));
     }, 50 * 60 * 1000);
 
+    // Audio-activation gate (Chromium + iOS Safari):
+    // Browser autoplay policy blocks audio that wasn't started by a user
+    // gesture on the page. When iPhone casts via Connect, the SDK tries
+    // to play audio the local user never authorized → silently muted.
+    // SDK's activateElement() unlocks the audio context, but it MUST be
+    // called from inside a click/touch handler. Bind a one-time document
+    // listener that activates on first tap anywhere.
+    //
+    // In the kiosk WebView (where MainActivity sets
+    // mediaPlaybackRequiresUserGesture = false), this is a no-op safety
+    // net. In Chromium it's load-bearing.
+    let _audioActivated = false;
+    function activateAudioOnce() {
+      if (_audioActivated || !_spPlayer) return;
+      try {
+        if (typeof _spPlayer.activateElement === "function") {
+          _spPlayer.activateElement();
+        }
+        _audioActivated = true;
+        console.warn("[sdk] audio activated by user gesture");
+      } catch (e) {
+        console.warn("[sdk] activateElement failed:", e && e.message);
+      }
+    }
+    document.addEventListener("click",    activateAudioOnce, { capture: true });
+    document.addEventListener("touchend", activateAudioOnce, { capture: true });
+
     // Robust SDK bootstrap. Three timing cases to handle:
     //   1. SDK script already loaded + already called onSpotifyWebPlaybackSDKReady
     //      before our script ran (this happens because the SDK script is in
