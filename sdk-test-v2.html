@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Spotify SDK Audio Spike — Terry</title>
+  <style>
+    html, body { margin: 0; padding: 0; background: #14101a; color: #fbf0d6; font-family: -apple-system, sans-serif; }
+    #status {
+      padding: 28px 24px;
+      font-size: 38px;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+      background: #d6a020;
+      color: #14101a;
+      min-height: 80px;
+    }
+    #status.ok    { background: #4ec27a; color: #052614; }
+    #status.fail  { background: #d05f48; color: #fff; }
+    .row {
+      display: flex;
+      gap: 16px;
+      padding: 18px 24px;
+      flex-wrap: wrap;
+    }
+    button {
+      font-size: 22px;
+      font-weight: 700;
+      padding: 16px 28px;
+      border-radius: 14px;
+      border: 2px solid #5a4c70;
+      background: #281f30;
+      color: #fbf0d6;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    button.primary  { background: #4ec27a; color: #052614; border-color: #4ec27a; }
+    button.danger   { background: #d05f48; color: #fff; border-color: #d05f48; }
+    button:active   { transform: scale(0.96); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    #log {
+      padding: 16px 24px;
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 15px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+      max-height: 50vh;
+      overflow-y: auto;
+      border-top: 1px solid #322738;
+    }
+    #log .err { color: #ff8a72; }
+    #log .ok  { color: #4ec27a; }
+    #now {
+      padding: 12px 24px;
+      font-size: 17px;
+      color: #d6c6a5;
+      border-top: 1px solid #322738;
+    }
+    #now strong { color: #fbf0d6; }
+  </style>
+</head>
+<body>
+  <div id="status">Loading Spotify SDK…</div>
+
+  <div class="row" id="controls" style="display:none;">
+    <button id="btn-transfer" class="primary">▶ Play hardcoded track on Terry</button>
+    <button id="btn-pause">⏸ Pause</button>
+    <button id="btn-resume">▶ Resume</button>
+    <button id="btn-next">⏭ Next</button>
+    <button id="btn-prev">⏮ Prev</button>
+    <button id="btn-vol-up">🔊 Vol +</button>
+    <button id="btn-vol-down">🔉 Vol –</button>
+  </div>
+
+  <div id="now"></div>
+  <div id="log"></div>
+
+  <script src="https://sdk.scdn.co/spotify-player.js"></script>
+  <script>
+    const TOKEN_URL = "https://family-dashboard-proxy.vercel.app/api/spotify-token?key=sdk-feasibility-2026-05-18-terry";
+    // Hardcoded track for the spike — pick something short + recognizable so
+    // we can hear it start cleanly. Rick Astley as the classic test track;
+    // change if you want something else.
+    const TEST_TRACK_URI = "spotify:track:4cOdK2wGLETKBW3PvgPWqT"; // Never Gonna Give You Up
+
+    const statusEl  = document.getElementById("status");
+    const logEl     = document.getElementById("log");
+    const nowEl     = document.getElementById("now");
+    const controls  = document.getElementById("controls");
+
+    let player = null;
+    let deviceId = null;
+    let currentToken = null;
+
+    function setStatus(text, kind) {
+      statusEl.textContent = text;
+      statusEl.className = kind || "";
+    }
+    function log(text, kind) {
+      const line = document.createElement("div");
+      line.textContent = "[" + new Date().toISOString().slice(11, 23) + "] " + text;
+      if (kind) line.className = kind;
+      logEl.appendChild(line);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    function renderNow(state) {
+      if (!state || !state.track_window || !state.track_window.current_track) {
+        nowEl.innerHTML = "<em>no playback</em>";
+        return;
+      }
+      const t = state.track_window.current_track;
+      const pos = Math.floor(state.position / 1000);
+      const dur = Math.floor(state.duration / 1000);
+      nowEl.innerHTML = "<strong>" + t.name + "</strong> — " + t.artists.map(a => a.name).join(", ") + "  " +
+        "(" + pos + "s / " + dur + "s)  " +
+        (state.paused ? "⏸ paused" : "▶ playing");
+    }
+
+    window.addEventListener("error", e => log("window.error: " + (e.message || e.error?.message), "err"));
+    window.addEventListener("unhandledrejection", e => log("unhandledrejection: " + (e.reason?.message || e.reason), "err"));
+
+    async function fetchToken() {
+      const r = await fetch(TOKEN_URL);
+      if (!r.ok) throw new Error("Token endpoint returned " + r.status + " — has Phase A been deployed?");
+      const data = await r.json();
+      if (!data.access_token) throw new Error("No access_token in response");
+      currentToken = data.access_token;
+      log("✓ Got access token (" + currentToken.length + " chars, expires in " + data.expires_in + "s)", "ok");
+      return currentToken;
+    }
+
+    async function transferPlaybackHere() {
+      if (!deviceId || !currentToken) {
+        log("Cannot transfer: missing deviceId or token", "err");
+        return;
+      }
+      log("Transferring playback to Terry and starting test track…");
+      try {
+        // Transfer + play in one call: PUT /me/player/play with device_id query
+        const r = await fetch("https://api.spotify.com/v1/me/player/play?device_id=" + encodeURIComponent(deviceId), {
+          method: "PUT",
+          headers: { Authorization: "Bearer " + currentToken, "Content-Type": "application/json" },
+          body: JSON.stringify({ uris: [TEST_TRACK_URI] }),
+        });
+        if (!r.ok) {
+          const txt = await r.text();
+          throw new Error("PUT /me/player/play " + r.status + ": " + txt);
+        }
+        log("✓ PUT /me/player/play 204 — Terry should be playing now", "ok");
+        setStatus("✓ AUDIO TRANSFERRED — listen for music", "ok");
+      } catch (e) {
+        setStatus("✗ Transfer failed", "fail");
+        log("Transfer error: " + e.message, "err");
+      }
+    }
+
+    window.onSpotifyWebPlaybackSDKReady = async function() {
+      log("✓ SDK script registered", "ok");
+      setStatus("SDK loaded, fetching token…");
+
+      try {
+        await fetchToken();
+      } catch (e) {
+        setStatus("✗ Token fetch failed", "fail");
+        log("Token error: " + e.message, "err");
+        return;
+      }
+
+      setStatus("Constructing player…");
+      player = new Spotify.Player({
+        name: "Terry SDK Audio Spike",
+        getOAuthToken: cb => cb(currentToken),
+        volume: 0.4,
+      });
+      log("✓ Player constructed", "ok");
+
+      player.addListener("ready", ({ device_id }) => {
+        deviceId = device_id;
+        log("✓ READY — device_id=" + device_id, "ok");
+        setStatus("✓ READY — tap '▶ Play hardcoded track' to test audio", "ok");
+        controls.style.display = "flex";
+      });
+      player.addListener("not_ready", ({ device_id }) => {
+        log("Device went offline: " + device_id, "err");
+      });
+      player.addListener("initialization_error", e => {
+        setStatus("✗ INIT ERROR", "fail");
+        log("initialization_error: " + e.message, "err");
+      });
+      player.addListener("authentication_error", e => {
+        setStatus("✗ AUTH ERROR — scopes wrong?", "fail");
+        log("authentication_error: " + e.message + " — have you completed Phase A scope re-issue?", "err");
+      });
+      player.addListener("account_error", e => {
+        setStatus("✗ ACCOUNT ERROR — Premium required", "fail");
+        log("account_error: " + e.message, "err");
+      });
+      player.addListener("playback_error", e => {
+        log("playback_error: " + e.message, "err");
+      });
+      player.addListener("player_state_changed", state => {
+        if (!state) {
+          log("state_changed: null (playback transferred to another device)", "err");
+          renderNow(null);
+          return;
+        }
+        renderNow(state);
+      });
+
+      log("Calling player.connect()…");
+      const ok = await player.connect();
+      log("player.connect() returned: " + ok, ok ? "ok" : "err");
+      if (!ok) setStatus("✗ connect() returned false", "fail");
+    };
+
+    // Control wiring
+    document.getElementById("btn-transfer").addEventListener("click", transferPlaybackHere);
+    document.getElementById("btn-pause").addEventListener("click",  () => player?.pause().then(() => log("pause() ok", "ok")));
+    document.getElementById("btn-resume").addEventListener("click", () => player?.resume().then(() => log("resume() ok", "ok")));
+    document.getElementById("btn-next").addEventListener("click",   () => player?.nextTrack().then(() => log("next() ok", "ok")));
+    document.getElementById("btn-prev").addEventListener("click",   () => player?.previousTrack().then(() => log("prev() ok", "ok")));
+    document.getElementById("btn-vol-up").addEventListener("click", () => {
+      player?.getVolume().then(v => {
+        const nv = Math.min(1, v + 0.1);
+        player.setVolume(nv);
+        log("volume " + v.toFixed(2) + " → " + nv.toFixed(2));
+      });
+    });
+    document.getElementById("btn-vol-down").addEventListener("click", () => {
+      player?.getVolume().then(v => {
+        const nv = Math.max(0, v - 0.1);
+        player.setVolume(nv);
+        log("volume " + v.toFixed(2) + " → " + nv.toFixed(2));
+      });
+    });
+
+    // Token refresh loop (50min — tokens are 60min, 10min headroom)
+    setInterval(async () => {
+      try {
+        await fetchToken();
+        log("✓ Token refreshed", "ok");
+      } catch (e) {
+        log("Token refresh failed: " + e.message, "err");
+      }
+    }, 50 * 60 * 1000);
+  </script>
+</body>
+</html>
