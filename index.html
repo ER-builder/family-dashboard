@@ -892,6 +892,16 @@
       transition: background 150ms ease, transform 100ms ease;
     }
     .spotify-card .sp-ctrl-btn:active { transform: scale(0.88); }
+    /* 2026-05-19: stronger "tap received" flash for kitchen-distance
+       glanceability. JS adds .tap-flash for 240ms on every spCommand
+       click; CSS lights the button up with ochre so the family can SEE
+       the tap landed, even while waiting 1-2s for Spotify to actually
+       pause/skip. Paired with optimistic icon flip in spCommand. */
+    .spotify-card .sp-ctrl-btn.tap-flash {
+      background: var(--ochre-soft);
+      box-shadow: 0 0 0 3px var(--ochre-soft);
+      transition: background 80ms ease, box-shadow 80ms ease, transform 100ms ease;
+    }
     .spotify-card .sp-ctrl-btn.sp-play-pause { font-size: 36px; }
     /* "Open Spotify" pill — playing-state only. Editorial palette (paper card
        + sage glyph) instead of brand green — matches the rest of the dash. */
@@ -3086,8 +3096,25 @@
       if (cmd === "pause" && document.body.getAttribute("data-music-override") === "true") {
         setMusicOverride(false);
       }
+      // Optimistic UI (2026-05-19): flip the play/pause icon immediately so
+      // the tap feels responsive. Without this, the icon only updates on the
+      // next proxy poll (600-1800ms later) — kids tap, see nothing happen,
+      // tap again, fire pause→play. The optimistic flip will be corrected by
+      // the next poll if Spotify didn't honor the command.
+      if (cmd === "pause" || cmd === "play") {
+        _spIsPlaying = (cmd === "play");
+        if (spPlayPause) spPlayPause.textContent = _spIsPlaying ? "⏸" : "▶";
+      }
+      // Pulse the tapped button so it's obviously "received" across the
+      // kitchen. Removed by the next layout/render so it self-cleans.
+      const btnMap = { play: spPlayPause, pause: spPlayPause, prev: spPrevBtn, next: spNextBtn };
+      const tappedBtn = btnMap[cmd];
+      if (tappedBtn) {
+        tappedBtn.classList.add("tap-flash");
+        setTimeout(() => tappedBtn.classList.remove("tap-flash"), 240);
+      }
       window.location.href = "kiosk://spotify/" + cmd;
-      // Proxy edge-caches s-maxage=15 while playing — without cache-bust the
+      // Proxy edge-caches s-maxage=120 while playing — without cache-bust the
       // post-command re-poll returns stale isPlaying:true, the icon doesn't
       // flip, kid taps again → fires pause→play. Bust with ?t=<ms> so the
       // user-initiated repolls always hit origin.
