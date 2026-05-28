@@ -2916,7 +2916,13 @@
       }
     }
     loadStars();
-    setInterval(loadStars, 30 * 60 * 1000); // stars change 1-2x per day; 30 min is plenty
+    // 4h cadence + 22:00-06:00 quiet hours keep Neon's scale-to-zero effective
+    // — a poll wakes the DB for ~5 min, so 30-min polls never let it idle out.
+    setInterval(function() {
+      const mins = nowMinutesLondon();
+      if (mins < 6 * 60 || mins >= 22 * 60) return;
+      loadStars();
+    }, 4 * 60 * 60 * 1000);
 
 
     // ─────────────────────────────────────────────────────────────────────────
