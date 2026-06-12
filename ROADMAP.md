@@ -247,6 +247,13 @@ Dashboard polls the sheet every few minutes. Family edits on phone → shows on 
 
 ## ✅ Open Tests / Follow-ups
 
+### 2026-06-12 — Spotify auto-return is now music-gated (kiosk-side, NOT yet applied)
+
+Elul reversed the old "music is not a deferral signal" rule after weeks of use — the flat 2-min yank out of Spotify was annoying. AGENTS.md is updated to the new intent. **The code change lives in `kiosk-webview/MainActivity.kt` + `AutoReturnReceiver` on the Mac — it is NOT in this repo and is NOT live on Terry until applied + rebuilt** (see "🔧 Kiosk APK Rebuild Recipe" above).
+
+- [ ] Apply the change: on Spotify, no auto-return while `AudioManager.isMusicActive`; poll every `MUSIC_POLL_MS` (30s); return only after `MUSIC_GRACE_MS` (2 min) of continuous silence. `on_spotify` / `music_stopped_since` flags in `SharedPreferences("kiosk_prefs")`, cleared in `onStart`. Non-Spotify backgrounding keeps flat `AUTO_RETURN_MS` (2 min).
+- [ ] Rebuild + reinstall APK on Terry, then verify: music playing → never auto-returns; manual "← Dashboard" pill still works; stop music → returns ~2 min later; brief pause/track gap (<2 min) does NOT return; in-call deferral still works.
+
 ### 2026-05-17 reliability + polish ship (Phase 0–2 of 5.5→9.5 plan)
 
 **Dashboard side (already deployed via `main` push, GitHub Pages auto):**
