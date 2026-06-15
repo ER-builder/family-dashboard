@@ -247,12 +247,25 @@ Dashboard polls the sheet every few minutes. Family edits on phone → shows on 
 
 ## ✅ Open Tests / Follow-ups
 
+### 2026-06-15 — BUG (dashboard): duplicate Spotify launch buttons, left one mis-behaves
+
+Elul observed (2026-06-15) that the dashboard sometimes shows **two Spotify buttons**, and tapping the **bottom-left** one just makes it **disappear** instead of launching Spotify — and the behavior differs when the kids' to-do / routine card is showing. Likely overlap between `#spotify-corner` (bottom-left, routine-window-gated) and the in-card "Open Spotify" launcher, with one tap path clearing the music-override / hiding itself rather than firing `kiosk://spotify/launch`. Dashboard-side only (`index.html`), not kiosk.
+- [ ] Reproduce: note exact mode (morning/evening routine vs default spotify) + which button is the "left" one.
+- [ ] Fix so every visible Spotify launcher reliably launches Spotify; no state where a launcher just dismisses itself.
+
 ### 2026-06-12 — Spotify auto-return is now music-gated (kiosk-side, NOT yet applied)
 
 Elul reversed the old "music is not a deferral signal" rule after weeks of use — the flat 2-min yank out of Spotify was annoying. AGENTS.md is updated to the new intent. **The code change lives in `kiosk-webview/MainActivity.kt` + `AutoReturnReceiver` on the Mac — it is NOT in this repo and is NOT live on Terry until applied + rebuilt** (see "🔧 Kiosk APK Rebuild Recipe" above).
 
-- [ ] Apply the change: on Spotify, no auto-return while `AudioManager.isMusicActive`; poll every `MUSIC_POLL_MS` (30s); return only after `MUSIC_GRACE_MS` (2 min) of continuous silence. `on_spotify` / `music_stopped_since` flags in `SharedPreferences("kiosk_prefs")`, cleared in `onStart`. Non-Spotify backgrounding keeps flat `AUTO_RETURN_MS` (2 min).
-- [ ] Rebuild + reinstall APK on Terry, then verify: music playing → never auto-returns; manual "← Dashboard" pill still works; stop music → returns ~2 min later; brief pause/track gap (<2 min) does NOT return; in-call deferral still works.
+- [x] Apply the change: on Spotify, no auto-return while `AudioManager.isMusicActive`; poll every `MUSIC_POLL_MS` (30s); return only after `MUSIC_GRACE_MS` (2 min) of continuous silence. `on_spotify` / `music_stopped_since` flags in `SharedPreferences("kiosk_prefs")`, cleared in `onStart`. Non-Spotify backgrounding keeps flat `AUTO_RETURN_MS` (2 min). **Applied + built + installed on Terry 2026-06-15.**
+- [x] Rebuild + reinstall APK on Terry — done 2026-06-15 (built 11:44, installed over WiFi-ADB `.110:5555`).
+- Verified on Terry 2026-06-15 (via `dumpsys` + founder visual confirm):
+  - [x] Music playing → never auto-returns (stayed on Spotify 2.5+ min, foreground never flipped to kiosk).
+  - [x] Manual "← Dashboard" pill still returns instantly.
+  - [x] Stop music → returns ~2 min later (silence clock started at first poll, returned, prefs cleared).
+  - [ ] Brief pause / track gap (<2 min) does NOT return — NOT yet tested on-device (logic-guaranteed: receiver resets `music_stopped_since=0` whenever `isMusicActive`).
+  - [ ] In-call deferral still works — NOT re-tested (code path unchanged; needs a real call to verify).
+- [x] **Screensaver side-effect fixed (2026-06-15).** Keeping the kiosk on Spotify let Portal's screensaver appear after ~1 min / screen blank at 5 min. `OverlayService` now toggles `FLAG_KEEP_SCREEN_ON` on its overlay window while `on_spotify && isMusicActive`. Verified: screen stayed ON with no dream for 2.5+ min of playback; lock released ~15-22s after pause. See AGENTS.md kiosk section.
 
 ### 2026-05-17 reliability + polish ship (Phase 0–2 of 5.5→9.5 plan)
 
