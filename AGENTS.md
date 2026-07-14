@@ -38,7 +38,7 @@ URL: https://er-builder.github.io/family-dashboard/ (GitHub Pages, public). Auto
 - **Touch targets ≥40px** for routine items (was ≥44px goal; 40px is the practical floor).
 - **Width 1280, height 800** (Portal screen). Test against this — narrower dev browsers will lie about routine fit.
 - **Hebrew + RTL must keep working** in calendar event titles. Heebo loaded as Hebrew fallback; Fraunces has no Hebrew so the cascade falls through automatically.
-- **Never push secrets** — push protection blocks. The OpenWeather API key is a public key (intentional exception).
+- **Never push secrets** — push protection blocks. Weather is keyless now (Open-Meteo), so there is no weather secret to leak. (The old OpenWeather key that used to live in `index.html` is gone as of 2026-07-14 — see External APIs. It still sits in git history but nothing uses it; delete it in the OpenWeather account at leisure for tidiness.)
 - **Apps Script TODO endpoint:** previously hard-coded; B′ redesign removed all reads/writes. The Sheet still exists if we ever want a read-only callout; nothing in the dashboard touches it now.
 
 ## Kiosk app (kiosk-webview) — Android-side facts
@@ -106,7 +106,7 @@ These came out of the 5.5→9.5 plan and are now load-bearing. Don't regress:
 
 ## External APIs
 
-- **OpenWeather** (free, key in source — public). `/weather` (current) + `/forecast` (3-hourly).
+- **Open-Meteo** (free, **no API key**, CORS-enabled). Called directly from `index.html` — `current=temperature_2m,apparent_temperature,weather_code` + `daily` hi/lo for the current card, and `hourly=temperature_2m,weather_code` (stepped every 3h, 5 cells) for the outlook. Uses London lat/lon (`WEATHER_LAT`/`WEATHER_LON`) + WMO weather codes mapped to emoji via `wmo()`. Replaced OpenWeather on 2026-07-14 to get the API key out of this public source (no proxy/env/rotation needed since it's keyless).
 - **TfL** at `api.tfl.gov.uk/Line/{id}/Status` — **no auth needed** for line status. Severity scale: `≥10` Good, `7-9` Minor, `≤6` Severe. Bus 102 has no AVL feed → use `/Line/102/Timetable/{stopId}` for scheduled times rendered as countdown fallback.
 - **Calendar** via `family-dashboard-proxy` Vercel function (`ICAL_URLS` comma-separated + `ICAL_LABELS` parallel labels).
 - **Google Apps Script** for shared to-dos (endpoint hard-coded in `index.html`).

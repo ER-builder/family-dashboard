@@ -2079,8 +2079,10 @@
 
   <script>
     // ---------- Config ----------
-    const OPENWEATHER_API_KEY = "49fa7d892311cf0a36c08bbcf4204107";
-    const CITY = "London,uk";
+    // Weather via Open-Meteo — free, no API key, CORS-enabled (2026-07-14).
+    // Replaced OpenWeather, whose key had to sit in this public source. Keyless
+    // now, so nothing to leak, proxy, or rotate. London coords.
+    const WEATHER_LAT = 51.5074, WEATHER_LON = -0.1278;
     const TZ = "Europe/London";
 
     // ---------- HTML escape (used anywhere we inject API-sourced strings) ----------
@@ -2134,70 +2136,92 @@
     // case we ever want a read-only "today's notes" callout.
 
     // ---------- Weather ----------
-    const ICONS = {
-      "01": "☀️", "02": "🌤️", "03": "⛅", "04": "☁️",
-      "09": "🌧️", "10": "🌦️", "11": "⛈️", "13": "❄️", "50": "🌫️"
-    };
+    // WMO weather codes (Open-Meteo) → emoji + label. Ranges collapse to one
+    // glyph for kitchen-distance glanceability.
+    function wmo(code) {
+      const c = Number(code);
+      if (c === 0) return { icon: "☀️", desc: "clear sky" };
+      if (c === 1) return { icon: "🌤️", desc: "mainly clear" };
+      if (c === 2) return { icon: "⛅", desc: "partly cloudy" };
+      if (c === 3) return { icon: "☁️", desc: "overcast" };
+      if (c === 45 || c === 48) return { icon: "🌫️", desc: "fog" };
+      if (c >= 51 && c <= 57) return { icon: "🌦️", desc: "drizzle" };
+      if (c >= 61 && c <= 67) return { icon: "🌧️", desc: "rain" };
+      if (c >= 71 && c <= 77) return { icon: "❄️", desc: "snow" };
+      if (c >= 80 && c <= 82) return { icon: "🌦️", desc: "rain showers" };
+      if (c === 85 || c === 86) return { icon: "❄️", desc: "snow showers" };
+      if (c === 95) return { icon: "⛈️", desc: "thunderstorm" };
+      if (c === 96 || c === 99) return { icon: "⛈️", desc: "thunderstorm, hail" };
+      return { icon: "🌡️", desc: "" };
+    }
+    // Precipitation WMO codes — used to highlight "will it rain?" hourly cells.
+    function isWetCode(c) {
+      c = Number(c);
+      return (c >= 51 && c <= 67) || (c >= 80 && c <= 82) || c >= 95;
+    }
     async function loadWeather() {
-      if (!OPENWEATHER_API_KEY || OPENWEATHER_API_KEY === "YOUR_API_KEY") {
-        document.getElementById("w-desc").textContent = "Add OpenWeather API key";
-        return;
-      }
       try {
-        const url = `https://api.openweathermap.org/data/2.5/weather?q=${encodeURIComponent(CITY)}&appid=${OPENWEATHER_API_KEY}&units=metric`;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${WEATHER_LAT}&longitude=${WEATHER_LON}`
+          + `&current=temperature_2m,apparent_temperature,weather_code`
+          + `&daily=temperature_2m_max,temperature_2m_min&timezone=${encodeURIComponent(TZ)}&forecast_days=1`;
         const res = await fetch(url);
         if (!res.ok) throw new Error("HTTP " + res.status);
         const d = await res.json();
-        const code = (d.weather?.[0]?.icon || "01d").slice(0, 2);
-        document.getElementById("w-icon").textContent = ICONS[code] || "🌡️";
-        document.getElementById("w-temp").textContent = Math.round(d.main.temp) + "°";
-        document.getElementById("w-desc").textContent = d.weather?.[0]?.description || "";
+        const cur = d.current || {};
+        const w = wmo(cur.weather_code);
+        document.getElementById("w-icon").textContent = w.icon;
+        document.getElementById("w-temp").textContent = Math.round(cur.temperature_2m) + "°";
+        document.getElementById("w-desc").textContent = w.desc;
         // Hi/Lo/Feels elements removed from the markup — guard against null.
         const hi = document.getElementById("w-hi");
         const lo = document.getElementById("w-lo");
         const fl = document.getElementById("w-feels");
-        if (hi) hi.textContent = Math.round(d.main.temp_max) + "°";
-        if (lo) lo.textContent = Math.round(d.main.temp_min) + "°";
-        if (fl) fl.textContent = Math.round(d.main.feels_like) + "°";
+        if (hi && d.daily) hi.textContent = Math.round(d.daily.temperature_2m_max[0]) + "°";
+        if (lo && d.daily) lo.textContent = Math.round(d.daily.temperature_2m_min[0]) + "°";
+        if (fl) fl.textContent = Math.round(cur.apparent_temperature) + "°";
       } catch (err) {
         document.getElementById("w-desc").textContent = "Weather unavailable";
       }
     }
     async function loadHourly() {
-      if (!OPENWEATHER_API_KEY || OPENWEATHER_API_KEY === "YOUR_API_KEY") return;
-      // 5 future cells from OpenWeather's 3-hourly forecast. NOW is dropped —
-      // the big current-temp number already shows it, and the duplicate cell
-      // visually overlapped the temp digits at 1280×800.
+      // 5 future cells from Open-Meteo's hourly series, stepped every 3h to
+      // mirror the old 3-hourly outlook. NOW is dropped — the big current-temp
+      // number already shows it, and the duplicate cell visually overlapped the
+      // temp digits at 1280×800.
       const target = document.getElementById("w-outlook");
       if (!target) return;
       try {
-        const url = `https://api.openweathermap.org/data/2.5/forecast?q=${encodeURIComponent(CITY)}&appid=${OPENWEATHER_API_KEY}&units=metric&cnt=5`;
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${WEATHER_LAT}&longitude=${WEATHER_LON}`
+          + `&hourly=temperature_2m,weather_code&timezone=${encodeURIComponent(TZ)}&forecast_days=2`;
         const res = await fetch(url);
         if (!res.ok) throw new Error("HTTP " + res.status);
         const d = await res.json();
+        const times = d.hourly?.time || [];
+        const temps = d.hourly?.temperature_2m || [];
+        const codes = d.hourly?.weather_code || [];
+        // Times are London-local ISO ("2026-07-14T18:00"); Terry runs in London
+        // tz so browser-local parse == London. Find the first future hour.
+        const nowMs = Date.now();
+        let start = times.findIndex(t => new Date(t).getTime() > nowMs);
+        if (start < 0) start = 0;
         target.textContent = "";
-        (d.list || []).slice(0, 5).forEach(item => {
+        for (let n = 0, i = start; n < 5 && i < times.length; n++, i += 3) {
+          const w = wmo(codes[i]);
           const cell = document.createElement("div");
           cell.className = "h";
-          // Highlight rain (10/09/11) so "will it rain at 3pm?" pops
-          const code = (item.weather && item.weather[0] && item.weather[0].icon) ? item.weather[0].icon.slice(0, 2) : "01";
-          if (code === "09" || code === "10" || code === "11") cell.classList.add("rain");
+          if (isWetCode(codes[i])) cell.classList.add("rain");
           const when = document.createElement("div");
           when.className = "when";
-          // Format as HH:MM in London time — clearer than "Xh" suffix.
-          const hhmm = new Intl.DateTimeFormat("en-GB", {
-            timeZone: TZ, hour: "2-digit", minute: "2-digit", hour12: false
-          }).format(new Date(item.dt * 1000));
-          when.textContent = hhmm;
+          when.textContent = String(times[i]).slice(11, 16); // "HH:MM" London-local
           const ic = document.createElement("div");
           ic.className = "icon";
-          ic.textContent = ICONS[code] || "🌡";
+          ic.textContent = w.icon;
           const t = document.createElement("div");
           t.className = "t";
-          t.textContent = Math.round(item.main.temp) + "°";
+          t.textContent = Math.round(temps[i]) + "°";
           cell.append(when, ic, t);
           target.appendChild(cell);
-        });
+        }
       } catch (err) {
         // Hourly is nice-to-have — fail quietly
       }
