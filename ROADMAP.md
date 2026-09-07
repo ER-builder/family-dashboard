@@ -247,6 +247,86 @@ Dashboard polls the sheet every few minutes. Family edits on phone → shows on 
 
 ## ✅ Open Tests / Follow-ups
 
+### 2026-09-07 — FIXED (dashboard): routine checklist item 8 was clipped off the card
+
+Elul reported from the kitchen: the kids couldn't see the last checklist item
+("Pack Your Bag" in the morning, "Brush Teeth" in the evening) and couldn't
+scroll to it either — the card is deliberately non-scrolling.
+
+**Root cause:** Chromium's UA stylesheet puts `margin: 3px 3px 3px 4px` on
+`<input type="checkbox">`, and `.routine li input` never reset it. The 3px
+top + 3px bottom made every routine row render at **46px instead of the
+intended 40px** — 48px of invisible padding across 8 rows. The card needed
+475px inside a 445px panel, and `.routine { overflow: hidden }` silently ate
+the overflow rather than showing it. Two prior "tighten the padding" passes
+had been fighting this symptom without finding the 48px.
+
+**Fix (all scoped to `.routine`, nothing else on the page moves):**
+- Zeroed the checkbox's *vertical* UA margins only (`margin: 0 3px 0 4px`) —
+  horizontal ones stay, so the row's left inset and checkbox↔icon gap are
+  pixel-identical to before. Rows drop 46px → 40px.
+- Rows are now elastic: `.routine .cols` fills the card, and `li` uses
+  `flex: 1 1 0` with the `min-height: 40px` touch floor. Spare height goes
+  into bigger touch targets (41.6px today); under pressure rows give it back
+  down to 40px *before* anything can clip.
+- Bought ~19px more slack with sub-perceptual trims inside the routine card:
+  eyebrow margin 14 → 8px (scoped), `.inner` padding 10/12 → 8/8, `.kid`
+  padding 8/10 → 7/7, progress-bar bottom margin 2 → 0.
+
+**Verified headless at exactly 1280×800 with the real webfonts loaded:**
+
+| context strip | row height | last item |
+| --- | --- | --- |
+| 145px (today: 5-cell outlook + 2 arrival rows) | 41.6px | visible, 17px to spare |
+| 169px (hypothetical 3rd arrival row) | 40px (floor) | visible, 5.9px to spare |
+| before the fix | 46px | **clipped by 29px** |
+
+Both kids, both routine windows. `TFL_STOPS` has 2 entries so the 145px strip
+is the real-world worst case.
+
+**Vertical budget for whoever changes this card next:** at 1280×800 the panel
+gives the routine card ~445px. Eight rows at the 40px floor + gaps = 327px;
+everything else (topstripe, eyebrow, kid header, paddings) must stay under
+~118px. A 9th item per kid does NOT fit — it would need ~41px from elsewhere.
+
+**Shipped in the same PR — UX pass on the routine screen (Elul: "refine the
+UX and display"):**
+
+- **Corner controls get out of the way during routine windows.** `#exit-corner`
+  and `#spotify-corner` are `position: fixed` and sit on top of the primary
+  panel; the exit pill was covering 190px of the right end of Tamar's last
+  row. During morning/evening both now collapse to 48px icon-only pucks —
+  same buttons, same handlers, same corners, labels hidden by CSS on
+  `body[data-mode]`. Clearance from Tamar's last-row text went 13px → 185px,
+  and the row's lost tap area went 190px → 16px of empty right edge. Both
+  shrink together so the deliberate mirror-image pairing survives; they keep
+  their labelled pill form outside routine windows, where only the Spotify
+  card is underneath. The calendar's reserved bottom clearance dropped 64px →
+  52px to match, giving the agenda 12px more.
+- **Next-up cue.** The first unchecked row in each kid's list gets a `.next`
+  class — lifted background plus a checkbox border in that kid's accent
+  (Eitan cobalt / Tamar terracotta). Kids work top-down; this shows where they
+  are. Paint-only (background + border-color) so it cannot change row height.
+- **Progress counter 11px → 13px** — it was too small to read from across the
+  kitchen. Sits in the h3's baseline row, so it adds no height.
+- **`checkRoutineFit()` guard.** The card is `overflow: hidden`, so busting the
+  budget hides the last item with no other symptom — that is exactly why this
+  bug survived two "tighten the padding" passes. The guard runs 2.5s after
+  boot (late enough for webfonts) and on the 60s tick, `console.warn`s which
+  kid's last row is cut and by how many px, and with `?debug=fit` paints it on
+  screen. Verified silent on a healthy layout and firing on a busted one.
+
+**Docs:** fixed a contradiction in AGENTS.md while in here — two sections
+claimed `#spotify-corner` "only appears during routine windows", but that
+gating was removed in the 2026-05-17 hardening pass and the CSS has been
+`display: inline-flex` unconditionally since.
+
+- [ ] Confirm on Terry tomorrow morning that item 8 is visible for both kids.
+- [ ] Watch the kids find the Spotify puck during a routine — it's the one
+  affordance that got *less* discoverable. One line reverts just that half
+  (drop `#spotify-corner` from the compact-corner CSS block) if it bothers
+  them; the exit pill is the one that had to shrink.
+
 ### 2026-06-15 — BUG (dashboard): duplicate Spotify launch buttons, left one mis-behaves
 
 Elul observed (2026-06-15) that the dashboard sometimes shows **two Spotify buttons**, and tapping the **bottom-left** one just makes it **disappear** instead of launching Spotify — and the behavior differs when the kids' to-do / routine card is showing. Likely overlap between `#spotify-corner` (bottom-left, routine-window-gated) and the in-card "Open Spotify" launcher, with one tap path clearing the music-override / hiding itself rather than firing `kiosk://spotify/launch`. Dashboard-side only (`index.html`), not kiosk.

@@ -241,7 +241,8 @@
        last event row. Without this, "Push the bins out 30m" loses its time. */
     body[data-mode="morning"] .calendar .body,
     body[data-mode="evening"] .calendar .body {
-      padding-bottom: 64px;
+      padding-bottom: 52px;   /* was 64 — the corner pill is a 48px puck in
+                                 routine modes, so it needs less clearance */
     }
 
     /* All-day chips strip (today only) */
@@ -1500,8 +1501,11 @@
       flex-shrink: 0;
       padding: 0;
       overflow: hidden;
-      /* No max-height: kids must see all 9 items without scrolling.
-         Other cards in right column shrink to make room. */
+      /* No max-height: kids must see all 8 items without scrolling.
+         Other cards in right column shrink to make room.
+         The list self-sizes (see `.routine li` flex rules below) so the card
+         fits the panel instead of overflowing into `overflow: hidden` — which
+         is what silently ate item 8 ("Pack Your Bag") until 2026-09-07. */
     }
     .topstripe {
       height: 8px;
@@ -1525,8 +1529,11 @@
       background: rgba(20, 16, 26, 0.6);
     }
 
+    /* The routine eyebrow sits tighter than other cards' — the 8 checklist
+       rows below it are the scarce resource. Scoped so no other card moves. */
+    .routine .eyebrow { margin-bottom: 8px; }   /* was the global 14px */
     .routine .inner {
-      padding: 10px 14px 12px;   /* tightened from 12/16/14 to fit 8 items without overflow */
+      padding: 8px 14px 8px;     /* tightened from 12/16/14 to fit 8 items without overflow */
       display: flex;
       flex-direction: column;
       min-height: 0;
@@ -1537,14 +1544,16 @@
     .routine .cols {
       display: grid;
       grid-template-columns: 1fr 1fr;
+      grid-template-rows: minmax(0, 1fr);   /* let the row shrink below content */
       gap: 18px;          /* was 22 — still clear separation, less overflow risk */
+      flex: 1;            /* fill the card, so spare height goes to the rows */
       min-height: 0;
     }
 
     .routine .kid {
       --kid: var(--ochre);
       --kid-soft: var(--ochre-soft);
-      padding: 8px 10px 10px 12px;  /* was 12/12/14/14 — saved ~8px vertical */
+      padding: 7px 10px 7px 12px;   /* was 12/12/14/14 — saved ~8px vertical */
       border-radius: 14px;
       background: var(--kid-soft);
       border: 1px solid rgba(251, 240, 214, 0.10);
@@ -1553,6 +1562,7 @@
       flex-direction: column;
       gap: 4px;            /* was 6 */
       position: relative;
+      min-height: 0;       /* grid items default to a content-based minimum */
     }
     .routine .kid[data-kid^="eitan"] { --kid: var(--cobalt);     --kid-soft: var(--cobalt-soft); }
     .routine .kid[data-kid^="tamar"] { --kid: var(--terracotta); --kid-soft: var(--terracotta-soft); }
@@ -1576,7 +1586,7 @@
     .routine .kid h3 .progress {
       margin-left: auto;
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 13px;       /* was 11 — legible from across the kitchen */
       color: var(--ink-soft);
       font-weight: 400;
       font-feature-settings: "tnum" 1;
@@ -1588,7 +1598,7 @@
       border-radius: 999px;
       background: rgba(243, 231, 207, 0.07);
       overflow: hidden;
-      margin: -2px 0 2px;     /* was -2 0 4 */
+      margin: -2px 0 0;       /* was -2 0 4 */
     }
     .routine .progress-bar > span {
       display: block;
@@ -1607,6 +1617,8 @@
       display: flex;
       flex-direction: column;
       gap: 1px;
+      flex: 1;
+      min-height: 0;
     }
     .routine li {
       display: flex;
@@ -1619,6 +1631,9 @@
       cursor: pointer;
       user-select: none;
       border-radius: 9px;
+      /* Rows split the list's height evenly and never go under the 40px touch
+         floor. Growing into spare space beats leaving a gap at the bottom. */
+      flex: 1 1 0;
       min-height: 40px;
       transition: background 140ms ease, transform 100ms ease;
       color: var(--ink);
@@ -1649,6 +1664,12 @@
     }
     .routine li input[type="checkbox"] {
       appearance: none;
+      /* Chromium's UA stylesheet puts `margin: 3px 3px 3px 4px` on checkboxes.
+         Unreset, the 3px top/bottom made every 40px row render at 46px — 48px
+         of invisible padding across 8 rows, which pushed item 8 out of the
+         card. Only the vertical margins go; the horizontal ones are load-
+         bearing for the row's left inset and checkbox↔icon gap. */
+      margin: 0 3px 0 4px;
       width: 28px;
       height: 28px;
       border: 2px solid rgba(243, 231, 207, 0.32);
@@ -1675,6 +1696,12 @@
       font-size: 18px;
       font-weight: 800;
     }
+    /* The next unchecked item, in the kid's own accent. Kids work top-down,
+       so the one row that matters gets a lift and a coloured checkbox. Pure
+       paint — background + border-color only, so it can't change row height
+       and eat into the vertical budget. */
+    .routine li.next { background: rgba(243, 231, 207, 0.07); }
+    .routine li.next input[type="checkbox"] { border-color: var(--kid); }
     .routine li.done .label { color: var(--ink-dim); text-decoration: line-through; text-decoration-thickness: 1.5px; }
     .routine li.done .icon { filter: grayscale(0.7); opacity: 0.45; }
     .routine li.optional .label { font-style: italic; color: var(--ink-soft); }
@@ -1851,6 +1878,39 @@
       letter-spacing: 0.06em;
       line-height: 1;
     }
+    /* ── Corner controls during routine windows ──
+       While a routine is on, the checklist owns the panel edge to edge, and
+       both fixed corner pills sit on top of it — #exit-corner was covering
+       the right end of Tamar's last row (2026-09-07). During morning/evening
+       they collapse to icon-only pucks: same actions, same handlers, 48px
+       touch target, ~1/5th the footprint. Outside routine windows they keep
+       their labels, where nothing is underneath them. */
+    body[data-mode="morning"] #exit-corner,
+    body[data-mode="evening"] #exit-corner,
+    body[data-mode="morning"] #spotify-corner,
+    body[data-mode="evening"] #spotify-corner {
+      gap: 0;
+      padding: 12px;
+      border-radius: 50%;
+    }
+    body[data-mode="morning"] #exit-corner .exit-label,
+    body[data-mode="evening"] #exit-corner .exit-label,
+    body[data-mode="morning"] #spotify-corner .sp-corner-label,
+    body[data-mode="evening"] #spotify-corner .sp-corner-label {
+      display: none;
+    }
+    /* 22px glyph + 12px padding + 1px border a side = 48px puck, over the
+       40px touch floor. */
+    body[data-mode="morning"] #spotify-corner .sp-corner-icon,
+    body[data-mode="evening"] #spotify-corner .sp-corner-icon {
+      font-size: 22px;
+    }
+    /* With the label gone the glyph carries the whole affordance, so it grows. */
+    body[data-mode="morning"] #exit-corner .exit-icon,
+    body[data-mode="evening"] #exit-corner .exit-icon {
+      font-size: 15px;
+    }
+
     .exit-sublabel {
       font-family: var(--mono);
       font-size: 8px;
@@ -2355,10 +2415,17 @@
         const ul = document.querySelector(`.kid[data-kid="${kid}"] ul`);
         if (!ul) return;
         const checked = loadRoutine(kid);
+        // First unchecked item — gets the `.next` cue so kids can see where
+        // they are in the list at a glance. -1 (all done) matches nothing.
+        let nextIdx = -1;
+        for (let i = 0; i < items.length; i++) {
+          if (!checked.has(i)) { nextIdx = i; break; }
+        }
         ul.innerHTML = "";
         items.forEach((label, idx) => {
           const li = document.createElement("li");
           if (checked.has(idx)) li.classList.add("done");
+          if (idx === nextIdx) li.classList.add("next");
           if (label.startsWith("(Optional")) li.classList.add("optional");
 
           const icon = document.createElement("span");
@@ -2394,6 +2461,43 @@
         maybeCelebrate(kid, checked.size === items.length, kidEl);
       });
     }
+    // ---------- Routine fit guard ----------
+    // `.routine` is `overflow: hidden`, so busting the vertical budget hides
+    // the last checklist item with no other symptom — exactly the 2026-09-07
+    // bug. This says so out loud instead. Console-only: no DOM, no layout
+    // cost on Terry, and `?debug=fit` puts it on screen when testing.
+    function checkRoutineFit() {
+      // Indexed loops on purpose — NodeList.forEach / for..of are not used
+      // anywhere else in this file, and Portal's WebView is old.
+      const cards = document.querySelectorAll(".primary-panel > .routine");
+      let card = null;
+      for (let i = 0; i < cards.length; i++) {
+        if (cards[i].offsetParent !== null) { card = cards[i]; break; }
+      }
+      if (!card) return;   // no routine card on screen right now
+      const cardBottom = card.getBoundingClientRect().bottom;
+      const kids = card.querySelectorAll(".kid");
+      let worst = 0, who = "";
+      for (let k = 0; k < kids.length; k++) {
+        const items = kids[k].querySelectorAll("li");
+        if (!items.length) continue;
+        const cut = items[items.length - 1].getBoundingClientRect().bottom - cardBottom;
+        if (cut > worst) { worst = cut; who = kids[k].getAttribute("data-kid"); }
+      }
+      if (worst > 0.5) {
+        const msg = `Routine card overflows: ${who}'s last item is cut off by ` +
+                    `${Math.round(worst)}px. See the vertical budget in AGENTS.md.`;
+        console.warn(msg);
+        if (/[?&]debug=fit/.test(location.search)) {
+          const el = document.createElement("div");
+          el.style.cssText = "position:fixed;left:8px;bottom:70px;z-index:99999;" +
+            "background:#c8553d;color:#fff;font:700 12px/1.4 monospace;padding:6px 10px;border-radius:6px;";
+          el.textContent = msg;
+          document.body.appendChild(el);
+        }
+      }
+    }
+
     function nowMinutesLondon() {
       // Use toLocaleTimeString which is widely supported on old WebViews
       // (formatToParts can fail or be unimplemented on older Chromium).
@@ -2477,7 +2581,10 @@
     }
     renderRoutines();
     updateMode();
-    setInterval(() => { renderRoutines(); updateMode(); }, 60 * 1000);
+    setInterval(() => { renderRoutines(); updateMode(); checkRoutineFit(); }, 60 * 1000);
+    // Once after boot, late enough for the webfonts to have settled — font
+    // metrics are part of the vertical budget.
+    setTimeout(checkRoutineFit, 2500);
 
     loadWeather();
     loadHourly();
