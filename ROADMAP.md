@@ -247,6 +247,75 @@ Dashboard polls the sheet every few minutes. Family edits on phone → shows on 
 
 ## ✅ Open Tests / Follow-ups
 
+### 2026-09-07 — Stars slot out, Kan Reshet Bet live radio in
+
+Elul: "we don't really use the table stars any more — worth removing it from
+display? will we get some space back?" and separately, his wife listens to
+Kan Reshet Bet (רשת ב׳) a lot and wanted it reachable from the dashboard.
+Both land in the same slot.
+
+**On the space question — measured, because the intuition was wrong.**
+Removing Stars gives back **no vertical space at all**: the context strip is
+145px tall either way, because its height is set by the big weather
+temperature, not the Stars column. The routine card's budget is completely
+unaffected. What it gives back is **horizontal** width in the strip, and that
+turned out to be worth having on its own — the bus destinations had been
+truncating to `→ EAS…` / `→ GOLDER…`:
+
+| | before | after |
+| --- | --- | --- |
+| transit column (default view) | 265px | 323px |
+| bus destinations | truncated | **full** |
+| strip height | 145px | **145px** |
+| routine card | 8 rows @41.6px | **unchanged** |
+
+**Radio, and why it plays in-page.** Launching Chromium would have been the
+obvious route and is the wrong one: the kiosk's flat 2-min `AUTO_RETURN`
+would yank it back mid-programme (only Spotify is music-gated), and exempting
+the browser means editing `AutoReturnReceiver`, rebuilding the APK and
+adb-installing it. An `<audio>` element in the dashboard needs none of that
+and ships through the self-update.
+
+Stream URLs came off Kan's own Video.js player — `videojs.getAllPlayers()[0]
+.currentSources()` — after `.m3u8` filtering in the Network tab found nothing
+(the page uses DASH by default, and the resource-timing buffer had already
+filled). Neither the HLS nor the DASH URL carries a token or expiry, so they
+can be plain constants. That's the trick to remember if the URL ever moves.
+
+Implementation notes worth keeping:
+- Native HLS first; **hls.js from jsDelivr only on demand**, so a cold boot
+  costs nothing and an unreachable CDN can't break the dashboard.
+- 12s watchdog turns a silent failure into a visible `off air`.
+- Session token on every async callback — a late hls.js 404 can't paint an
+  error over a player that was already stopped.
+- Seeks to the live edge on load: the URL carries `dvr=7200000`, and some
+  players would otherwise start two hours behind.
+- Starting Spotify stops the radio; the self-update check won't reload while
+  radio is playing.
+- **Hidden in morning mode**, exactly as Stars was — at 1280px the morning row
+  can't fit the weather outlook, two-line transit and the button. Squeezing
+  weather collapsed the outlook cells from 40px to 10px, which is a worse
+  trade than no button for three weekday hours.
+
+**Verified headless, 23/23:** all four state transitions, tap-to-stop, Spotify
+taking over, the error path and its self-clear, no truncation of any state
+label or bus destination in either mode, radio touch target 50px, strip still
+145px in all three modes, and morning's outlook cells still 40px (no
+regression). Self-update suite re-run 9/9, layout suite unchanged.
+
+- [ ] **The one real unknown: does Portal's WebView play HLS?** Everything
+  above is verified except actual playback on Terry, which can't be tested
+  from here (the sandbox can't reach `medonecdn.net`, and desktop Chromium has
+  no native HLS either). Tap the radio button on Terry: `on air` means native
+  HLS works; a pause then `on air` means it fell back to hls.js; `off air`
+  after ~12s means neither, and the next step is inlining hls.js rather than
+  loading it from a CDN.
+- [ ] **Revoke the old Table Stars read key.** It was hard-coded in this
+  public file and is no longer served by the dashboard, but it remains in git
+  history.
+- [ ] Watch the kids find the Spotify puck during a routine — the one
+  affordance that got *less* discoverable. One line reverts just that half.
+
 ### 2026-09-07 — Dashboard self-updates now (no reboot, no cable)
 
 Found while answering "should this work on the display now?" after the
@@ -294,11 +363,6 @@ need two cycles to land, that is the first thing to look at.
 - [ ] One last manual reload (reboot Terry, or `terry restart`) to get this
   build onto the device. From then on deploys land on their own.
 - [ ] Confirm on Terry tomorrow morning that item 8 is visible for both kids.
-- [ ] Watch the kids find the Spotify puck during a routine — it's the one
-  affordance that got *less* discoverable. One line reverts just that half
-  (drop `#spotify-corner` from the compact-corner CSS block) if it bothers
-  them; the exit pill is the one that had to shrink.
-
 ### 2026-09-07 — FIXED (dashboard): routine checklist item 8 was clipped off the card
 
 Elul reported from the kitchen: the kids couldn't see the last checklist item
