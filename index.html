@@ -461,7 +461,7 @@
     .context-strip {
       flex-shrink: 0;
       display: grid;
-      grid-template-columns: minmax(0, 1.1fr) 1px minmax(0, 1.7fr) 1px minmax(0, 1fr);
+      grid-template-columns: minmax(0, 1.1fr) 1px minmax(0, 1.82fr) 1px minmax(0, 0.75fr);
       gap: 14px;
       align-items: stretch;
       padding: 14px 18px;
@@ -635,85 +635,90 @@
       font-weight: 700;
     }
 
-    /* Stars slot — 3-column grid per kid (NAME left | PRIZES center | CYCLE right)
-       with two ultra-light vertical hairlines spanning both rows so the alignment
-       reads as columnar. Internal padding keeps content off the strip dividers. */
-    .cs-stars {
+    /* ── Radio slot (took over the Stars column, 2026-09-07) ──
+       One tap = live Kan Reshet Bet in the page itself. Deliberately compact:
+       it's a control, so it doesn't need the width a readout did, and the
+       surplus went to the transit slot whose destinations were truncating. */
+    .cs-radio {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 0;
+      padding: 4px 6px;
+    }
+    .radio-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      width: 100%;
+      min-height: 48px;          /* comfortably over the 40px touch floor */
+      padding: 8px 12px;
+      background: rgba(243, 231, 207, 0.04);
+      border: 1px solid var(--rule);
+      border-radius: 12px;
+      color: var(--ink);
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+      user-select: none;
+      text-align: left;
+      transition: background 160ms ease, border-color 160ms ease, transform 100ms ease;
+    }
+    .radio-btn:active { transform: scale(0.97); }
+    .radio-glyph {
+      font-size: 15px;
+      line-height: 1;
+      width: 26px;
+      height: 26px;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      border: 1.5px solid var(--ochre);
+      color: var(--ochre);
+    }
+    .radio-text {
       display: flex;
       flex-direction: column;
-      justify-content: center;
-      gap: 8px;
+      gap: 2px;
       min-width: 0;
-      position: relative;
-      padding: 4px 10px;
     }
-    .cs-stars::before, .cs-stars::after {
-      content: "";
-      position: absolute;
-      top: 8px; bottom: 8px;
-      width: 1px;
-      background: linear-gradient(to bottom, transparent, rgba(251, 240, 214, 0.10) 25%, rgba(251, 240, 214, 0.10) 75%, transparent);
-      pointer-events: none;
-    }
-    .cs-stars::before { left: 33.33%; }
-    .cs-stars::after  { left: 66.67%; }
-    .cs-stars .kid {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      align-items: center;
-      font-family: var(--sans);
+    .radio-name {
+      font-family: var(--sans);   /* --sans already falls through to Heebo for Hebrew */
       font-size: 16px;
-    }
-    .cs-stars .kid .label {
-      font-weight: 600;
-      color: var(--ink);
-      letter-spacing: 0.005em;
-      text-align: left;
-      padding-left: 4px;
-    }
-    .cs-stars .kid .count {
-      font-family: var(--display);
-      font-size: 28px;
-      line-height: 0.9;
-      color: var(--ochre);
-      font-feature-settings: "tnum" 1;
-      text-align: center;
-      transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1);
-      display: inline-block;
-    }
-    .cs-stars .kid[data-kid="eitan"] .count { color: var(--cobalt); }
-    .cs-stars .kid[data-kid="tamar"] .count { color: var(--terracotta); }
-    .cs-stars .kid .count.pulse { transform: scale(1.22); }
-    .cs-stars .kid .count .gift {
-      font-family: var(--sans);
-      font-size: 16px;
-      vertical-align: 4px;
-      margin-right: 4px;
-      color: var(--ink-soft);
-    }
-    /* Cycle progress (X/10) — fast-moving feedback for daily stars earned.
-       Mono so it reads as a counter, not a milestone. Pulses on increment. */
-    .cs-stars .kid .cycle {
-      font-family: var(--mono);
-      font-size: 14px;
       font-weight: 700;
-      color: var(--ink-soft);
-      letter-spacing: 0.02em;
-      font-feature-settings: "tnum" 1;
-      text-align: right;
-      padding-right: 4px;
-      transition: transform 220ms cubic-bezier(0.34, 1.56, 0.64, 1), color 200ms ease;
-      display: inline-block;
+      line-height: 1.1;
+      color: var(--ink);
+      white-space: nowrap;
     }
-    .cs-stars .kid[data-kid="eitan"] .cycle.full { color: var(--cobalt); }
-    .cs-stars .kid[data-kid="tamar"] .cycle.full { color: var(--terracotta); }
-    .cs-stars .kid .cycle.pulse { transform: scale(1.18); }
-    .cs-stars .kid .cycle .star {
-      color: var(--ochre);
-      margin-right: 2px;
-      vertical-align: -1px;
+    .radio-sub {
+      font-family: var(--mono);
+      font-size: 9px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
-
+    /* Playing: the slot lights up in ochre so it reads across the kitchen. */
+    .cs-radio[data-state="playing"] .radio-btn {
+      background: var(--ochre-soft);
+      border-color: rgba(233, 180, 76, 0.45);
+    }
+    .cs-radio[data-state="playing"] .radio-glyph {
+      background: var(--ochre);
+      color: var(--paper);
+      border-color: var(--ochre);
+    }
+    .cs-radio[data-state="playing"] .radio-sub { color: var(--ochre); }
+    .cs-radio[data-state="loading"] .radio-glyph { opacity: 0.55; }
+    .cs-radio[data-state="error"] .radio-glyph {
+      border-color: var(--terracotta);
+      color: var(--terracotta);
+    }
+    .cs-radio[data-state="error"] .radio-sub { color: var(--terracotta); }
 
     /* Spotify now-playing card in primary panel (spotify mode) */
     .spotify-card {
@@ -1088,14 +1093,17 @@
     #routine-back:active { transform: scale(0.97); }
     #routine-back .arrow { font-size: 16px; line-height: 1; color: var(--ochre); }
     /* Morning mode: weather forecast is critical — give weather most of the
-       row, hide the Stars slot (kids' stars matter more in the afternoon /
-       evening). Weather expands to ~65% of the row and shows a 6-cell hourly
-       outlook strip alongside the current temp. */
+       row and hide the radio slot, exactly as the Stars slot was hidden before
+       it. Measured 2026-09-07: at 1280px the morning row cannot hold the
+       weather outlook (5 cells at a readable 40px), two-line transit AND the
+       radio button. Squeezing weather to fit the radio collapsed the outlook
+       cells to 10px, which is worse than not having the button for three
+       weekday hours. The radio is one tap away the other 21. */
     body[data-mode="morning"] .context-strip {
       grid-template-columns: minmax(0, 2.2fr) 1px minmax(0, 1fr);
     }
-    body[data-mode="morning"] .cs-stars,
-    body[data-mode="morning"] .cs-divider-stars {
+    body[data-mode="morning"] .cs-radio,
+    body[data-mode="morning"] .cs-divider-radio {
       display: none;
     }
     /* Weather contents grow to fill the new room: bigger temp, bigger icon,
@@ -1119,7 +1127,7 @@
     .w-outlook { display: none; }
     body[data-mode="spotify"] .context-strip,
     body[data-mode="todo"]    .context-strip {
-      grid-template-columns: minmax(0, 2.0fr) 1px minmax(0, 1.5fr) 1px minmax(0, 0.95fr);
+      grid-template-columns: minmax(0, 1.9fr) 1px minmax(0, 1.62fr) 1px minmax(0, 0.75fr);
     }
     body[data-mode="spotify"] .cs-weather .w-outlook,
     body[data-mode="todo"]    .cs-weather .w-outlook {
@@ -1422,87 +1430,6 @@
       border-radius: 3px;
       font-weight: 700;
       vertical-align: 1px;
-    }
-
-    /* ─────────────────────────────────────────
-       STARS CARD — Table Stars mirror (read-only)
-       Hidden during routine windows via the rule below
-       ───────────────────────────────────────── */
-    .stars { flex-shrink: 0; padding: 12px 18px; }
-    .stars .eyebrow { margin-bottom: 6px; }
-    .stars .body { gap: 10px; }
-    .stars .kid-row {
-      display: grid;
-      grid-template-columns: auto 1fr auto;
-      align-items: center;
-      gap: 14px;
-      padding: 6px 0;
-      border-bottom: 1px dashed var(--rule);
-    }
-    .stars .kid-row:last-child { border-bottom: 0; }
-    .stars .kid-id {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      min-width: 110px;
-    }
-    .stars .kid-emoji { font-size: 22px; line-height: 1; }
-    .stars .kid-name {
-      font-family: var(--sans);
-      font-size: 11px;
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-      font-weight: 700;
-      color: var(--kid-accent, var(--ink-soft));
-    }
-    .stars .prize-count {
-      display: flex;
-      align-items: baseline;
-      gap: 6px;
-      font-family: var(--display);
-      font-size: 36px;
-      line-height: 0.9;
-      letter-spacing: -0.01em;
-      color: var(--kid-accent, var(--ink));
-      font-feature-settings: "tnum" 1;
-      transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    .stars .prize-count.pulse { transform: scale(1.08); }
-    .stars .prize-count .gift { font-size: 20px; vertical-align: 2px; }
-    .stars .prize-count .times {
-      font-family: var(--sans);
-      font-size: 11px;
-      font-weight: 700;
-      color: var(--ink-dim);
-      letter-spacing: 0.1em;
-      align-self: center;
-    }
-    .stars .bar {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      gap: 4px;
-      min-width: 130px;
-    }
-    .stars .bar .pips { letter-spacing: 2px; font-size: 14px; line-height: 1; }
-    .stars .bar .pips .on  { color: var(--kid-accent, var(--ink)); }
-    .stars .bar .pips .off { color: var(--ink-faint); }
-    .stars .bar .ratio {
-      font-family: var(--mono);
-      font-size: 10px;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      color: var(--ink-dim);
-      font-feature-settings: "tnum" 1;
-    }
-    .stars .kid-row.eitan   { --kid-accent: var(--cobalt); }
-    .stars .kid-row.tamar   { --kid-accent: var(--terracotta); }
-    .stars .note {
-      font-family: var(--serif);
-      font-style: italic;
-      font-size: 12px;
-      color: var(--ink-dim);
-      padding: 4px 0 0 0;
     }
 
     /* ─────────────────────────────────────────
@@ -2038,9 +1965,19 @@
                (with SCHED chip) and the status pill remains visible. -->
           <div class="cs-arrivals" id="tfl-102-arrivals"></div>
         </div>
-        <div class="cs-divider cs-divider-stars"></div>
-        <div class="cs-stars" id="stars-body">
-          <!-- Populated by loadStars() -- keeps the same #stars-body container ID -->
+        <div class="cs-divider cs-divider-radio"></div>
+        <!-- Live radio. Took over the Table Stars slot 2026-09-07 (Stars went
+             unused; see ROADMAP). Plays in-page rather than launching a
+             browser, which the kiosk would auto-return out of after 2 min. -->
+        <div class="cs-radio">
+          <button class="radio-btn" id="radio-btn" aria-label="Play Kan Reshet Bet live radio">
+            <span class="radio-glyph" id="radio-glyph" aria-hidden="true">▶</span>
+            <span class="radio-text">
+              <span class="radio-name" id="radio-name" dir="rtl">רשת ב׳</span>
+              <span class="radio-sub" id="radio-sub">live</span>
+            </span>
+          </button>
+          <audio id="radio-audio" preload="none"></audio>
         </div>
       </section>
 
@@ -2983,87 +2920,138 @@
     loadTflArrivals();
     setInterval(loadTflArrivals, 30 * 1000); // bus arrivals every 30s
 
-    // ---------- Table Stars mirror (read-only card in the off-routine ambient slot) ----------
-    // Keyed public endpoint — the key gates a low-sensitivity summary (prize_count,
-    // cycle_progress, last_earned_at), same posture as OPENWEATHER_API_KEY above.
-    const STARS_ENDPOINT =
-      "https://tablestars.erapps.xyz/api/public/stats?key=810c212871db6636f5b773b301f4a5e7d56bc51aaf88b657";
-    const _lastPrizeCount = {}; // kid.id -> last seen prize_count (drives pulse)
-    const _lastCycleProgress = {}; // kid.id -> last seen cycle_progress (drives pulse)
+    // ---------- Live radio (Kan Reshet Bet) ----------
+    // Plays in the page rather than launching Chromium: a browser would be
+    // yanked back by the kiosk's flat 2-min AUTO_RETURN (only Spotify is
+    // music-gated), and exempting it would mean an APK rebuild.
+    //
+    // URLs came off Kan's own Video.js player (2026-09-07). Both formats are
+    // served from one origin and neither carries a token or expiry, so they
+    // can live here as constants. HLS is what we use — Android's media stack
+    // handles it natively in most builds; hls.js is the fallback for when it
+    // doesn't, fetched only on demand so it costs nothing at boot.
+    const RADIO_HLS  = "https://kancdn.medonecdn.net/livehls/oil/kancdn-live/live/radio/kan_reshet_bet/live.livx/playlist.m3u8?renditions&dvr=7200000";
+    const RADIO_HLSJS = "https://cdn.jsdelivr.net/npm/hls.js@1/dist/hls.min.js";
 
-    function slugKid(name) {
-      return (name || "").toLowerCase().replace(/[^a-z]/g, "");
-    }
+    (function() {
+      const wrap  = document.querySelector(".cs-radio");
+      const btn   = document.getElementById("radio-btn");
+      const audio = document.getElementById("radio-audio");
+      const glyph = document.getElementById("radio-glyph");
+      const sub   = document.getElementById("radio-sub");
+      if (!wrap || !btn || !audio) return;
 
-    // Compact context-strip rendering: per-kid row with prize count (slow,
-    // celebratory milestone) AND cycle progress X/10 (fast daily-effort metric).
-    // Both pulse on increment between polls. Cycle highlights kid-accent when full.
-    function renderStars(kids) {
-      const body = document.getElementById("stars-body");
-      if (!body) return;
-      if (!kids || !kids.length) {
-        body.innerHTML = "";
-        return;
+      let hls = null;              // hls.js instance, only if we need one
+      let watchdog = null;
+      // Bumped on every play/stop. Async callbacks (script load, watchdog,
+      // media errors) capture it and no-op if they're from an attempt the
+      // user has already moved on from — otherwise a slow hls.js 404 can
+      // paint "unavailable" over a player that was stopped ages ago.
+      let session = 0;
+
+      function setState(state, label) {
+        wrap.setAttribute("data-state", state);
+        glyph.textContent = (state === "playing") ? "■" : "▶";
+        if (sub) sub.textContent = label;
       }
-      const rows = kids.map(function(k) {
-        const slug = slugKid(k.name);
-        const pc = k.prize_count || 0;
-        const cycle = Math.max(0, Math.min(10, k.cycle_progress || 0));
-        const cycleClass = "cycle" + (cycle >= 10 ? " full" : "");
-        const idAttr = escapeHtml(k.id);
-        return (
-          '<div class="kid" data-kid="' + escapeHtml(slug) + '" data-id="' + idAttr + '">' +
-            '<span class="label">' + escapeHtml(k.name || "") + '</span>' +
-            '<span class="count"><span class="gift">🎁</span>' + pc + '</span>' +
-            '<span class="' + cycleClass + '"><span class="star">⭐</span>' + cycle + '/10</span>' +
-          '</div>'
-        );
-      });
-      body.innerHTML = rows.join("");
+      setState("idle", "live");
 
-      // Pulse on increment for both metrics.
-      kids.forEach(function(k) {
-        const id = String(k.id);
-        const sel = '.kid[data-id="' + CSS.escape(id) + '"]';
+      // Public so the Spotify poll and the self-update check can see it.
+      window.__radioPlaying = function() { return wrap.getAttribute("data-state") === "playing"; };
 
-        const prevPc = _lastPrizeCount[k.id];
-        const nowPc = k.prize_count || 0;
-        if (prevPc !== undefined && nowPc > prevPc) {
-          const el = body.querySelector(sel + " .count");
-          if (el) {
-            el.classList.add("pulse");
-            setTimeout(function() { el.classList.remove("pulse"); }, 320);
-          }
-        }
-        _lastPrizeCount[k.id] = nowPc;
-
-        const prevCy = _lastCycleProgress[k.id];
-        const nowCy = Math.max(0, Math.min(10, k.cycle_progress || 0));
-        if (prevCy !== undefined && nowCy > prevCy) {
-          const el = body.querySelector(sel + " .cycle");
-          if (el) {
-            el.classList.add("pulse");
-            setTimeout(function() { el.classList.remove("pulse"); }, 320);
-          }
-        }
-        _lastCycleProgress[k.id] = nowCy;
-      });
-    }
-
-    async function loadStars() {
-      try {
-        const res = await fetch(STARS_ENDPOINT, { cache: "no-store" });
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        const data = await res.json();
-        renderStars(data && data.kids);
-      } catch (e) {
-        // Silent fail — leaves card hidden (or showing last-good state) rather than
-        // flashing an error row in the kitchen. Retry on next poll.
+      function stop() {
+        session++;
+        if (watchdog) { clearTimeout(watchdog); watchdog = null; }
+        try { audio.pause(); } catch (_) {}
+        if (hls) { try { hls.destroy(); } catch (_) {} hls = null; }
+        audio.removeAttribute("src");
+        try { audio.load(); } catch (_) {}   // release the stream
+        setState("idle", "live");
       }
-    }
-    loadStars();
-    setInterval(loadStars, 30 * 60 * 1000); // stars change 1-2x per day; 30 min is plenty
+      window.__radioStop = stop;
 
+      // Live HLS with a 2h DVR window starts at the window's beginning on some
+      // players, which would put us two hours behind. Always jump to the edge.
+      function seekToLive() {
+        try {
+          const sk = audio.seekable;
+          if (sk && sk.length) {
+            const end = sk.end(sk.length - 1);
+            if (isFinite(end) && end - audio.currentTime > 30) audio.currentTime = end - 3;
+          }
+        } catch (_) {}
+      }
+      audio.addEventListener("loadedmetadata", seekToLive);
+      audio.addEventListener("playing", function() {
+        if (watchdog) { clearTimeout(watchdog); watchdog = null; }
+        seekToLive();
+        setState("playing", "on air");
+      });
+      audio.addEventListener("error", function() { fail(session); });
+
+      function fail(my) {
+        if (my !== undefined && my !== session) return;   // stale attempt
+        if (wrap.getAttribute("data-state") === "idle") return;  // already stopped
+        if (hls) { try { hls.destroy(); } catch (_) {} hls = null; }
+        if (watchdog) { clearTimeout(watchdog); watchdog = null; }
+        try { audio.pause(); } catch (_) {}
+        setState("error", "off air");
+        console.warn("[radio] could not play", RADIO_HLS);
+        setTimeout(function() {
+          if (wrap.getAttribute("data-state") === "error") setState("idle", "live");
+        }, 6000);
+      }
+
+      function viaHlsJs(my) {
+        function attach() {
+          if (my !== session) return;
+          if (!window.Hls || !window.Hls.isSupported()) { fail(my); return; }
+          hls = new window.Hls({ liveDurationInfinity: true });
+          hls.on(window.Hls.Events.ERROR, function(_e, data) { if (data && data.fatal) fail(my); });
+          hls.loadSource(RADIO_HLS);
+          hls.attachMedia(audio);
+          audio.play().catch(function() { fail(my); });
+        }
+        if (window.Hls) { attach(); return; }
+        const tag = document.createElement("script");
+        tag.src = RADIO_HLSJS;
+        tag.onload = attach;
+        tag.onerror = function() { fail(my); };
+        document.head.appendChild(tag);
+      }
+
+      function play() {
+        const my = ++session;
+        setState("loading", "tuning…");
+        // If anything is coming out of Spotify, don't stack two sources.
+        if (typeof _spIsPlaying !== "undefined" && _spIsPlaying) {
+          try { spCommand("pause"); } catch (_) {}
+        }
+        // 12s to produce sound, else treat it as a failure rather than
+        // sitting on "connecting…" forever.
+        watchdog = setTimeout(function() {
+          if (my !== session) return;
+          if (wrap.getAttribute("data-state") !== "playing") {
+            if (!hls) viaHlsJs(my); else fail(my);
+          }
+        }, 12000);
+
+        const native = audio.canPlayType("application/vnd.apple.mpegurl") ||
+                       audio.canPlayType("application/x-mpegURL");
+        if (native) {
+          audio.src = RADIO_HLS;
+          audio.play().catch(function() { viaHlsJs(my); });
+        } else {
+          viaHlsJs(my);
+        }
+      }
+
+      btn.addEventListener("click", function() {
+        if (wrap.getAttribute("data-state") === "playing" ||
+            wrap.getAttribute("data-state") === "loading") stop();
+        else play();
+      });
+    })();
 
     // ─────────────────────────────────────────────────────────────────────────
     // SPOTIFY -- now-playing ambient card + full player card + launch button
@@ -3101,6 +3089,11 @@
 
     function renderSpotify(data) {
       _spIsPlaying = !!(data && data.isPlaying);
+      // Two audio sources at once is never what anyone wants. Spotify wins:
+      // starting it is a deliberate act, and the radio is one tap to resume.
+      if (_spIsPlaying && window.__radioPlaying && window.__radioPlaying()) {
+        try { window.__radioStop(); } catch (_) {}
+      }
       const cardEl = document.getElementById("spotify-card");
 
       // Music override: false\u2192true transition during a routine should swap
@@ -3536,6 +3529,7 @@
 
       function blockedBy() {
         if (_spIsPlaying) return "music playing";
+        if (window.__radioPlaying && window.__radioPlaying()) return "radio playing";
         if (document.body.getAttribute("data-music-override") === "true") return "music override";
         if (Date.now() - lastInteractionAt < QUIET_MS) return "someone is tapping";
         if (Date.now() - lastReloadAt() < MIN_RELOAD_GAP_MS) return "reloaded recently";
