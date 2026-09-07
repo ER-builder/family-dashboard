@@ -247,6 +247,57 @@ Dashboard polls the sheet every few minutes. Family edits on phone → shows on 
 
 ## ✅ Open Tests / Follow-ups
 
+### 2026-09-07 — FIXED (dashboard): routine checklist item 8 was clipped off the card
+
+Elul reported from the kitchen: the kids couldn't see the last checklist item
+("Pack Your Bag" in the morning, "Brush Teeth" in the evening) and couldn't
+scroll to it either — the card is deliberately non-scrolling.
+
+**Root cause:** Chromium's UA stylesheet puts `margin: 3px 3px 3px 4px` on
+`<input type="checkbox">`, and `.routine li input` never reset it. The 3px
+top + 3px bottom made every routine row render at **46px instead of the
+intended 40px** — 48px of invisible padding across 8 rows. The card needed
+475px inside a 445px panel, and `.routine { overflow: hidden }` silently ate
+the overflow rather than showing it. Two prior "tighten the padding" passes
+had been fighting this symptom without finding the 48px.
+
+**Fix (all scoped to `.routine`, nothing else on the page moves):**
+- Zeroed the checkbox's *vertical* UA margins only (`margin: 0 3px 0 4px`) —
+  horizontal ones stay, so the row's left inset and checkbox↔icon gap are
+  pixel-identical to before. Rows drop 46px → 40px.
+- Rows are now elastic: `.routine .cols` fills the card, and `li` uses
+  `flex: 1 1 0` with the `min-height: 40px` touch floor. Spare height goes
+  into bigger touch targets (41.6px today); under pressure rows give it back
+  down to 40px *before* anything can clip.
+- Bought ~19px more slack with sub-perceptual trims inside the routine card:
+  eyebrow margin 14 → 8px (scoped), `.inner` padding 10/12 → 8/8, `.kid`
+  padding 8/10 → 7/7, progress-bar bottom margin 2 → 0.
+
+**Verified headless at exactly 1280×800 with the real webfonts loaded:**
+
+| context strip | row height | last item |
+| --- | --- | --- |
+| 145px (today: 5-cell outlook + 2 arrival rows) | 41.6px | visible, 17px to spare |
+| 169px (hypothetical 3rd arrival row) | 40px (floor) | visible, 5.9px to spare |
+| before the fix | 46px | **clipped by 29px** |
+
+Both kids, both routine windows. `TFL_STOPS` has 2 entries so the 145px strip
+is the real-world worst case.
+
+**Vertical budget for whoever changes this card next:** at 1280×800 the panel
+gives the routine card ~445px. Eight rows at the 40px floor + gaps = 327px;
+everything else (topstripe, eyebrow, kid header, paddings) must stay under
+~118px. A 9th item per kid does NOT fit — it would need ~41px from elsewhere.
+
+- [ ] Confirm on Terry tomorrow morning that item 8 is visible for both kids.
+- Note: `#exit-corner` (bottom-right, fixed) still overlaps the *empty right
+  end* of Tamar's last row. Measured: her label ends at x≈1029, the pill
+  starts at x≈1042, and her checkbox is at x≈848 — so no text or checkbox is
+  covered, but taps in that bottom-right corner hit the exit pill, not the
+  row. Pre-existing (it overlapped "Pack a Snack" before); left alone rather
+  than redesigning the exit affordance. Say the word if you want it shrunk to
+  an icon-only puck during routine windows.
+
 ### 2026-06-15 — BUG (dashboard): duplicate Spotify launch buttons, left one mis-behaves
 
 Elul observed (2026-06-15) that the dashboard sometimes shows **two Spotify buttons**, and tapping the **bottom-left** one just makes it **disappear** instead of launching Spotify — and the behavior differs when the kids' to-do / routine card is showing. Likely overlap between `#spotify-corner` (bottom-left, routine-window-gated) and the in-card "Open Spotify" launcher, with one tap path clearing the music-override / hiding itself rather than firing `kiosk://spotify/launch`. Dashboard-side only (`index.html`), not kiosk.

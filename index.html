@@ -1500,8 +1500,11 @@
       flex-shrink: 0;
       padding: 0;
       overflow: hidden;
-      /* No max-height: kids must see all 9 items without scrolling.
-         Other cards in right column shrink to make room. */
+      /* No max-height: kids must see all 8 items without scrolling.
+         Other cards in right column shrink to make room.
+         The list self-sizes (see `.routine li` flex rules below) so the card
+         fits the panel instead of overflowing into `overflow: hidden` — which
+         is what silently ate item 8 ("Pack Your Bag") until 2026-09-07. */
     }
     .topstripe {
       height: 8px;
@@ -1525,8 +1528,11 @@
       background: rgba(20, 16, 26, 0.6);
     }
 
+    /* The routine eyebrow sits tighter than other cards' — the 8 checklist
+       rows below it are the scarce resource. Scoped so no other card moves. */
+    .routine .eyebrow { margin-bottom: 8px; }   /* was the global 14px */
     .routine .inner {
-      padding: 10px 14px 12px;   /* tightened from 12/16/14 to fit 8 items without overflow */
+      padding: 8px 14px 8px;     /* tightened from 12/16/14 to fit 8 items without overflow */
       display: flex;
       flex-direction: column;
       min-height: 0;
@@ -1537,14 +1543,16 @@
     .routine .cols {
       display: grid;
       grid-template-columns: 1fr 1fr;
+      grid-template-rows: minmax(0, 1fr);   /* let the row shrink below content */
       gap: 18px;          /* was 22 — still clear separation, less overflow risk */
+      flex: 1;            /* fill the card, so spare height goes to the rows */
       min-height: 0;
     }
 
     .routine .kid {
       --kid: var(--ochre);
       --kid-soft: var(--ochre-soft);
-      padding: 8px 10px 10px 12px;  /* was 12/12/14/14 — saved ~8px vertical */
+      padding: 7px 10px 7px 12px;   /* was 12/12/14/14 — saved ~8px vertical */
       border-radius: 14px;
       background: var(--kid-soft);
       border: 1px solid rgba(251, 240, 214, 0.10);
@@ -1553,6 +1561,7 @@
       flex-direction: column;
       gap: 4px;            /* was 6 */
       position: relative;
+      min-height: 0;       /* grid items default to a content-based minimum */
     }
     .routine .kid[data-kid^="eitan"] { --kid: var(--cobalt);     --kid-soft: var(--cobalt-soft); }
     .routine .kid[data-kid^="tamar"] { --kid: var(--terracotta); --kid-soft: var(--terracotta-soft); }
@@ -1588,7 +1597,7 @@
       border-radius: 999px;
       background: rgba(243, 231, 207, 0.07);
       overflow: hidden;
-      margin: -2px 0 2px;     /* was -2 0 4 */
+      margin: -2px 0 0;       /* was -2 0 4 */
     }
     .routine .progress-bar > span {
       display: block;
@@ -1607,6 +1616,8 @@
       display: flex;
       flex-direction: column;
       gap: 1px;
+      flex: 1;
+      min-height: 0;
     }
     .routine li {
       display: flex;
@@ -1619,6 +1630,9 @@
       cursor: pointer;
       user-select: none;
       border-radius: 9px;
+      /* Rows split the list's height evenly and never go under the 40px touch
+         floor. Growing into spare space beats leaving a gap at the bottom. */
+      flex: 1 1 0;
       min-height: 40px;
       transition: background 140ms ease, transform 100ms ease;
       color: var(--ink);
@@ -1649,6 +1663,12 @@
     }
     .routine li input[type="checkbox"] {
       appearance: none;
+      /* Chromium's UA stylesheet puts `margin: 3px 3px 3px 4px` on checkboxes.
+         Unreset, the 3px top/bottom made every 40px row render at 46px — 48px
+         of invisible padding across 8 rows, which pushed item 8 out of the
+         card. Only the vertical margins go; the horizontal ones are load-
+         bearing for the row's left inset and checkbox↔icon gap. */
+      margin: 0 3px 0 4px;
       width: 28px;
       height: 28px;
       border: 2px solid rgba(243, 231, 207, 0.32);

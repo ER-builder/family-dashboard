@@ -30,6 +30,8 @@ URL: https://er-builder.github.io/family-dashboard/ (GitHub Pages, public). Auto
 
 **Routines:** time-windowed (morning 06–09 weekdays only; evening 15:30–20:30 every day, London tz). **8 morning + 8 evening items per kid** (TV / Dessert / Reading dropped — celebration overlay handles the "all done" moment). MUST fit without scrolling. Items at 40px min-height; checkbox 28px. Celebration triggers once per kid per day per slot when all 8 are checked.
 
+**Routine card vertical budget (measured 2026-09-07, 1280×800, real webfonts).** The primary panel gives the card ~445px. Eight rows at the 40px floor + 1px gaps = 327px, so all remaining chrome (topstripe, eyebrow, kid header, every padding) has to stay under ~118px. Rows are elastic — `.routine .cols` fills the card and `li` is `flex: 1 1 0` over `min-height: 40px`, so spare height becomes bigger touch targets (41.6px today) and gets given back down to the 40px floor before anything clips. Today's slack absorbs ~30px of context-strip growth. **A 9th item per kid does not fit** — it needs ~41px reclaimed from somewhere real, not another round of padding shaving. `.routine` is `overflow: hidden`, so a budget overrun shows up as a *silently missing last item*, never as a scrollbar — measure, don't eyeball.
+
 **Testing:** append `?mode=morning|evening|spotify` to the dashboard URL to force a mode for that page load (laptop/phone preview without waiting for the time window). Normal reload reverts to time-based logic. (`?mode=todo` is also accepted as a back-compat alias for `spotify`.)
 
 ## Hard constraints
@@ -90,6 +92,7 @@ These came out of the 5.5→9.5 plan and are now load-bearing. Don't regress:
 
 ## Old WebView gotchas (Portal runs an aging Chromium)
 
+- **Reset the UA margin on `<input type="checkbox">`.** Chromium's UA stylesheet applies `margin: 3px 3px 3px 4px`. Unreset in `.routine li input`, the 3px top/bottom silently made every 40px routine row 46px — 48px across 8 rows, which pushed item 8 out of the card and under `overflow: hidden` (fixed 2026-09-07). Zero the *vertical* margins only; the horizontal ones carry the row's left inset and the checkbox↔icon gap.
 - **`element.hidden = bool` is unreliable.** Use `setAttribute("hidden","") + style.display="none"` together. Helper `setCardVisible(id, visible)` exists but is now unused — primary-panel mode switching uses CSS rules keyed off `body[data-mode]` instead.
 - **`Intl.DateTimeFormat#formatToParts` may not exist.** Use `toLocaleTimeString({timeZone})` and regex-parse, with a `getHours()` fallback. See `nowMinutesLondon()` and `londonMins()`.
 - **`:has()` selector** is risky — prefer body classes set by JS (e.g. `body[data-mode]`) for conditional layouts.
