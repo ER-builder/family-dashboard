@@ -3468,6 +3468,93 @@
         console.warn("[soft-reset] ran at", new Date().toISOString());
       } catch (_) {}
     }, 6 * 60 * 60 * 1000);
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // SELF-UPDATE (added 2026-09-07)
+    // ─────────────────────────────────────────────────────────────────────────
+    // Terry's WebView loads this page once, when MainActivity is created, and
+    // there is nothing to re-fetch it: the <meta http-equiv="refresh"> was
+    // removed in the 2026-05-17 hardening pass (it wiped Spotify state
+    // mid-track) and the 6h soft-reset above only frees memory. So a push to
+    // `main` sat live on Pages while the kitchen kept showing the old build
+    // until someone rebooted Terry or ran `terry restart` over WiFi ADB.
+    //
+    // This closes that gap without bringing the meta refresh back. The
+    // difference that matters: the old refresh reloaded blindly on a timer;
+    // this one reloads only when the deployed file's validator has actually
+    // changed AND the moment is safe. In a normal week it never fires.
+    //
+    // Safety gates, all of which must pass:
+    //   - the HEAD validator (ETag, else Last-Modified) differs from the one
+    //     seen at boot. No validator at all → never reload.
+    //   - nothing is playing (`_spIsPlaying`) and no music override is up —
+    //     this is the rule that killed the meta refresh, and it stands.
+    //   - nobody has tapped in the last QUIET_MS, so we can't reload out from
+    //     under a kid mid-checklist. (Routine ticks live in localStorage, so a
+    //     reload never loses them — this is about not flashing mid-tap.)
+    //   - at least MIN_RELOAD_GAP_MS since our last self-update reload, kept in
+    //     localStorage so it survives the reload. Guards against a loop if two
+    //     edge nodes ever disagree about the ETag.
+    // Any gate that fails just defers to the next check — nothing is lost.
+    (function() {
+      const CHECK_MS           = 10 * 60 * 1000;
+      const QUIET_MS           = 60 * 1000;
+      const MIN_RELOAD_GAP_MS  = 30 * 60 * 1000;
+      const LAST_RELOAD_KEY    = "selfUpdate:lastReload";
+
+      // Only meaningful for the deployed page. A file:// copy opened on a
+      // laptop has nothing to update to, and fetching itself there trips a
+      // CORS console error (origin "null") for no reason.
+      if (location.protocol !== "http:" && location.protocol !== "https:") return;
+
+      let baseline = null;
+      let lastInteractionAt = 0;
+
+      function touched() { lastInteractionAt = Date.now(); }
+      document.addEventListener("click", touched, true);
+      document.addEventListener("touchstart", touched, true);
+
+      function lastReloadAt() {
+        try { return parseInt(localStorage.getItem(LAST_RELOAD_KEY), 10) || 0; }
+        catch (_) { return 0; }
+      }
+
+      function blockedBy() {
+        if (_spIsPlaying) return "music playing";
+        if (document.body.getAttribute("data-music-override") === "true") return "music override";
+        if (Date.now() - lastInteractionAt < QUIET_MS) return "someone is tapping";
+        if (Date.now() - lastReloadAt() < MIN_RELOAD_GAP_MS) return "reloaded recently";
+        return null;
+      }
+
+      function check() {
+        // Cache-bust the request itself; Pages ignores the query string for
+        // static files, so the validator we get back is the real one.
+        return fetch(location.pathname + "?_selfupdate=" + Date.now(), { method: "HEAD" })
+          .then(function(res) {
+            if (!res.ok) return;
+            const stamp = res.headers.get("etag") || res.headers.get("last-modified");
+            if (!stamp) return;                  // no validator → never reload
+            if (baseline === null) { baseline = stamp; return; }
+            if (stamp === baseline) return;
+            const blocked = blockedBy();
+            if (blocked) {
+              console.warn("[self-update] new build waiting —", blocked);
+              return;
+            }
+            console.warn("[self-update] new build, reloading");
+            try { localStorage.setItem(LAST_RELOAD_KEY, String(Date.now())); } catch (_) {}
+            location.reload();
+          })
+          .catch(function() { /* offline / transient — try again next tick */ });
+      }
+
+      // Exposed for DevTools and for the headless tests: forces one check now.
+      window.__selfUpdateCheck = check;
+
+      check();                       // establish the baseline for this session
+      setInterval(check, CHECK_MS);
+    })();
   </script>
 </body>
 </html>

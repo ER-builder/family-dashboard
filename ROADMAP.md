@@ -247,6 +247,58 @@ Dashboard polls the sheet every few minutes. Family edits on phone → shows on 
 
 ## ✅ Open Tests / Follow-ups
 
+### 2026-09-07 — Dashboard self-updates now (no reboot, no cable)
+
+Found while answering "should this work on the display now?" after the
+checklist fix merged. It did not — and wouldn't have for days.
+
+**The gap:** the kiosk WebView loads the page once, when `MainActivity` is
+created, and nothing re-fetched it. The `<meta http-equiv="refresh">` was
+removed in the 2026-05-17 hardening pass (it wiped Spotify state mid-track)
+and the 6h "soft-reset" that replaced it only frees memory and re-polls — it
+never re-fetches the HTML. So every dashboard push sat live on Pages while
+the kitchen kept showing the old build until someone rebooted Terry or ran
+`terry restart` over WiFi ADB. Every change since 2026-05-17 has had this
+last mile; it just wasn't noticed because pushes were made from the Mac with
+adb to hand.
+
+**The fix:** a self-update check at the bottom of `index.html`. Every 10 min
+it `HEAD`s its own URL and compares the `ETag` (falling back to
+`Last-Modified`) against the one seen at boot. When it changes it reloads —
+but only if **every** gate passes:
+
+| gate | why |
+| --- | --- |
+| nothing playing (`_spIsPlaying`) | a reload mid-track is exactly what got the meta refresh deleted |
+| no `data-music-override` | same |
+| no tap in the last 60 s | don't reload out from under a kid mid-checklist |
+| ≥30 min since its last self-update reload | can't loop if two edge nodes disagree on the ETag |
+
+A failed gate just defers to the next check. No validator in the response →
+it never reloads. It no-ops off http/https so a `file://` copy on a laptop
+doesn't try (and doesn't log a CORS error). `window.__selfUpdateCheck()`
+forces a check from DevTools.
+
+**Verified headless** against a local server with a controllable ETag, 9/9:
+unchanged ETag never reloads; each of the four gates defers with the right
+reason logged; a clean state reloads exactly once; the gap guard blocks the
+immediate follow-up; a 500 from the server is a no-op; and the checklist
+still fits afterwards.
+
+**Nuance, not yet observed in the wild:** Pages serves HTML with a ~10 min
+`max-age`, so a reload landing inside that window *could* revalidate to the
+same cached copy. Chromium revalidates the top-level document on
+`location.reload()`, so this should be fine — but if a deploy ever seems to
+need two cycles to land, that is the first thing to look at.
+
+- [ ] One last manual reload (reboot Terry, or `terry restart`) to get this
+  build onto the device. From then on deploys land on their own.
+- [ ] Confirm on Terry tomorrow morning that item 8 is visible for both kids.
+- [ ] Watch the kids find the Spotify puck during a routine — it's the one
+  affordance that got *less* discoverable. One line reverts just that half
+  (drop `#spotify-corner` from the compact-corner CSS block) if it bothers
+  them; the exit pill is the one that had to shrink.
+
 ### 2026-09-07 — FIXED (dashboard): routine checklist item 8 was clipped off the card
 
 Elul reported from the kitchen: the kids couldn't see the last checklist item
@@ -320,12 +372,6 @@ UX and display"):**
 claimed `#spotify-corner` "only appears during routine windows", but that
 gating was removed in the 2026-05-17 hardening pass and the CSS has been
 `display: inline-flex` unconditionally since.
-
-- [ ] Confirm on Terry tomorrow morning that item 8 is visible for both kids.
-- [ ] Watch the kids find the Spotify puck during a routine — it's the one
-  affordance that got *less* discoverable. One line reverts just that half
-  (drop `#spotify-corner` from the compact-corner CSS block) if it bothers
-  them; the exit pill is the one that had to shrink.
 
 ### 2026-06-15 — BUG (dashboard): duplicate Spotify launch buttons, left one mis-behaves
 
