@@ -1848,6 +1848,30 @@
     body[data-mode="evening"] #exit-corner .exit-icon {
       font-size: 15px;
     }
+    /* Press-to-reveal (2026-09-07). Collapsing to a puck cost the exit button
+       its "HOLD TO EXIT" text — the only thing distinguishing it from the
+       Spotify puck beside it, which is a plain tap. Two identical-looking
+       controls with different interaction models is the actual confusion, so
+       pressing this one says what it wants: the puck expands back to a pill
+       reading "Hold to exit" while the ring fills. Costs nothing at rest, and
+       it can't overlap the checklist because it only exists under a finger.
+       `.holding` is added on touchstart/mousedown by the exit-hold JS. */
+    body[data-mode="morning"] #exit-corner.holding,
+    body[data-mode="evening"] #exit-corner.holding {
+      gap: 9px;
+      padding: 10px 16px 10px 11px;
+      border-radius: 999px;
+    }
+    body[data-mode="morning"] #exit-corner.holding .exit-label,
+    body[data-mode="evening"] #exit-corner.holding .exit-label {
+      display: flex;
+    }
+    /* Just the instruction while held — the "back in 2m" detail belongs to the
+       resting pill, not to a one-second press. */
+    body[data-mode="morning"] #exit-corner.holding .exit-sublabel,
+    body[data-mode="evening"] #exit-corner.holding .exit-sublabel {
+      display: none;
+    }
 
     .exit-sublabel {
       font-family: var(--mono);
@@ -1895,14 +1919,14 @@
     <span class="arrow">&#x2190;</span>
     Back to Routine
   </button>
-  <button id="exit-corner" aria-label="Hold to exit to Portal — dashboard auto-returns in 5 minutes (paused if a call is active)">
+  <button id="exit-corner" aria-label="Hold to exit to Portal — dashboard auto-returns in 2 minutes (paused if a call is active)">
     <span class="exit-ring">
       <span class="exit-fill"></span>
       <span class="exit-icon">📞</span>
     </span>
     <span class="exit-label">
       Hold to exit
-      <span class="exit-sublabel">back in 5m · pauses on calls</span>
+      <span class="exit-sublabel">back in 2m · pauses on calls</span>
     </span>
   </button>
 

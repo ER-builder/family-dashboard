@@ -247,6 +247,42 @@ Dashboard polls the sheet every few minutes. Family edits on phone → shows on 
 
 ## ✅ Open Tests / Follow-ups
 
+### 2026-09-07 — Exit puck says what it wants; stale "5m" label corrected
+
+Elul, looking at the two corner pucks: "why is calling button requires hold
+and spotify just tap? why do we have this UI split? is it wise?"
+
+**The split is right and stays.** Hold is friction priced to consequence:
+exit removes the dashboard for up to 2 min and is an adult action, while
+launching Spotify is reversible and happens many times a day. Unifying on tap
+would have kids bouncing out of the dashboard mid-checklist; unifying on hold
+would tax the most-used control to protect the rarest one.
+
+**But he was right that something was wrong** — and it was self-inflicted
+earlier the same day. Collapsing both corner buttons to 48px pucks stripped
+the exit button of its "HOLD TO EXIT" text, which was the only thing
+distinguishing it from the Spotify puck beside it. Two identical-looking
+controls with different interaction models, in exactly the mode where a kid
+is most likely to poke one. Visual symmetry implying behavioural symmetry was
+the actual defect, not the hold.
+
+**Fix: press-to-reveal.** Pressing the exit puck expands it back to a pill
+reading "Hold to exit" while the ring fills. Pure CSS on `#exit-corner.holding`
+— the exit-hold JS already sets that class on touchstart/mousedown, so no new
+handlers. Costs nothing at rest, and can't overlap the checklist because it
+only exists under a finger: measured 97px of clearance from the last row's
+text even while expanded.
+
+**Also: the button had been lying for four months.** It read "back in 5m" (and
+"auto-returns in 5 minutes" in its aria-label) while `AUTO_RETURN_MS` has been
+**2 min** since 2026-05-10. Both now say 2m.
+
+**Verified headless 19/19:** rests as a puck with no label in both routine
+windows, press reveals "Hold to exit", sublabel stays hidden while held,
+expands into a pill pinned to the right edge, collapses back on release, and
+outside routine windows the full pill is untouched. Layout suite, mode smoke
+and the 23-case radio suite all re-run clean.
+
 ### 2026-09-07 — Stars slot out, Kan Reshet Bet live radio in
 
 Elul: "we don't really use the table stars any more — worth removing it from
