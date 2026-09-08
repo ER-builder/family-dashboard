@@ -284,18 +284,28 @@ duration — the layout was being paid for with the thing it exists to show.
    of the routine card's silently-missing 8th item. It also blinded the fitter:
    nothing ever "overflowed", so there was nothing to trim.
 
-**Not verified on Terry.** Everything above was measured in headless Chromium at
-1280×800 with **fallback fonts** — this sandbox can't reach Google Fonts, and
-AGENTS.md is explicit that a fallback-font browser lies about fit. The adaptive
-fitter is what should absorb the difference (it held at zero overflow with type
-inflated 15% and 35%), but the first thing to do on the device is load the
-dashboard, check the calendar column, and run `window.__agendaOver()` in
-DevTools — it should be ≤ 0.
+**Verified with the real webfonts.** The first pass was measured with fallback
+fonts, which AGENTS.md rightly says proves nothing. Closed that: the browser
+still can't reach the Google Fonts CDN from CI, but `curl` can, so the real CSS
+and all 27 woff2 files were pulled down and injected via request interception —
+the same bytes the kitchen gets, only the transport differs. All five families
+load (DM Serif Display, Fraunces, Public Sans, JetBrains Mono, Heebo), and at
+1280×800: **zero overflow, zero crushed blocks, zero clipped titles, no corner
+overlap in all three modes**, with 34.7 / 5.4 / 32.7px of slack in morning /
+evening / default. Still worth a glance on the device — Portal's Chromium is
+older than CI's — and `window.__agendaOver()` in DevTools should read ≤ 0.
 
-**Open follow-up:** the detail sheet renders `ev.description` if present, but
-nobody has checked whether `family-dashboard-proxy` passes the iCal
-`DESCRIPTION` field through. If it doesn't, that is a one-line change there and
-the sheet gets richer for free.
+**Open follow-up — needs a human, or a session scoped to the other repo.** The
+detail sheet renders `ev.description` if present, but nobody has checked whether
+`family-dashboard-proxy` passes the iCal `DESCRIPTION` field through. Attempted
+2026-09-08 and blocked: this session's GitHub scope is `family-dashboard` only
+and `add_repo` wasn't available, so the proxy source could not be read. If it
+doesn't forward `DESCRIPTION`, that is a one-line change there and the sheet
+gets richer for free — the dashboard side already handles it.
+
+**Also added:** finished events are dimmed in the Today day sheet. The agenda is
+forward-looking and drops them, so "+3 more today" could open a list of 9;
+dimming what has already happened keeps the two readings consistent.
 
 ### 2026-09-07 — Exit puck says what it wants; stale "5m" label corrected
 

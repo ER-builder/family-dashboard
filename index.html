@@ -2015,6 +2015,11 @@
       touch-action: manipulation;
     }
     #cal-sheet .sh-row:last-child { border-bottom: none; }
+    /* The agenda is forward-looking and drops finished events, but a day sheet
+       is a whole day — so "+3 more today" can open a list of 9. Dimming what
+       has already happened keeps the two readings consistent at a glance. */
+    #cal-sheet .sh-row.past .t,
+    #cal-sheet .sh-row.past .n { opacity: 0.45; }
     #cal-sheet .sh-row:active { background: var(--paper-3); }
     #cal-sheet .sh-row .t {
       font-family: var(--mono);
@@ -3109,9 +3114,15 @@
 
         const list = document.createElement("div");
         list.className = "sh-list";
+        const nowM = nowMinutesLondon();
+        const isToday = dayKey(dateObj) === dayKey(new Date());
         items.forEach(function (ev) {
           const row = document.createElement("div");
           row.className = "sh-row";
+          // Only today can contain past events; tomorrow never does.
+          if (isToday && !ev.allDay && londonMins(new Date(ev.end)) <= nowM) {
+            row.className += " past";
+          }
           const tm = document.createElement("div");
           tm.className = "t";
           tm.textContent = ev.allDay ? "all day" : fmtTime(new Date(ev.start));
@@ -3467,6 +3478,11 @@
         allDay: false
       }, extra || {});
       return [
+        // Two events that already finished — they never reach the agenda (it is
+        // forward-looking) but they do reach the Today day sheet, where they
+        // must render dimmed.
+        mk(-240, 45, "School drop-off", "Family"),
+        mk(-150, 60, "Standup + sprint planning", "Elul"),
         mk(-20, 40, "\u05d4\u05de\u05e2\u05e8\u05db\u05ea \u05e9\u05dc \u05ea\u05de\u05e8 \u2014 \u05d7\u05d6\u05e8\u05d4 \u05db\u05dc\u05dc\u05d9\u05ea", "Family",
            { location: "School hall" }),
         mk(0, 0, "Bins out \u2014 recycling week", "Family", { allDay: true }),
