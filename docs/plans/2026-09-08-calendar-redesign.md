@@ -1,6 +1,14 @@
 # Calendar redesign — "fewer, bigger, tappable"
 
-**Status:** planned, not built. Raised by Elul 2026-09-08: *"The calendar is
+**Status:** SHIPPED 2026-09-08 — see the as-built notes in `ROADMAP.md` and
+`AGENTS.md`. Kept for the reasoning; where the two disagree, the as-built notes
+win. Notable deltas from this plan: the static caps became an adaptive
+`fitAgenda()` (font metrics move block heights too much for a constant), and
+three bugs turned up during measurement — no `dir` on titles, corner-button
+clearance missing outside routine modes, and agenda children flex-shrinking
+below their own content height.
+
+**Originally:** planned, not built. Raised by Elul 2026-09-08: *"The calendar is
 hard to read. Maybe make it clicked for more info? Change font size? Remove
 the tmw section?"*
 

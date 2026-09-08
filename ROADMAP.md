@@ -247,6 +247,56 @@ Dashboard polls the sheet every few minutes. Family edits on phone → shows on 
 
 ## ✅ Open Tests / Follow-ups
 
+### 2026-09-08 — Calendar redesign: fewer, bigger, tappable
+
+Elul, from a photo of Terry at 07:50: *"the calendar is hard to read. I wonder
+how can we redesign this section completely — maybe make it clicked for more
+info? Change font size? Remove the tmw section?"*
+
+**Root cause was horizontal, not vertical.** The block's `56px | 1fr | auto`
+grid plus two 20px gaps spent ~100px of a ~295px content column on the time
+cell and the duration cell, leaving the title **145px** (measured against the
+old build with the same fixture). That is why titles truncated constantly, and
+why the gap had been widened 14 → 20px to stop RTL Hebrew colliding with the
+duration — the layout was being paid for with the thing it exists to show.
+
+**Shipped:**
+- **Two-line blocks.** Title now gets **257px, +77%**, and the time grew
+  13 → 15px rather than shrinking. Same fixture: 2 clipped titles → 0.
+- **Tomorrow is a strip**, expanding to blocks only in evening mode. Reclaims
+  ~220px that was rendering 13px text nobody could read at kitchen distance.
+- **Tap for detail** (`#cal-sheet`): untruncated title, time range, duration,
+  source, location. 15s auto-dismiss. Day-sheet mode behind the Tomorrow strip
+  and both "+n more" pills, with rows that drill into a single event.
+- **`fitAgenda()`** measures and trims to fit instead of trusting a constant,
+  because block heights move with the webfonts.
+
+**Three bugs found while measuring, all fixed here:**
+1. Calendar titles had **no `dir` attribute at all**, so Hebrew rendered with an
+   LTR base direction. Now `dir="auto"`.
+2. The corner-button clearance was gated on routine modes only — a leftover
+   from when `#spotify-corner` was itself gated on them. It has been visible in
+   every mode since the 2026-05-17 hardening pass, so the agenda ran under a
+   full-size pill all day with no clearance. The redesign made it obvious by
+   putting the Tomorrow strip down there.
+3. Agenda children were **flex-shrinking below their own content height** and
+   clipping their own titles under `overflow: hidden` — the calendar's version
+   of the routine card's silently-missing 8th item. It also blinded the fitter:
+   nothing ever "overflowed", so there was nothing to trim.
+
+**Not verified on Terry.** Everything above was measured in headless Chromium at
+1280×800 with **fallback fonts** — this sandbox can't reach Google Fonts, and
+AGENTS.md is explicit that a fallback-font browser lies about fit. The adaptive
+fitter is what should absorb the difference (it held at zero overflow with type
+inflated 15% and 35%), but the first thing to do on the device is load the
+dashboard, check the calendar column, and run `window.__agendaOver()` in
+DevTools — it should be ≤ 0.
+
+**Open follow-up:** the detail sheet renders `ev.description` if present, but
+nobody has checked whether `family-dashboard-proxy` passes the iCal
+`DESCRIPTION` field through. If it doesn't, that is a one-line change there and
+the sheet gets richer for free.
+
 ### 2026-09-07 — Exit puck says what it wants; stale "5m" label corrected
 
 Elul, looking at the two corner pucks: "why is calling button requires hold
