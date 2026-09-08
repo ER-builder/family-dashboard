@@ -247,6 +247,66 @@ Dashboard polls the sheet every few minutes. Family edits on phone → shows on 
 
 ## ✅ Open Tests / Follow-ups
 
+### 2026-09-08 — Calendar redesign: fewer, bigger, tappable
+
+Elul, from a photo of Terry at 07:50: *"the calendar is hard to read. I wonder
+how can we redesign this section completely — maybe make it clicked for more
+info? Change font size? Remove the tmw section?"*
+
+**Root cause was horizontal, not vertical.** The block's `56px | 1fr | auto`
+grid plus two 20px gaps spent ~100px of a ~295px content column on the time
+cell and the duration cell, leaving the title **145px** (measured against the
+old build with the same fixture). That is why titles truncated constantly, and
+why the gap had been widened 14 → 20px to stop RTL Hebrew colliding with the
+duration — the layout was being paid for with the thing it exists to show.
+
+**Shipped:**
+- **Two-line blocks.** Title now gets **257px, +77%**, and the time grew
+  13 → 15px rather than shrinking. Same fixture: 2 clipped titles → 0.
+- **Tomorrow is a strip**, expanding to blocks only in evening mode. Reclaims
+  ~220px that was rendering 13px text nobody could read at kitchen distance.
+- **Tap for detail** (`#cal-sheet`): untruncated title, time range, duration,
+  source, location. 15s auto-dismiss. Day-sheet mode behind the Tomorrow strip
+  and both "+n more" pills, with rows that drill into a single event.
+- **`fitAgenda()`** measures and trims to fit instead of trusting a constant,
+  because block heights move with the webfonts.
+
+**Three bugs found while measuring, all fixed here:**
+1. Calendar titles had **no `dir` attribute at all**, so Hebrew rendered with an
+   LTR base direction. Now `dir="auto"`.
+2. The corner-button clearance was gated on routine modes only — a leftover
+   from when `#spotify-corner` was itself gated on them. It has been visible in
+   every mode since the 2026-05-17 hardening pass, so the agenda ran under a
+   full-size pill all day with no clearance. The redesign made it obvious by
+   putting the Tomorrow strip down there.
+3. Agenda children were **flex-shrinking below their own content height** and
+   clipping their own titles under `overflow: hidden` — the calendar's version
+   of the routine card's silently-missing 8th item. It also blinded the fitter:
+   nothing ever "overflowed", so there was nothing to trim.
+
+**Verified with the real webfonts.** The first pass was measured with fallback
+fonts, which AGENTS.md rightly says proves nothing. Closed that: the browser
+still can't reach the Google Fonts CDN from CI, but `curl` can, so the real CSS
+and all 27 woff2 files were pulled down and injected via request interception —
+the same bytes the kitchen gets, only the transport differs. All five families
+load (DM Serif Display, Fraunces, Public Sans, JetBrains Mono, Heebo), and at
+1280×800: **zero overflow, zero crushed blocks, zero clipped titles, no corner
+overlap in all three modes**, with 34.7 / 5.4 / 32.7px of slack in morning /
+evening / default. Still worth a glance on the device — Portal's Chromium is
+older than CI's — and `window.__agendaOver()` in DevTools should read ≤ 0.
+
+**Open follow-up — needs a human, or a session scoped to the other repo.** The
+detail sheet renders `ev.description` if present, but nobody has checked whether
+`family-dashboard-proxy` passes the iCal `DESCRIPTION` field through. Attempted
+2026-09-08 and blocked: this session's GitHub scope is `family-dashboard` only
+and `add_repo` wasn't available, so the proxy source could not be read. If it
+doesn't forward `DESCRIPTION`, that is a one-line change there and the sheet
+gets richer for free — the dashboard side already handles it.
+
+**Also added:** finished events are dimmed in the Today day sheet. The agenda is
+forward-looking and drops them, so "+3 more today" could open a list of 9;
+dimming what has already happened keeps the two readings consistent.
+
 ### 2026-09-07 — Exit puck says what it wants; stale "5m" label corrected
 
 Elul, looking at the two corner pucks: "why is calling button requires hold

@@ -240,12 +240,24 @@
     .calendar .body::-webkit-scrollbar { width: 5px; }
     .calendar .body::-webkit-scrollbar-thumb { background: var(--rule-strong); border-radius: 3px; }
     /* Reserve clearance at the bottom of the agenda so the fixed Spotify
-       corner button (left edge, only in routine modes) doesn't overlap the
-       last event row. Without this, "Push the bins out 30m" loses its time. */
+       corner button (bottom-left) doesn't overlap the last row. Without this,
+       "Push the bins out 30m" loses its time.
+
+       2026-09-08: this used to be gated on routine modes only — a leftover
+       from when #spotify-corner was itself gated on them. It has been visible
+       in every mode since the 2026-05-17 hardening pass, so the agenda was
+       running under a full-size pill all day with no clearance at all; the
+       redesign made it obvious by putting the Tomorrow strip down there. The
+       default-mode pill is the full labelled form and needs more room than the
+       48px routine-mode puck, hence the two values.
+
+       Sized from measured geometry at 1280×800, not folklore: the button's top
+       edge sits ~34px above the bottom of .calendar .body in default mode and
+       ~33px in routine modes, so these are that plus a few px of daylight. */
+    .calendar .body { padding-bottom: 44px; }
     body[data-mode="morning"] .calendar .body,
     body[data-mode="evening"] .calendar .body {
-      padding-bottom: 52px;   /* was 64 — the corner pill is a 48px puck in
-                                 routine modes, so it needs less clearance */
+      padding-bottom: 42px;   /* the corner pill collapses to a 48px puck here */
     }
 
     /* All-day chips strip (today only) */
@@ -276,9 +288,32 @@
     .agenda {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      /* 2026-09-08: every px of chrome here is one the fitter takes out of the
+         event count instead. Trimmed gap 8 → 7 and the section-head padding
+         8 → 4; both are pure spacing, no type size was touched. */
+      gap: 7px;
       min-height: 0;
     }
+    /* Do NOT let agenda children flex-shrink. `.card .body` is a flex column
+       with a definite height, so its descendants are flex items with the
+       default `flex-shrink: 1` — when the agenda outgrows the card, the blocks
+       silently compress *below their own content height* and, being
+       `overflow: hidden`, eat their own titles. Caught 2026-09-08: an evening
+       block reported 26.9px tall around a 24.1px title, rendering as a time
+       and a source label with a blank space where the event name should be.
+       It is the calendar's version of the routine card's silently-missing 8th
+       item, and it also blinds fitAgenda() — nothing ever "overflows", so
+       there is nothing to trim. Pinning the basis makes an overrun visible
+       geometrically, which is exactly what the fitter measures.
+
+       All three levels have to be pinned. `.calendar .body` is the flex
+       column; `.agenda` is one of its items, and was itself being squashed so
+       that its own children spilled past its box while it reported a tidy
+       height — which is how the first version of this fix still measured zero
+       overflow while blocks ran 100px past the card. */
+    .calendar .body > *,
+    .agenda > *,
+    .cal-tomorrow > * { flex: 0 0 auto; }
     .agenda .section-head {
       font-family: var(--sans);
       font-size: 10px;
@@ -286,7 +321,7 @@
       letter-spacing: 0.28em;
       text-transform: uppercase;
       color: var(--ink-dim);
-      padding: 8px 0 0;
+      padding: 4px 0 0;
     }
     .agenda .section-head.now { color: var(--terracotta); }
     .agenda .day-head {
@@ -295,9 +330,6 @@
       font-weight: 500;
       font-size: 17px;
       color: var(--ochre);
-      margin: 14px 0 4px;
-      padding-top: 14px;
-      border-top: 1px dashed var(--rule-strong);
       letter-spacing: 0.005em;
       display: flex;
       align-items: baseline;
@@ -312,26 +344,41 @@
       font-weight: 700;
       font-style: normal;
     }
+
+    /* ── Event block — TWO LINES as of 2026-09-08.
+       A compact meta row (time · duration · source) sits above a title that
+       owns the full column width.
+
+       It used to be a single `56px | 1fr | auto` grid row. At 1280px the
+       calendar column is ~352px, ~312px of content; that grid spent ~100px of
+       it on the time cell, the duration cell and two 20px gaps, leaving the
+       title ~210px — which is why titles truncated constantly and why the gap
+       had been widened 14 → 20px to stop RTL Hebrew colliding with the
+       duration. Stacking hands the title the whole ~272px AND lets the time
+       grow 13 → 15px: time is the primary scanning key on an agenda and was
+       the smallest text on the card. */
     .agenda .block {
-      display: grid;
-      grid-template-columns: 56px 1fr auto;
-      gap: 20px;   /* was 14 — more breathing room around the title cell, esp.
-                      for RTL Hebrew titles whose right edge butts against dur */
-      /* 2026-05-17: vertical padding 14 → 10 to gain 1–2 more visible events
-         per agenda without scroll. Horizontal padding unchanged. */
-      padding: 10px 16px 10px 20px;
+      display: block;
+      padding: 8px 14px 8px 20px;
       background: var(--paper-3);
       border-radius: 10px;
       border: 1px solid var(--rule);
-      align-items: center;
       overflow: hidden;
       box-shadow: 0 4px 12px -8px rgba(0, 0, 0, 0.4);
       position: relative;
+      cursor: pointer;
+      /* No 350ms tap delay, so a single `click` handler is enough — see the
+         2026-05-17 hardening notes on why we never pair click with touchend. */
+      touch-action: manipulation;
       --block-bar: var(--cobalt);
     }
+    .agenda .block:active {
+      background: var(--paper-2);
+      border-color: var(--rule-strong);
+    }
     /* Source bar is a ::before pseudo, NOT a child div — old Portal Chromium
-       auto-places abs-positioned grid children into the first track, which
-       pushes time/title/dur one column right and clips them off-card. */
+       auto-places abs-positioned grid children into the first track. The block
+       is no longer a grid, but the rule still stands: keep it a pseudo. */
     .agenda .block::before {
       content: "";
       position: absolute;
@@ -344,65 +391,144 @@
     .agenda .block.source-elul   { --block-bar: var(--cobalt); }
     .agenda .block.source-school { --block-bar: var(--sage); }
     .agenda .block.source-lior   { --block-bar: var(--terracotta); }
-    .agenda .block.past { opacity: 0.40; }
     .agenda .block.now {
       background: linear-gradient(135deg, rgba(208, 95, 72, 0.18) 0%, var(--paper-3) 70%);
       border-color: var(--terracotta);
     }
+
+    /* Meta row: time, duration, then the source label pushed to the far edge. */
+    .agenda .block .meta {
+      display: flex;
+      align-items: baseline;
+      gap: 9px;
+      margin-bottom: 3px;
+      line-height: 1.1;
+      min-width: 0;
+    }
     .agenda .block .when {
       font-family: var(--mono);
-      font-size: 13px;
+      font-size: 15px;
       color: var(--ink-soft);
       font-weight: 700;
       letter-spacing: 0.02em;
       font-feature-settings: "tnum" 1;
+      flex-shrink: 0;
     }
-    .agenda .block.now .when { color: var(--terracotta); }
+    .agenda .block.now .when { color: var(--terracotta); font-size: 16px; }
+    .agenda .block .dur {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--ink-dim);
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      flex-shrink: 0;
+    }
+    .agenda .block .src {
+      font-family: var(--sans);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--block-bar);
+      opacity: 0.85;
+      margin-left: auto;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
     .agenda .block .ti {
       font-family: var(--serif);
-      /* 2026-05-17: 16 → 19px, "now" 18 → 22 below — kitchen glance. */
-      font-size: 19px;
+      font-size: 21px;
       font-weight: 500;
       color: var(--ink);
-      line-height: 1.15;   /* was 1.25 — DM Serif Display has tall ascenders;
-                              tighter leading puts the optical center closer
-                              to the geometric center of the row */
+      line-height: 1.15;   /* DM Serif Display has tall ascenders; tighter
+                              leading centres the row optically */
       letter-spacing: -0.003em;
-      /* 2-line clamp instead of single-line ellipsis — stops long Hebrew/English
-         titles from getting cut. -webkit-line-clamp is fine on Portal Chromium. */
+      /* 2-line clamp rather than single-line ellipsis, so long Hebrew/English
+         titles degrade gracefully. Fine on Portal Chromium. */
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
       overflow: hidden;
-      min-width: 0;   /* allow grid 1fr column to actually shrink for ellipsis */
+      min-width: 0;
     }
-    .agenda .block.now .ti { font-size: 22px; font-weight: 600; }
-    /* Tomorrow blocks: keep to a single line — they're recessed and compact. */
-    .agenda .block.tomorrow .ti {
-      -webkit-line-clamp: 1;
-      white-space: nowrap;
-      text-overflow: ellipsis;
+    .agenda .block.now .ti { font-size: 24px; font-weight: 600; }
+
+    /* ── Tomorrow. Collapsed to a one-glance strip in most modes; expanded to
+       real blocks in evening mode, when tomorrow is actually what you want.
+       Before 2026-09-08 this was always six 13px blocks — ~220px of the column
+       (about 40%) spent on text that is texture, not information, at kitchen
+       distance, and the thing that pushed the agenda into a scrollbar. */
+    .cal-tomorrow {
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--rule-strong);
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      touch-action: manipulation;
     }
-    .agenda .block .dur {
-      font-family: var(--mono);
-      font-size: 10px;
-      color: var(--ink-dim);
-      font-weight: 700;
-      letter-spacing: 0.08em;
-    }
-    /* Tomorrow blocks: recessed (dimmer text, smaller title, indented, paler bg) */
-    .agenda .block.tomorrow {
-      background: rgba(40, 31, 48, 0.55);
-      border-color: var(--rule);
-      margin-left: 14px;
-    }
-    .agenda .block.tomorrow .when { color: var(--ink-dim); }
-    .agenda .block.tomorrow .ti {
+    /* Only the collapsed strip is tappable as a whole. Expanded, the taps
+       belong to the individual blocks and the day-head, so the wrapper must
+       not claim a pointer it doesn't handle. */
+    .cal-tomorrow.tappable { cursor: pointer; }
+    .cal-tomorrow .day-head { cursor: pointer; }
+    .cal-tomorrow .tsum {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      font-family: var(--sans);
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: 0.01em;
       color: var(--ink-soft);
-      font-size: 13px;       /* was 14 — fits more chars before truncation */
-      font-weight: 400;
     }
-    .agenda .block.tomorrow::before { opacity: 0.5; }
+    .cal-tomorrow .tsum .chev {
+      margin-left: auto;
+      color: var(--ochre);
+      font-size: 17px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    /* Expanded (evening) blocks: recessed, indented, single-line titles — but
+       at 15px, not the old 13px. Nothing in the agenda goes below 13px now. */
+    .cal-tomorrow .block {
+      margin-left: 14px;
+      padding-top: 7px;
+      padding-bottom: 7px;
+      background: rgba(40, 31, 48, 0.55);
+    }
+    .cal-tomorrow .block .when { color: var(--ink-dim); font-size: 13px; }
+    .cal-tomorrow .block .dur,
+    .cal-tomorrow .block .src { display: none; }
+    .cal-tomorrow .block .meta { margin-bottom: 2px; }
+    .cal-tomorrow .block .ti {
+      color: var(--ink-soft);
+      font-size: 15px;
+      font-weight: 400;
+      -webkit-line-clamp: 1;
+    }
+    .cal-tomorrow .block::before { opacity: 0.5; }
+
+    /* "+3 more today" / "+2 more" — opens the day sheet. */
+    .cal-more {
+      align-self: flex-start;
+      font-family: var(--sans);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--ochre);
+      background: var(--ochre-soft);
+      border: none;
+      border-radius: 999px;
+      padding: 7px 15px;
+      margin-top: 2px;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    .cal-more:active { opacity: 0.75; }
 
     .cal-empty, .cal-error {
       display: flex;
@@ -1680,7 +1806,9 @@
       position: fixed;
       inset: 0;
       pointer-events: none;
-      z-index: 10000;
+      /* 2026-09-08: 10000 → 10010, so an "all done!" celebration still lands
+         on top if the calendar detail sheet (10000) happens to be open. */
+      z-index: 10010;
       overflow: hidden;
     }
     .celebration .toast {
@@ -1745,6 +1873,180 @@
     @keyframes namePulse {
       0%, 100% { transform: scale(1); }
       40%      { transform: scale(1.08); }
+    }
+
+    /* ─────────────────────────────────────────
+       CALENDAR DETAIL SHEET (2026-09-08)
+       Tapping an event block, the Tomorrow strip, or a "+n more" pill opens
+       this. Modelled on .celebration — a fixed full-viewport overlay is a
+       known-good shape on Portal's Chromium.
+
+       Deliberately NO backdrop-filter (unproven on this WebView) — a solid
+       rgba scrim instead. z-index sits above the 9999 corner pucks so the
+       exit-hold gesture can't fire through the sheet; .celebration was moved
+       to 10010 so an "all done!" moment still wins.
+       ───────────────────────────────────────── */
+    #cal-sheet {
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 40px;
+      background: rgba(18, 13, 24, 0.84);
+      touch-action: manipulation;
+    }
+    #cal-sheet.open { display: flex; }
+    #cal-sheet .sheet {
+      position: relative;
+      width: min(720px, 100%);
+      max-height: 100%;
+      overflow-y: auto;
+      background: var(--paper-2);
+      border: 1px solid var(--rule-strong);
+      border-left: 5px solid var(--sheet-bar);
+      border-radius: 20px;
+      padding: 30px 34px 32px;
+      box-shadow: 0 24px 80px -20px rgba(0, 0, 0, 0.8);
+      animation: sheetPop 240ms cubic-bezier(0.34, 1.4, 0.64, 1) both;
+      --sheet-bar: var(--cobalt);
+    }
+    #cal-sheet .sheet.source-family { --sheet-bar: var(--ochre); }
+    #cal-sheet .sheet.source-elul   { --sheet-bar: var(--cobalt); }
+    #cal-sheet .sheet.source-school { --sheet-bar: var(--sage); }
+    #cal-sheet .sheet.source-lior   { --sheet-bar: var(--terracotta); }
+    @keyframes sheetPop {
+      from { opacity: 0; transform: scale(0.94) translateY(10px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+    #cal-sheet .sh-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 1px solid var(--rule-strong);
+      background: var(--paper-3);
+      color: var(--ink-soft);
+      font-family: var(--sans);
+      font-size: 20px;
+      font-weight: 700;
+      line-height: 1;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    #cal-sheet .sh-close:active { background: var(--paper-2); }
+    #cal-sheet .sh-src {
+      display: inline-block;
+      font-family: var(--sans);
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--sheet-bar);
+      margin-bottom: 14px;
+    }
+    #cal-sheet .sh-when {
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+      font-family: var(--mono);
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--ink);
+      font-feature-settings: "tnum" 1;
+      letter-spacing: 0.01em;
+      margin-bottom: 4px;
+    }
+    #cal-sheet .sh-when .d {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink-dim);
+      letter-spacing: 0.1em;
+      /* No text-transform here — this is a unit ("40m"), not a label; the
+         uppercase treatment rendered it as "40M". */
+    }
+    #cal-sheet .sh-day {
+      font-family: var(--sans);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      margin-bottom: 18px;
+    }
+    /* The whole point of the sheet: the title, uncropped. No line clamp. */
+    #cal-sheet .sh-title {
+      font-family: var(--serif);
+      font-size: clamp(28px, 3.2vw, 40px);
+      font-weight: 600;
+      line-height: 1.14;
+      color: var(--ink);
+      letter-spacing: -0.008em;
+      margin-bottom: 16px;
+    }
+    #cal-sheet .sh-loc {
+      font-family: var(--sans);
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--ink-soft);
+      line-height: 1.4;
+    }
+    #cal-sheet .sh-desc {
+      font-family: var(--serif);
+      font-size: 16px;
+      line-height: 1.5;
+      color: var(--ink-soft);
+      margin-top: 14px;
+      white-space: pre-wrap;
+    }
+    /* Day mode — the full list behind the Tomorrow strip and the "+n" pills.
+       This one MAY scroll: it is a deliberate modal, not the routine card. */
+    #cal-sheet .sh-list { margin-top: 4px; }
+    #cal-sheet .sh-row {
+      display: flex;
+      align-items: baseline;
+      gap: 16px;
+      padding: 12px 4px;
+      border-bottom: 1px solid var(--rule);
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+    #cal-sheet .sh-row:last-child { border-bottom: none; }
+    /* The agenda is forward-looking and drops finished events, but a day sheet
+       is a whole day — so "+3 more today" can open a list of 9. Dimming what
+       has already happened keeps the two readings consistent at a glance. */
+    #cal-sheet .sh-row.past .t,
+    #cal-sheet .sh-row.past .n { opacity: 0.45; }
+    #cal-sheet .sh-row:active { background: var(--paper-3); }
+    #cal-sheet .sh-row .t {
+      font-family: var(--mono);
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--ink-soft);
+      font-feature-settings: "tnum" 1;
+      flex-shrink: 0;
+      min-width: 56px;
+    }
+    #cal-sheet .sh-row .n {
+      font-family: var(--serif);
+      font-size: 19px;
+      font-weight: 500;
+      color: var(--ink);
+      line-height: 1.2;
+      min-width: 0;
+    }
+    #cal-sheet .sh-hint {
+      font-family: var(--sans);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--ink-dim);
+      margin-top: 20px;
+      opacity: 0.7;
     }
 
     /* Exit-to-Portal button — bottom-right, hold 2s to leave kiosk */
@@ -1919,6 +2221,12 @@
     <span class="arrow">&#x2190;</span>
     Back to Routine
   </button>
+  <!-- Calendar detail sheet. Empty until a block / the Tomorrow strip / a
+       "+n more" pill is tapped; see openEventSheet() + openDaySheet(). -->
+  <div id="cal-sheet" role="dialog" aria-modal="true" aria-label="Event detail" hidden>
+    <div class="sheet" id="cal-sheet-card"></div>
+  </div>
+
   <button id="exit-corner" aria-label="Hold to exit to Portal — dashboard auto-returns in 2 minutes (paused if a call is active)">
     <span class="exit-ring">
       <span class="exit-fill"></span>
@@ -2465,11 +2773,17 @@
                     `${Math.round(worst)}px. See the vertical budget in AGENTS.md.`;
         console.warn(msg);
         if (/[?&]debug=fit/.test(location.search)) {
-          const el = document.createElement("div");
-          el.style.cssText = "position:fixed;left:8px;bottom:70px;z-index:99999;" +
-            "background:#c8553d;color:#fff;font:700 12px/1.4 monospace;padding:6px 10px;border-radius:6px;";
+          // Reuse one node — this runs on the 60s tick, and appending a fresh
+          // div each time stacked a new red bar up the screen every minute.
+          let el = document.getElementById("routine-fit-warn");
+          if (!el) {
+            el = document.createElement("div");
+            el.id = "routine-fit-warn";
+            el.style.cssText = "position:fixed;left:8px;bottom:70px;z-index:99999;max-width:420px;" +
+              "background:#c8553d;color:#fff;font:700 12px/1.4 monospace;padding:6px 10px;border-radius:6px;";
+            document.body.appendChild(el);
+          }
           el.textContent = msg;
-          document.body.appendChild(el);
         }
       }
     }
@@ -2542,6 +2856,7 @@
         return "spotify";  // safe default — Spotify card always renders
       }
     }
+    let _lastMode = null;
     function updateMode() {
       const mode = pickMode();
       document.body.setAttribute("data-mode", mode);
@@ -2554,10 +2869,25 @@
       if (mode === "spotify" && document.body.getAttribute("data-music-override") === "true") {
         setMusicOverride(false);
       }
+      // 2026-09-08: the calendar is mode-aware now — Tomorrow expands in
+      // evening mode and today's cap moves with the corner-puck clearance — so
+      // a real mode change has to rebuild the agenda. From the cached payload,
+      // not the proxy. `_lastMode === null` is the boot call, before the
+      // calendar section has run; skip it, loadCalendar() renders right after.
+      if (mode !== _lastMode) {
+        const first = _lastMode === null;
+        _lastMode = mode;
+        if (!first) {
+          reflowCalendar();
+          closeSheet();   // a sheet left open across a mode flip is stale context
+        }
+      }
     }
     renderRoutines();
     updateMode();
-    setInterval(() => { renderRoutines(); updateMode(); checkRoutineFit(); }, 60 * 1000);
+    setInterval(() => {
+      renderRoutines(); updateMode(); checkRoutineFit(); reflowCalendar();
+    }, 60 * 1000);
     // Once after boot, late enough for the webfonts to have settled — font
     // metrics are part of the vertical budget.
     setTimeout(checkRoutineFit, 2500);
@@ -2597,10 +2927,16 @@
     }
 
     async function loadCalendar() {
+      // ?cal=demo renders a fixture instead of hitting the proxy — see
+      // demoEvents() below for what it covers and why.
+      try {
+        if (/[?&]cal=demo/.test(location.search)) { _calLoaded = true; renderCalendar(demoEvents()); return; }
+      } catch (_) {}
       try {
         const res = await fetch(CAL_PROXY_URL, { cache: "no-store" });
         if (!res.ok) throw new Error("HTTP " + res.status);
         const { events } = await res.json();
+        _calLoaded = true;
         renderCalendar(events || []);
       } catch (err) {
         const agenda = document.getElementById("agenda");
@@ -2633,56 +2969,265 @@
       return m === 0 ? h + "h" : h + "h " + m + "m";
     }
 
+    // Cache of the last payload. A mode flip changes how much of today we show
+    // and whether Tomorrow is expanded, so the agenda has to be rebuilt — but
+    // from memory, not another proxy round-trip. `var` on purpose: updateMode()
+    // is defined earlier in the file and would hit a `let` temporal dead zone.
+    var _calEvents = [];
+    var _calLoaded = false;   // false until a payload has actually rendered
+
+    /* Vertical budget (see AGENTS.md and docs/plans/2026-09-08-calendar-redesign.md).
+       The agenda gets ~528px, dropping to ~476px in routine modes where the
+       corner pucks reserve 52px of clearance. These caps are what keep it off
+       the scrollbar; checkAgendaFit() polices them. Give back a cap before you
+       give back a type size — the type sizes are the whole point of the
+       redesign. */
+    function todayCap(mode, hasNow) {
+      if (mode === "evening") return 2;               // tomorrow is expanded, and owns the room
+      if (mode === "morning") return hasNow ? 3 : 4;  // 52px puck clearance eats the slack
+      return hasNow ? 4 : 5;
+    }
+    const TOMORROW_EXPANDED_CAP = 3;
+
+    function dayLabelFor(d) {
+      const k = dayKey(d);
+      if (k === dayKey(new Date())) return "Today";
+      if (k === dayKey(new Date(Date.now() + 86400000))) return "Tomorrow";
+      return new Intl.DateTimeFormat("en-GB", { timeZone: TZ, weekday: "long" }).format(d);
+    }
+
+    // ── Detail sheet ────────────────────────────────────────────────────────
+    // Tapping a block / the Tomorrow strip / a "+n more" pill opens #cal-sheet.
+    // Always self-closing: in a kitchen nobody dismisses anything.
+    const SHEET_AUTO_CLOSE_MS = 15000;
+    let _sheetTimer = null;
+
+    function closeSheet() {
+      const el = document.getElementById("cal-sheet");
+      if (!el) return;
+      if (_sheetTimer) { clearTimeout(_sheetTimer); _sheetTimer = null; }
+      el.classList.remove("open");
+      // `element.hidden = bool` is unreliable on this WebView — set the
+      // attribute AND the inline style, per the old-Chromium notes.
+      el.setAttribute("hidden", "");
+      el.style.display = "none";
+    }
+
+    function openSheet(build, srcClass) {
+      const el = document.getElementById("cal-sheet");
+      const card = document.getElementById("cal-sheet-card");
+      if (!el || !card) return;
+      while (card.firstChild) card.removeChild(card.firstChild);
+      card.className = "sheet" + (srcClass || "");
+
+      const close = document.createElement("button");
+      close.className = "sh-close";
+      close.setAttribute("aria-label", "Close");
+      close.textContent = "\u00d7";
+      close.addEventListener("click", function (e) { e.stopPropagation(); closeSheet(); });
+      card.appendChild(close);
+
+      build(card);
+
+      const hint = document.createElement("div");
+      hint.className = "sh-hint";
+      hint.textContent = "Tap anywhere to close";
+      card.appendChild(hint);
+
+      el.removeAttribute("hidden");
+      el.style.display = "";
+      el.classList.add("open");
+      card.scrollTop = 0;
+
+      // Reset, never stack — a second tap must not inherit the first timer and
+      // shut the sheet a second after it opened.
+      if (_sheetTimer) clearTimeout(_sheetTimer);
+      _sheetTimer = setTimeout(closeSheet, SHEET_AUTO_CLOSE_MS);
+    }
+
+    function openEventSheet(ev) {
+      const start = new Date(ev.start);
+      openSheet(function (card) {
+        if (ev.source) {
+          const s = document.createElement("div");
+          s.className = "sh-src";
+          s.textContent = ev.source;
+          card.appendChild(s);
+        }
+        const when = document.createElement("div");
+        when.className = "sh-when";
+        if (ev.allDay) {
+          when.appendChild(document.createTextNode("All day"));
+        } else {
+          when.appendChild(document.createTextNode(
+            fmtTime(start) + " \u2013 " + fmtTime(new Date(ev.end))));
+          const d = document.createElement("span");
+          d.className = "d";
+          d.textContent = fmtDuration(start.getTime(), new Date(ev.end).getTime());
+          when.appendChild(d);
+        }
+        card.appendChild(when);
+
+        const day = document.createElement("div");
+        day.className = "sh-day";
+        day.textContent = dayLabelFor(start) + " \u00b7 " + shortDayHead(start);
+        card.appendChild(day);
+
+        // The reason the sheet exists: the title, uncropped, base direction
+        // resolved per-title so Hebrew reads correctly.
+        const t = document.createElement("div");
+        t.className = "sh-title";
+        t.setAttribute("dir", "auto");
+        t.textContent = ev.title;
+        card.appendChild(t);
+
+        if (ev.location) {
+          const loc = document.createElement("div");
+          loc.className = "sh-loc";
+          loc.setAttribute("dir", "auto");
+          loc.textContent = "\ud83d\udccd " + ev.location;
+          card.appendChild(loc);
+        }
+        // Only rendered if the proxy passes iCal DESCRIPTION through; it may
+        // not, and the sheet is fine without it.
+        if (ev.description) {
+          const de = document.createElement("div");
+          de.className = "sh-desc";
+          de.setAttribute("dir", "auto");
+          de.textContent = String(ev.description).trim().slice(0, 600);
+          card.appendChild(de);
+        }
+      }, sourceClass(ev));
+    }
+
+    function openDaySheet(label, dateObj, items) {
+      openSheet(function (card) {
+        const day = document.createElement("div");
+        day.className = "sh-day";
+        day.textContent = label + " \u00b7 " + shortDayHead(dateObj);
+        card.appendChild(day);
+
+        const t = document.createElement("div");
+        t.className = "sh-title";
+        t.textContent = items.length + (items.length === 1 ? " event" : " events");
+        card.appendChild(t);
+
+        const list = document.createElement("div");
+        list.className = "sh-list";
+        const nowM = nowMinutesLondon();
+        const isToday = dayKey(dateObj) === dayKey(new Date());
+        items.forEach(function (ev) {
+          const row = document.createElement("div");
+          row.className = "sh-row";
+          // Only today can contain past events; tomorrow never does.
+          if (isToday && !ev.allDay && londonMins(new Date(ev.end)) <= nowM) {
+            row.className += " past";
+          }
+          const tm = document.createElement("div");
+          tm.className = "t";
+          tm.textContent = ev.allDay ? "all day" : fmtTime(new Date(ev.start));
+          row.appendChild(tm);
+          const n = document.createElement("div");
+          n.className = "n";
+          n.setAttribute("dir", "auto");
+          n.textContent = ev.title;
+          row.appendChild(n);
+          // Drill into one event. stopPropagation, or the backdrop handler
+          // below closes the sheet on the way up.
+          row.addEventListener("click", function (e) {
+            e.stopPropagation();
+            openEventSheet(ev);
+          });
+          list.appendChild(row);
+        });
+        card.appendChild(list);
+      }, "");
+    }
+
+    (function initSheet() {
+      const el = document.getElementById("cal-sheet");
+      if (!el) return;
+      // Tap anywhere — backdrop or card — to close. Children that mean
+      // something else (rows, the × button) stopPropagation.
+      el.addEventListener("click", function () { closeSheet(); });
+    })();
+
+    function moreButton(label, onTap) {
+      const b = document.createElement("button");
+      b.className = "cal-more";
+      b.textContent = label;
+      b.addEventListener("click", function (e) { e.stopPropagation(); onTap(); });
+      return b;
+    }
+
+    // ── Blocks ──────────────────────────────────────────────────────────────
     function makeBlock(ev, opts) {
       opts = opts || {};
       const block = document.createElement("div");
       let cls = "block" + sourceClass(ev);
       if (opts.now) cls += " now";
-      if (opts.past) cls += " past";
-      if (opts.tomorrow) cls += " tomorrow";
       block.className = cls;
+      block.setAttribute("role", "button");
 
-      // Source-color bar is rendered via .block::before (CSS pseudo) — see CSS.
-      // Don't append a real .bar div: old Portal Chromium auto-places abs-
-      // positioned grid children into a track, shifting all real cells right.
+      // Source-color bar is rendered via .block::before (CSS pseudo). Don't
+      // append a real .bar div: old Portal Chromium auto-places abs-positioned
+      // children oddly, and it bit us here once already (2026-05-11).
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
 
       const when = document.createElement("div");
       when.className = "when";
       when.textContent = ev.allDay ? "all day" : fmtTime(new Date(ev.start));
-      block.appendChild(when);
+      meta.appendChild(when);
+
+      if (!ev.allDay) {
+        const dur = document.createElement("div");
+        dur.className = "dur";
+        dur.textContent = fmtDuration(new Date(ev.start).getTime(), new Date(ev.end).getTime());
+        meta.appendChild(dur);
+      }
+      if (ev.source) {
+        const s = document.createElement("div");
+        s.className = "src";
+        s.textContent = ev.source;
+        meta.appendChild(s);
+      }
+      block.appendChild(meta);
 
       const ti = document.createElement("div");
       ti.className = "ti";
+      // 2026-09-08: calendar titles had no `dir` at all, so Hebrew rendered
+      // with an LTR base direction and trailing punctuation/digits landed on
+      // the wrong side. `auto` resolves it per title, free.
+      ti.setAttribute("dir", "auto");
       ti.textContent = ev.title;
       block.appendChild(ti);
 
-      const dur = document.createElement("div");
-      dur.className = "dur";
-      if (ev.allDay) {
-        dur.textContent = "";
-      } else {
-        dur.textContent = fmtDuration(new Date(ev.start).getTime(), new Date(ev.end).getTime());
-      }
-      block.appendChild(dur);
-
-      if (ev.location) block.title = ev.location;
+      // Single `click` handler. Never pair it with a `touchend` that calls
+      // preventDefault() — that suppresses the synthetic click on Portal's
+      // Chromium and produces intermittent dead taps (2026-05-17 hardening).
+      // CSS carries `touch-action: manipulation` so there's no tap delay.
+      block.addEventListener("click", function () { openEventSheet(ev); });
       return block;
     }
 
     function renderCalendar(events) {
+      _calEvents = events || [];
       const allDayEl = document.getElementById("cal-allday");
       const agendaEl = document.getElementById("agenda");
       if (!allDayEl || !agendaEl) return;
       while (allDayEl.firstChild) allDayEl.removeChild(allDayEl.firstChild);
       while (agendaEl.firstChild) agendaEl.removeChild(agendaEl.firstChild);
 
+      const mode = document.body.getAttribute("data-mode") || "spotify";
       const today = dayKey(new Date());
       const tomorrowDate = new Date(Date.now() + 86400000);
       const tomorrow = dayKey(tomorrowDate);
       const todayAllDay = [];
       const todayTimed = [];
       const tomorrowItems = [];
-      for (const ev of events) {
+      for (const ev of _calEvents) {
         const start = new Date(ev.start);
         const k = dayKey(start);
         if (k === today) {
@@ -2703,7 +3248,7 @@
         allDayEl.appendChild(c);
       });
 
-      // ─── Today: split into Now / Up Next / Later
+      // ─── Today: split into Now / Up Next
       const nowMins = nowMinutesLondon();
       const happeningNow = [];
       const upcoming = [];
@@ -2715,14 +3260,14 @@
         } else if (sM > nowMins) {
           upcoming.push(ev);
         }
-        // events fully in the past are dropped from the agenda — agenda is forward-looking
+        // events fully in the past are dropped — the agenda is forward-looking
       });
 
       function addSection(label, opts, items) {
         if (!items.length) return;
         const head = document.createElement("div");
         head.className = "section-head" + (opts && opts.now ? " now" : "");
-        head.textContent = (opts && opts.now ? "▌ " : "") + label;
+        head.textContent = (opts && opts.now ? "\u258c " : "") + label;
         agendaEl.appendChild(head);
         items.forEach(ev => {
           agendaEl.appendChild(makeBlock(ev, opts || {}));
@@ -2730,21 +3275,79 @@
       }
 
       addSection("Now", { now: true }, happeningNow);
-      addSection("Up Next", {}, upcoming.slice(0, 6));
 
-      // ─── Tomorrow section (visually recessed)
+      // Rendered today-blocks in order — fitAgenda() pops from the end.
+      const todayNodes = [];
+      const cap = todayCap(mode, happeningNow.length > 0);
+      if (upcoming.length) {
+        const head = document.createElement("div");
+        head.className = "section-head";
+        head.textContent = "Up Next";
+        agendaEl.appendChild(head);
+        upcoming.slice(0, cap).forEach(function (ev) {
+          const b = makeBlock(ev, {});
+          todayNodes.push(b);
+          agendaEl.appendChild(b);
+        });
+      }
+      // Always created, so it holds its slot in the DOM: fitAgenda() only has
+      // to flip its label and visibility as it trims.
+      const todayMore = moreButton("", function () {
+        openDaySheet("Today", new Date(), todayAllDay.concat(todayTimed));
+      });
+      agendaEl.appendChild(todayMore);
+
+      const tomorrowNodes = [];
+      let tomorrowMore = null;
+
+      // ─── Tomorrow: a strip most of the day, real blocks in the evening.
       if (tomorrowItems.length) {
+        const wrap = document.createElement("div");
+        wrap.className = "cal-tomorrow";
+
         const head = document.createElement("div");
         head.className = "day-head";
         head.appendChild(document.createTextNode("Tomorrow"));
         const dot = document.createElement("span");
         dot.className = "dot";
-        dot.textContent = "· " + shortDayHead(tomorrowDate);
+        dot.textContent = "\u00b7 " + shortDayHead(tomorrowDate);
         head.appendChild(dot);
-        agendaEl.appendChild(head);
-        tomorrowItems.slice(0, 6).forEach(ev => {
-          agendaEl.appendChild(makeBlock(ev, { tomorrow: true }));
-        });
+        wrap.appendChild(head);
+
+        const openTomorrow = function () {
+          openDaySheet("Tomorrow", tomorrowDate, tomorrowItems);
+        };
+
+        if (mode === "evening") {
+          // 15:30–20:30: tomorrow is the point. Expand it, and let the head
+          // still reach the full list.
+          head.addEventListener("click", openTomorrow);
+          tomorrowItems.slice(0, TOMORROW_EXPANDED_CAP).forEach(function (ev) {
+            const b = makeBlock(ev, {});
+            tomorrowNodes.push(b);
+            wrap.appendChild(b);
+          });
+          tomorrowMore = moreButton("", openTomorrow);
+          wrap.appendChild(tomorrowMore);
+        } else {
+          const sum = document.createElement("div");
+          sum.className = "tsum";
+          const n = tomorrowItems.length;
+          let txt = n + (n === 1 ? " event" : " events");
+          const first = tomorrowItems[0];
+          if (first && !first.allDay) txt += " \u00b7 from " + fmtTime(new Date(first.start));
+          sum.appendChild(document.createTextNode(txt));
+          const chev = document.createElement("span");
+          chev.className = "chev";
+          chev.textContent = "\u203a";
+          sum.appendChild(chev);
+          wrap.appendChild(sum);
+          // Nothing inside the collapsed strip has its own handler, so one on
+          // the wrapper is the whole tap target.
+          wrap.className += " tappable";
+          wrap.addEventListener("click", openTomorrow);
+        }
+        agendaEl.appendChild(wrap);
       }
 
       if (!todayAllDay.length && !todayTimed.length && !tomorrowItems.length) {
@@ -2753,10 +3356,151 @@
         empty.textContent = "A quiet stretch ahead.";
         agendaEl.appendChild(empty);
       }
+
+      fitAgenda({
+        today:    { nodes: todayNodes,    total: upcoming.length,      pill: todayMore,    word: " more today" },
+        tomorrow: { nodes: tomorrowNodes, total: tomorrowItems.length, pill: tomorrowMore, word: " more" }
+      }, mode);
+      checkAgendaFit();
     }
 
-    // No-op kept for any external callers; the now-line lived inside the timeline view.
-    function positionNowLine() {}
+    /* The caps above are a starting point, not the answer. Titles wrap to two
+       lines unpredictably, and — the thing that has burned this repo before —
+       the webfonts have different metrics from a dev browser's fallbacks, so a
+       static cap that fits on a laptop can still clip on Terry. Render
+       optimistically, then measure and trim until it genuinely fits.
+
+       Trims tomorrow before today (today outranks it, even in the evening),
+       never drops the last block of a section, and never touches "Now".
+       Nothing is lost: trimmed events roll into the "+n more" pill. */
+    /* How far the agenda runs past the space it is allowed, in px.
+
+       NOT scrollHeight - clientHeight: Chromium leaves bottom padding out of
+       scrollHeight, so the corner-button clearance (padding-bottom on
+       .calendar .body) read as *extra* room and the fitter happily laid content
+       under the Spotify pill. Compare real geometry instead — the bottom of the
+       agenda against the bottom of the body's content box. */
+    function agendaOverflow() {
+      const body = document.getElementById("cal-body");
+      const agenda = document.getElementById("agenda");
+      if (!body || !agenda) return 0;
+      const padB = parseFloat(getComputedStyle(body).paddingBottom) || 0;
+      const limit = body.getBoundingClientRect().bottom - padB;
+      return agenda.getBoundingClientRect().bottom - limit;
+    }
+
+    function fitAgenda(sections, mode) {
+      // Who gives first. Outside the evening, tomorrow is a one-line strip with
+      // nothing to give, so this only really bites in evening mode — where
+      // tomorrow is the whole reason the section expanded, and today (already
+      // capped at 2) should shed a row before it does.
+      const order = mode === "evening"
+        ? [sections.today, sections.tomorrow]
+        : [sections.tomorrow, sections.today];
+      sections.today.floor = 1;
+      sections.tomorrow.floor = 1;
+
+      function relabel(sec) {
+        if (!sec.pill) return;
+        const hidden = sec.total - sec.nodes.length;
+        sec.pill.textContent = hidden > 0 ? "+" + hidden + sec.word : "";
+        sec.pill.style.display = hidden > 0 ? "" : "none";
+      }
+      order.forEach(relabel);
+
+      /* Strict: any overflow at all is either a scrollbar or a row hidden
+         under the corner button, and "neither of those" is the rule the whole
+         layout ladders up to. 0.5px of slack for sub-pixel rounding, and a
+         guard because every pass must remove a node — there are only ever a
+         handful, so 16 is far past enough. */
+      let guard = 16;
+      while (agendaOverflow() > 0.5 && guard-- > 0) {
+        let trimmed = false;
+        for (let i = 0; i < order.length; i++) {
+          const sec = order[i];
+          // Tomorrow may give up its last expanded block (it falls back to the
+          // head plus a "+n more" tap, which is the collapsed strip's job
+          // anyway). Today always keeps at least one.
+          if (sec.nodes.length > sec.floor) {
+            const node = sec.nodes.pop();
+            if (node.parentNode) node.parentNode.removeChild(node);
+            relabel(sec);
+            trimmed = true;
+            break;
+          }
+        }
+        if (!trimmed) {
+          // Last resort: let the expanded Tomorrow collapse to just its head
+          // and a "+n more" tap, which is what the strip does anyway.
+          if (sections.tomorrow.floor > 0) { sections.tomorrow.floor = 0; continue; }
+          break;   // genuinely nothing left — checkAgendaFit() says so
+        }
+      }
+    }
+
+    // Sibling of checkRoutineFit(). The agenda keeps `overflow-y: auto` as a
+    // safety valve — a scrollbar here is ugly, not broken, unlike the routine
+    // card — but it should never actually be needed, so say so when it is.
+    function checkAgendaFit() {
+      const over = agendaOverflow();
+      if (over <= 1) return;
+      const msg = "Calendar agenda overflows by " + Math.round(over) + "px (mode=" +
+                  (document.body.getAttribute("data-mode") || "?") + "). See the vertical " +
+                  "budget in AGENTS.md \u2014 give back an Up Next cap, not a type size.";
+      console.warn(msg);
+      if (/[?&]debug=fit/.test(location.search)) {
+        // Reuse one node: this runs on every render and every 60s tick.
+        let el = document.getElementById("agenda-fit-warn");
+        if (!el) {
+          el = document.createElement("div");
+          el.id = "agenda-fit-warn";
+          el.style.cssText = "position:fixed;left:8px;bottom:118px;z-index:99999;max-width:420px;" +
+            "background:#c8553d;color:#fff;font:700 12px/1.4 monospace;padding:6px 10px;border-radius:6px;";
+          document.body.appendChild(el);
+        }
+        el.textContent = msg;
+      }
+    }
+
+    // ?cal=demo — a fixture instead of the proxy, so the layout can be checked
+    // on a laptop at 1280×800 without waiting on real family data. Covers the
+    // cases that actually break things: a long English title, a long RTL
+    // Hebrew title, an all-day chip, a live "Now" event, and enough events to
+    // trip both "+n more" pills. Anchored to the current time, so running it
+    // across midnight gives odd results — it's a dev tool, not a feature.
+    function demoEvents() {
+      const now = Date.now();
+      const mk = (startMin, durMin, title, source, extra) => Object.assign({
+        title: title,
+        source: source,
+        start: new Date(now + startMin * 60000).toISOString(),
+        end: new Date(now + (startMin + durMin) * 60000).toISOString(),
+        allDay: false
+      }, extra || {});
+      return [
+        // Two events that already finished — they never reach the agenda (it is
+        // forward-looking) but they do reach the Today day sheet, where they
+        // must render dimmed.
+        mk(-240, 45, "School drop-off", "Family"),
+        mk(-150, 60, "Standup + sprint planning", "Elul"),
+        mk(-20, 40, "\u05d4\u05de\u05e2\u05e8\u05db\u05ea \u05e9\u05dc \u05ea\u05de\u05e8 \u2014 \u05d7\u05d6\u05e8\u05d4 \u05db\u05dc\u05dc\u05d9\u05ea", "Family",
+           { location: "School hall" }),
+        mk(0, 0, "Bins out \u2014 recycling week", "Family", { allDay: true }),
+        mk(35, 30, "Commute to the office", "Elul"),
+        mk(95, 45, "Year 4 Meet the Teacher evening", "School",
+           { location: "Room 4B, main building" }),
+        mk(150, 60, "\u05e8\u05d0\u05d9\u05d5\u05df \u05dc\u05de\u05e9\u05e8\u05ea \u05de\u05e0\u05d4\u05dc \u05d4\u05e4\u05d9\u05ea\u05d5\u05d7", "Elul"),
+        mk(220, 90, "Tamar \u2014 forest school pickup", "Lior"),
+        mk(300, 60, "Eitan \u2014 football game", "Lior"),
+        mk(380, 60, "Dinner with the Cohens", "Family"),
+        // Tomorrow
+        mk(24 * 60 - 30, 30, "\u05d4\u05de\u05e2\u05e8\u05db\u05ea", "Family"),
+        mk(24 * 60 + 30, 45, "Year 4 Meet the Teacher", "School"),
+        mk(24 * 60 + 200, 30, "Swimming lesson", "Lior"),
+        mk(24 * 60 + 330, 60, "\u05d9\u05d5\u05dd \u05d4\u05d5\u05dc\u05d3\u05ea \u05dc\u05d0\u05d9\u05ea\u05df \u2014 \u05de\u05e1\u05d9\u05d1\u05d4 \u05d1\u05d2\u05df", "Family"),
+        mk(24 * 60 + 420, 90, "Parents' evening", "School")
+      ];
+    }
 
     loadCalendar();
     // 2026-05-17: 5min → 30min. Calendar events change rarely (family adds
@@ -2764,7 +3508,30 @@
     // faster than that just wasted Vercel CPU. 30min worst-case visibility
     // lag for "wife added an event" is acceptable for a kitchen dashboard.
     setInterval(loadCalendar, 30 * 60 * 1000);
-    setInterval(positionNowLine, 60 * 1000);  // move the now-line every minute
+    /* Re-render once the webfonts have settled. Two reasons, both real:
+
+       1. Font metrics are part of the budget. Measured 2026-09-08 in headless
+          Chromium, the same demo block was 50.7px tall with the fallback stack
+          and 66.1px once the real cascade applied — fitAgenda() has to run
+          against the fonts the kitchen actually sees, not the ones present a
+          second after boot.
+       2. The Now / Up Next split was only recomputed when the calendar polled,
+          i.e. every 30 minutes. An event that started ten minutes ago sat under
+          "Up Next" until the next poll. Re-rendering on the minute tick (see
+          reflowCalendar below) fixes that for free — it is the same cached
+          payload and a handful of DOM nodes. */
+    setTimeout(reflowCalendar, 2500);
+
+    // Rebuild from the cached payload — never when a load has yet to succeed,
+    // or we would paint "A quiet stretch ahead." over "Calendar unavailable".
+    function reflowCalendar() {
+      if (!_calLoaded) return;
+      renderCalendar(_calEvents);
+    }
+    // DevTools handle, in the spirit of window.__selfUpdateCheck() — force a
+    // re-layout after poking at CSS on the device.
+    window.__calReflow = reflowCalendar;
+    window.__agendaOver = agendaOverflow;
 
     // ---------- TfL transit (Northern Line + Bus 102) ----------
     // TfL severity scale: 10 = Good Service, 9 = Minor Delays, 6 or below = Severe.
