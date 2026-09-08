@@ -467,9 +467,13 @@
       display: flex;
       flex-direction: column;
       gap: 5px;
-      cursor: pointer;
       touch-action: manipulation;
     }
+    /* Only the collapsed strip is tappable as a whole. Expanded, the taps
+       belong to the individual blocks and the day-head, so the wrapper must
+       not claim a pointer it doesn't handle. */
+    .cal-tomorrow.tappable { cursor: pointer; }
+    .cal-tomorrow .day-head { cursor: pointer; }
     .cal-tomorrow .tsum {
       display: flex;
       align-items: baseline;
@@ -2764,11 +2768,17 @@
                     `${Math.round(worst)}px. See the vertical budget in AGENTS.md.`;
         console.warn(msg);
         if (/[?&]debug=fit/.test(location.search)) {
-          const el = document.createElement("div");
-          el.style.cssText = "position:fixed;left:8px;bottom:70px;z-index:99999;" +
-            "background:#c8553d;color:#fff;font:700 12px/1.4 monospace;padding:6px 10px;border-radius:6px;";
+          // Reuse one node — this runs on the 60s tick, and appending a fresh
+          // div each time stacked a new red bar up the screen every minute.
+          let el = document.getElementById("routine-fit-warn");
+          if (!el) {
+            el = document.createElement("div");
+            el.id = "routine-fit-warn";
+            el.style.cssText = "position:fixed;left:8px;bottom:70px;z-index:99999;max-width:420px;" +
+              "background:#c8553d;color:#fff;font:700 12px/1.4 monospace;padding:6px 10px;border-radius:6px;";
+            document.body.appendChild(el);
+          }
           el.textContent = msg;
-          document.body.appendChild(el);
         }
       }
     }
@@ -2841,6 +2851,7 @@
         return "spotify";  // safe default — Spotify card always renders
       }
     }
+    let _lastMode = null;
     function updateMode() {
       const mode = pickMode();
       document.body.setAttribute("data-mode", mode);
@@ -2867,7 +2878,6 @@
         }
       }
     }
-    let _lastMode = null;
     renderRoutines();
     updateMode();
     setInterval(() => {
@@ -3323,6 +3333,7 @@
           wrap.appendChild(sum);
           // Nothing inside the collapsed strip has its own handler, so one on
           // the wrapper is the whole tap target.
+          wrap.className += " tappable";
           wrap.addEventListener("click", openTomorrow);
         }
         agendaEl.appendChild(wrap);
@@ -3386,11 +3397,11 @@
       }
       order.forEach(relabel);
 
-      // Bounded: each pass removes exactly one node, and there are only ever a
-      // handful to remove.
-      // Strict: any overflow at all means a scrollbar or a row hidden under
-      // the corner button, and "neither of those" is the rule the whole layout
-      // ladders up to. 0.5px of slack for sub-pixel rounding.
+      /* Strict: any overflow at all is either a scrollbar or a row hidden
+         under the corner button, and "neither of those" is the rule the whole
+         layout ladders up to. 0.5px of slack for sub-pixel rounding, and a
+         guard because every pass must remove a node — there are only ever a
+         handful, so 16 is far past enough. */
       let guard = 16;
       while (agendaOverflow() > 0.5 && guard-- > 0) {
         let trimmed = false;
